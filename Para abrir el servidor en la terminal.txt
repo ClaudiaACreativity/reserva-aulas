@@ -1,0 +1,4 @@
+PS C:\Windows\system32> cd C:\proyectos\reserva-aulas
+PS C:\proyectos\reserva-aulas> notepad .env
+PS C:\proyectos\reserva-aulas> notepad main.py
+PS C:\proyectos\reserva-aulas> uvicorn main:app --reload

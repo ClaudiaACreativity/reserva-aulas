@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva de Aulas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            color: #333;
+        }
+
+        header {
+            background: #1B4F8A;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header h1 { font-size: 24px; }
+        header p { font-size: 14px; opacity: 0.8; }
+
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            color: #1B4F8A;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e8f0;
+        }
+
+        .aulas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .aula-card {
+            border: 2px solid #e0e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .aula-card:hover {
+            border-color: #1B4F8A;
+            background: #f0f4f8;
+        }
+
+        .aula-card.seleccionada {
+            border-color: #1B4F8A;
+            background: #e8f0fb;
+        }
+
+        .aula-card h3 { font-size: 16px; color: #1B4F8A; }
+        .aula-card p { font-size: 13px; color: #888; margin-top: 5px; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: #1B4F8A;
+        }
+
+        .form-group.full { grid-column: 1 / -1; }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: #1B4F8A; color: white; }
+        .btn-primary:hover { background: #153d6e; }
+        .btn-danger { background: #e74c3c; color: white; font-size: 13px; padding: 7px 14px; }
+        .btn-danger:hover { background: #c0392b; }
+
+        .mensaje {
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
+        .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #1B4F8A;
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 11px 15px;
+            border-bottom: 1px solid #e0e8f0;
+        }
+
+        tr:hover td { background: #f8fafc; }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-activa { background: #d5f0e0; color: #1a5c36; }
+        .badge-cancelada { background: #fdedec; color: #c0392b; }
+
+        .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+
+        .card-admin h2 { color: #7d3c98; border-bottom-color: #d7bde2; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>🏫 Sistema de Reserva de Aulas</h1>
+        <p>Instituto — Gestión de espacios</p>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- SECCIÓN 1: AULAS -->
+    <div class="card">
+        <h2>Aulas disponibles</h2>
+        <div class="aulas-grid" id="aulas-grid">
+            <p class="empty">Cargando aulas...</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: NUEVA RESERVA -->
+    <div class="card">
+        <h2>Nueva reserva</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Aula seleccionada</label>
+                <input type="text" id="aula-nombre" placeholder="Seleccioná un aula arriba" readonly>
+                <input type="hidden" id="aula-id">
+            </div>
+            <div class="form-group">
+                <label>Tu nombre</label>
+                <input type="text" id="docente-nombre" placeholder="Ej: María García">
+            </div>
+            <div class="form-group">
+                <label>Tu email</label>
+                <input type="email" id="docente-email" placeholder="tu@instituto.edu">
+            </div>
+            <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="fecha">
+            </div>
+            <div class="form-group">
+                <label>Hora de inicio</label>
+                <input type="time" id="hora-inicio" onblur="document.getElementById('hora-fin').focus()">
+            </div>
+            <div class="form-group">
+                <label>Hora de fin</label>
+                <input type="time" id="hora-fin" onchange="document.getElementById('fecha').blur()">
+            </div>
+            <div class="form-group full">
+                <button class="btn btn-primary" onclick="crearReserva()">Reservar aula</button>
+            </div>
+        </div>
+        <div class="mensaje" id="mensaje-reserva"></div>
+    </div>
+
+    <!-- SECCIÓN 3: MIS RESERVAS -->
+    <div class="card">
+        <h2>Mis reservas</h2>
+        <div class="form-grid" style="margin-bottom:15px">
+            <div class="form-group">
+                <label>Buscar por email</label>
+                <input type="email" id="buscar-email" placeholder="tu@instituto.edu">
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="buscarReservas()">Buscar</button>
+            </div>
+        </div>
+        <div id="tabla-reservas">
+            <p class="empty">Ingresá tu email para ver tus reservas</p>
+        </div>
+        <div class="mensaje" id="mensaje-cancelar"></div>
+    </div>
+
+    <!-- SECCIÓN 4: ADMINISTRACIÓN DE FECHAS -->
+    <div class="card card-admin">
+        <h2>🔒 Administración — Fechas bloqueadas</h2>
+        <div class="form-grid" style="margin-bottom: 15px;">
+            <div class="form-group">
+                <label>Fecha a bloquear</label>
+                <input type="date" id="fecha-bloquear">
+            </div>
+            <div class="form-group">
+                <label>Motivo</label>
+                <input type="text" id="motivo-bloquear" placeholder="Ej: Feriado nacional, Vacaciones">
+            </div>
+            <div class="form-group full">
+                <button class="btn btn-primary" onclick="agregarFechaBloqueada()">Bloquear fecha</button>
+            </div>
+        </div>
+        <div class="mensaje" id="mensaje-admin"></div>
+        <div id="tabla-fechas-bloqueadas">
+            <p class="empty">Cargando fechas bloqueadas...</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+
+// ===== CARGAR AULAS =====
+async function cargarAulas() {
+    try {
+        const res = await fetch(`${API}/aulas`);
+        const aulas = await res.json();
+        const grid = document.getElementById('aulas-grid');
+
+        if (aulas.length === 0) {
+            grid.innerHTML = '<p class="empty">No hay aulas disponibles</p>';
+            return;
+        }
+
+        grid.innerHTML = aulas.map(a => `
+            <div class="aula-card" onclick="seleccionarAula('${a.id}', '${a.nombre}', this)">
+                <h3>${a.nombre}</h3>
+                <p>Capacidad: ${a.capacidad}</p>
+                <p>${a.edificio}</p>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('aulas-grid').innerHTML = '<p class="empty">Error al cargar aulas</p>';
+    }
+}
+
+function seleccionarAula(id, nombre, el) {
+    document.querySelectorAll('.aula-card').forEach(c => c.classList.remove('seleccionada'));
+    el.classList.add('seleccionada');
+    document.getElementById('aula-id').value = id;
+    document.getElementById('aula-nombre').value = nombre;
+}
+
+// ===== CREAR RESERVA =====
+async function crearReserva() {
+    const aulaId = document.getElementById('aula-id').value;
+    const nombre = document.getElementById('docente-nombre').value.trim();
+    const email = document.getElementById('docente-email').value.trim();
+    const fecha = document.getElementById('fecha').value;
+    const horaInicio = document.getElementById('hora-inicio').value;
+    const horaFin = document.getElementById('hora-fin').value;
+
+    if (!aulaId || !nombre || !email || !fecha || !horaInicio || !horaFin) {
+        mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos', 'error');
+        return;
+    }
+
+    try {
+        // Buscar o crear usuario
+        const usuarioRes = await fetch(`${API}/usuarios/buscar?email=${email}`);
+        let usuarioId;
+
+        if (usuarioRes.ok) {
+            const usuario = await usuarioRes.json();
+            usuarioId = usuario.id;
+        } else {
+            const nuevoUsuario = await fetch(`${API}/usuarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, nombre, rol: 'docente' })
+            });
+            const u = await nuevoUsuario.json();
+            usuarioId = u.id;
+        }
+
+        // Crear reserva
+        const res = await fetch(`${API}/reservas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                aula_id: aulaId,
+                usuario_id: usuarioId,
+                fecha,
+                hora_inicio: horaInicio + ':00',
+                hora_fin: horaFin + ':00'
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            mostrarMensaje('mensaje-reserva', `✅ Reserva creada correctamente`, 'exito');
+            document.getElementById('fecha').value = '';
+            document.getElementById('hora-inicio').value = '';
+            document.getElementById('hora-fin').value = '';
+        } else {
+            mostrarMensaje('mensaje-reserva', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-reserva', 'Error al conectar con el servidor', 'error');
+    }
+}
+
+// ===== BUSCAR RESERVAS =====
+async function buscarReservas() {
+    const email = document.getElementById('buscar-email').value.trim();
+    if (!email) return;
+
+    try {
+        const res = await fetch(`${API}/reservas/usuario?email=${email}`);
+        const reservas = await res.json();
+        const contenedor = document.getElementById('tabla-reservas');
+
+        if (!reservas.length) {
+            contenedor.innerHTML = '<p class="empty">No se encontraron reservas para ese email</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aula</th>
+                        <th>Fecha</th>
+                        <th>Horario</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${reservas.map(r => `
+                        <tr>
+                            <td>${r.aula_nombre}</td>
+                            <td>${r.fecha}</td>
+                            <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
+                            <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+                            <td>
+                                ${r.estado === 'activa' ? `
+                                    <button class="btn btn-danger" onclick="cancelarReserva('${r.id}', '${r.usuario_id}')">
+                                        Cancelar
+                                    </button>
+                                ` : '—'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-reservas').innerHTML = '<p class="empty">Error al buscar reservas</p>';
+    }
+}
+
+// ===== CANCELAR RESERVA =====
+async function cancelarReserva(reservaId, usuarioId) {
+    if (!confirm('¿Confirmás que querés cancelar esta reserva?')) return;
+
+    try {
+        const res = await fetch(`${API}/reservas/${reservaId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reserva_id: reservaId, usuario_id: usuarioId })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            mostrarMensaje('mensaje-cancelar', '✅ Reserva cancelada correctamente', 'exito');
+            buscarReservas();
+        } else {
+            mostrarMensaje('mensaje-cancelar', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-cancelar', 'Error al cancelar la reserva', 'error');
+    }
+}
+
+// ===== FECHAS BLOQUEADAS =====
+async function cargarFechasBloqueadas() {
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas`);
+        const fechas = await res.json();
+        const contenedor = document.getElementById('tabla-fechas-bloqueadas');
+
+        if (!fechas.length) {
+            contenedor.innerHTML = '<p class="empty">No hay fechas bloqueadas</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Motivo</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${fechas.map(f => `
+                        <tr>
+                            <td>${f.fecha}</td>
+                            <td>${f.motivo}</td>
+                            <td>
+                                <button class="btn btn-danger" onclick="eliminarFechaBloqueada('${f.fecha}')">
+                                    Desbloquear
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-fechas-bloqueadas').innerHTML =
+            '<p class="empty">Error al cargar fechas</p>';
+    }
+}
+
+async function agregarFechaBloqueada() {
+    const fecha = document.getElementById('fecha-bloquear').value;
+    const motivo = document.getElementById('motivo-bloquear').value.trim();
+
+    if (!fecha || !motivo) {
+        mostrarMensaje('mensaje-admin', 'Completá la fecha y el motivo', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fecha, motivo })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            mostrarMensaje('mensaje-admin', `✅ ${data.mensaje}`, 'exito');
+            document.getElementById('fecha-bloquear').value = '';
+            document.getElementById('motivo-bloquear').value = '';
+            cargarFechasBloqueadas();
+        } else {
+            mostrarMensaje('mensaje-admin', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-admin', 'Error al conectar con el servidor', 'error');
+    }
+}
+
+async function eliminarFechaBloqueada(fecha) {
+    if (!confirm(`¿Desbloquear el ${fecha}?`)) return;
+
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas/${fecha}`, {
+            method: 'DELETE'
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            mostrarMensaje('mensaje-admin', `✅ ${data.mensaje}`, 'exito');
+            cargarFechasBloqueadas();
+        } else {
+            mostrarMensaje('mensaje-admin', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-admin', 'Error al conectar con el servidor', 'error');
+    }
+}
+
+// ===== UTILIDAD =====
+function mostrarMensaje(id, texto, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = `mensaje ${tipo}`;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// Iniciar
+cargarAulas();
+cargarFechasBloqueadas();
+</script>
+
+</body>
+</html>

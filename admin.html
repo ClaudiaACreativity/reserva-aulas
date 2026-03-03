@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración — Reserva de Aulas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body { font-family: Arial, sans-serif; background: #f0f4f8; color: #333; }
+
+        /* LOGIN */
+        .login-overlay {
+            position: fixed; inset: 0;
+            background: #1B4F8A;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            width: 340px;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+
+        .login-box h1 { font-size: 22px; color: #1B4F8A; margin-bottom: 8px; }
+        .login-box p { font-size: 14px; color: #888; margin-bottom: 25px; }
+
+        .login-box input {
+            width: 100%; padding: 12px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 15px; margin-bottom: 15px;
+            outline: none;
+        }
+
+        .login-box input:focus { border-color: #1B4F8A; }
+
+        .login-box button {
+            width: 100%; padding: 12px; background: #1B4F8A;
+            color: white; border: none; border-radius: 6px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+        }
+
+        .login-box button:hover { background: #153d6e; }
+        .login-error { color: #e74c3c; font-size: 13px; margin-top: 10px; display: none; }
+
+        /* HEADER */
+        header {
+            background: #1B4F8A; color: white;
+            padding: 15px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        header h1 { font-size: 20px; }
+
+        .btn-salir {
+            background: rgba(255,255,255,0.2); color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            padding: 8px 16px; border-radius: 6px;
+            cursor: pointer; font-size: 13px;
+        }
+
+        .btn-salir:hover { background: rgba(255,255,255,0.3); }
+
+        /* TABS */
+        .tabs {
+            background: white;
+            border-bottom: 2px solid #e0e8f0;
+            display: flex; gap: 0;
+            padding: 0 40px;
+        }
+
+        .tab {
+            padding: 15px 20px; cursor: pointer;
+            font-size: 14px; font-weight: bold; color: #888;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px; transition: all 0.2s;
+        }
+
+        .tab:hover { color: #1B4F8A; }
+        .tab.activo { color: #1B4F8A; border-bottom-color: #1B4F8A; }
+
+        /* CONTENIDO */
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+
+        .panel { display: none; }
+        .panel.activo { display: block; }
+
+        .card {
+            background: white; border-radius: 10px;
+            padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .card h2 {
+            font-size: 17px; color: #1B4F8A;
+            margin-bottom: 20px; padding-bottom: 10px;
+            border-bottom: 2px solid #e0e8f0;
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; font-weight: bold; color: #555; }
+
+        .form-group input, .form-group select {
+            padding: 10px 12px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 14px; outline: none;
+        }
+
+        .form-group input:focus, .form-group select:focus { border-color: #1B4F8A; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 6px;
+            font-size: 14px; cursor: pointer; font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: #1B4F8A; color: white; }
+        .btn-primary:hover { background: #153d6e; }
+        .btn-success { background: #217346; color: white; }
+        .btn-success:hover { background: #185a38; }
+        .btn-danger { background: #e74c3c; color: white; font-size: 12px; padding: 6px 12px; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #f39c12; color: white; font-size: 12px; padding: 6px 12px; }
+        .btn-warning:hover { background: #d68910; }
+
+        .mensaje {
+            padding: 10px 15px; border-radius: 6px;
+            font-size: 13px; margin-top: 15px; display: none;
+        }
+
+        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
+        .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #1B4F8A; color: white; padding: 11px 14px; text-align: left; }
+        td { padding: 10px 14px; border-bottom: 1px solid #e0e8f0; }
+        tr:hover td { background: #f8fafc; }
+
+        .badge {
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 12px; font-weight: bold;
+        }
+
+        .badge-activa, .badge-true { background: #d5f0e0; color: #1a5c36; }
+        .badge-cancelada, .badge-false { background: #fdedec; color: #c0392b; }
+
+        .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+
+        .horario-row { display: grid; grid-template-columns: 150px 100px 120px 120px 120px; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid #e0e8f0; }
+        .horario-row:last-child { border-bottom: none; }
+        .horario-row label { font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+    <div class="login-box">
+        <h1>🔒 Panel de Administración</h1>
+        <p>Ingresá la contraseña para continuar</p>
+        <input type="password" id="password-input" placeholder="Contraseña"
+               onkeydown="if(event.key==='Enter') verificarPassword()">
+        <button onclick="verificarPassword()">Ingresar</button>
+        <p class="login-error" id="login-error">Contraseña incorrecta</p>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header>
+    <h1>⚙️ Panel de Administración — Reserva de Aulas</h1>
+    <button class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+    <div class="tab activo" onclick="cambiarTab('reservas', this)">📋 Reservas</div>
+    <div class="tab" onclick="cambiarTab('aulas', this)">🏫 Aulas</div>
+    <div class="tab" onclick="cambiarTab('usuarios', this)">👤 Usuarios</div>
+    <div class="tab" onclick="cambiarTab('horarios', this)">🕐 Horarios</div>
+    <div class="tab" onclick="cambiarTab('fechas', this)">📅 Fechas bloqueadas</div>
+</div>
+
+<div class="container">
+
+    <!-- PANEL RESERVAS -->
+    <div class="panel activo" id="panel-reservas">
+        <div class="card">
+            <h2>Todas las reservas</h2>
+            <div id="tabla-todas-reservas"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- PANEL AULAS -->
+    <div class="panel" id="panel-aulas">
+        <div class="card">
+            <h2>Nueva aula</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="aula-nombre" placeholder="Ej: Aula 2">
+                </div>
+                <div class="form-group">
+                    <label>Capacidad</label>
+                    <input type="number" id="aula-capacidad" placeholder="Ej: 30">
+                </div>
+                <div class="form-group">
+                    <label>Edificio</label>
+                    <input type="text" id="aula-edificio" placeholder="Ej: Edificio A">
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="crearAula()">Agregar aula</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-aulas"></div>
+        </div>
+        <div class="card">
+            <h2>Aulas registradas</h2>
+            <div id="tabla-aulas"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- PANEL USUARIOS -->
+    <div class="panel" id="panel-usuarios">
+        <div class="card">
+            <h2>Nuevo usuario</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre completo</label>
+                    <input type="text" id="usuario-nombre" placeholder="Ej: María García">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="usuario-email" placeholder="tu@instituto.edu">
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="usuario-rol">
+                        <option value="docente">Docente</option>
+                        <option value="coordinador">Coordinador</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="crearUsuario()">Agregar usuario</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-usuarios"></div>
+        </div>
+        <div class="card">
+            <h2>Usuarios registrados</h2>
+            <div id="tabla-usuarios"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- PANEL HORARIOS -->
+    <div class="panel" id="panel-horarios">
+        <div class="card">
+            <h2>Configuración de horarios por día</h2>
+            <div id="tabla-horarios"><p class="empty">Cargando...</p></div>
+            <div class="mensaje" id="mensaje-horarios"></div>
+        </div>
+    </div>
+
+    <!-- PANEL FECHAS BLOQUEADAS -->
+    <div class="panel" id="panel-fechas">
+        <div class="card">
+            <h2>Bloquear nueva fecha</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="fecha-bloquear">
+                </div>
+                <div class="form-group">
+                    <label>Motivo</label>
+                    <input type="text" id="motivo-bloquear" placeholder="Ej: Feriado nacional">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="agregarFechaBloqueada()">Bloquear fecha</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-fechas"></div>
+        </div>
+        <div class="card">
+            <h2>Fechas bloqueadas</h2>
+            <div id="tabla-fechas"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+const PASSWORD = 'sL2#di!KBw';
+
+// ===== LOGIN =====
+function verificarPassword() {
+    const input = document.getElementById('password-input').value;
+    if (input === PASSWORD) {
+        document.getElementById('login-overlay').style.display = 'none';
+        cargarTodo();
+    } else {
+        document.getElementById('login-error').style.display = 'block';
+        document.getElementById('password-input').value = '';
+    }
+}
+
+function cerrarSesion() {
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('password-input').value = '';
+    document.getElementById('login-error').style.display = 'none';
+}
+
+// ===== TABS =====
+function cambiarTab(panel, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+    document.getElementById(`panel-${panel}`).classList.add('activo');
+    el.classList.add('activo');
+}
+
+// ===== CARGAR TODO =====
+function cargarTodo() {
+    cargarReservas();
+    cargarAulas();
+    cargarUsuarios();
+    cargarHorarios();
+    cargarFechasBloqueadas();
+}
+
+// ===== RESERVAS =====
+async function cargarReservas() {
+    try {
+        const res = await fetch(`${API}/reservas`);
+        const reservas = await res.json();
+        const contenedor = document.getElementById('tabla-todas-reservas');
+
+        if (!reservas.length) {
+            contenedor.innerHTML = '<p class="empty">No hay reservas registradas</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Docente</th>
+                        <th>Aula</th>
+                        <th>Fecha</th>
+                        <th>Horario</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${reservas.map(r => `
+                        <tr>
+                            <td>${r.docente_nombre}<br><small style="color:#888">${r.docente_email}</small></td>
+                            <td>${r.aula_nombre}</td>
+                            <td>${r.fecha}</td>
+                            <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
+                            <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+                            <td>
+                                ${r.estado === 'activa' ? `
+                                    <button class="btn btn-danger" onclick="cancelarReservaAdmin('${r.id}')">
+                                        Cancelar
+                                    </button>
+                                ` : '—'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-todas-reservas').innerHTML = '<p class="empty">Error al cargar reservas</p>';
+    }
+}
+
+async function cancelarReservaAdmin(reservaId) {
+    if (!confirm('¿Cancelar esta reserva?')) return;
+    try {
+        const res = await fetch(`${API}/reservas/${reservaId}/admin`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) cargarReservas();
+        else alert(data.detail);
+    } catch (e) {
+        alert('Error al cancelar');
+    }
+}
+
+// ===== AULAS =====
+async function cargarAulas() {
+    try {
+        const res = await fetch(`${API}/aulas`);
+        const aulas = await res.json();
+        const contenedor = document.getElementById('tabla-aulas');
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Nombre</th><th>Capacidad</th><th>Edificio</th><th>Estado</th><th>Acción</th></tr>
+                </thead>
+                <tbody>
+                    ${aulas.map(a => `
+                        <tr>
+                            <td>${a.nombre}</td>
+                            <td>${a.capacidad}</td>
+                            <td>${a.edificio}</td>
+                            <td><span class="badge badge-${a.activa}">${a.activa ? 'Activa' : 'Inactiva'}</span></td>
+                            <td>
+                                <button class="btn ${a.activa ? 'btn-danger' : 'btn-success'}"
+                                    onclick="toggleAula('${a.id}', ${a.activa})">
+                                    ${a.activa ? 'Desactivar' : 'Activar'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-aulas').innerHTML = '<p class="empty">Error al cargar aulas</p>';
+    }
+}
+
+async function crearAula() {
+    const nombre = document.getElementById('aula-nombre').value.trim();
+    const capacidad = document.getElementById('aula-capacidad').value;
+    const edificio = document.getElementById('aula-edificio').value.trim();
+
+    if (!nombre || !capacidad || !edificio) {
+        mostrarMensaje('mensaje-aulas', 'Completá todos los campos', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/aulas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, capacidad: parseInt(capacidad), edificio })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-aulas', '✅ Aula creada correctamente', 'exito');
+            document.getElementById('aula-nombre').value = '';
+            document.getElementById('aula-capacidad').value = '';
+            document.getElementById('aula-edificio').value = '';
+            cargarAulas();
+        } else {
+            mostrarMensaje('mensaje-aulas', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-aulas', 'Error al conectar', 'error');
+    }
+}
+
+async function toggleAula(id, activa) {
+    try {
+        await fetch(`${API}/aulas/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activa: !activa })
+        });
+        cargarAulas();
+    } catch (e) {
+        alert('Error al actualizar aula');
+    }
+}
+
+// ===== USUARIOS =====
+async function cargarUsuarios() {
+    try {
+        const res = await fetch(`${API}/usuarios`);
+        const usuarios = await res.json();
+        const contenedor = document.getElementById('tabla-usuarios');
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acción</th></tr>
+                </thead>
+                <tbody>
+                    ${usuarios.map(u => `
+                        <tr>
+                            <td>${u.nombre}</td>
+                            <td>${u.email}</td>
+                            <td>${u.rol}</td>
+                            <td><span class="badge badge-${u.activo}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                            <td>
+                                <button class="btn ${u.activo ? 'btn-danger' : 'btn-success'}"
+                                    onclick="toggleUsuario('${u.id}', ${u.activo})">
+                                    ${u.activo ? 'Desactivar' : 'Activar'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-usuarios').innerHTML = '<p class="empty">Error al cargar usuarios</p>';
+    }
+}
+
+async function crearUsuario() {
+    const nombre = document.getElementById('usuario-nombre').value.trim();
+    const email = document.getElementById('usuario-email').value.trim();
+    const rol = document.getElementById('usuario-rol').value;
+
+    if (!nombre || !email) {
+        mostrarMensaje('mensaje-usuarios', 'Completá todos los campos', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/usuarios`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, email, rol })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-usuarios', '✅ Usuario creado correctamente', 'exito');
+            document.getElementById('usuario-nombre').value = '';
+            document.getElementById('usuario-email').value = '';
+            cargarUsuarios();
+        } else {
+            mostrarMensaje('mensaje-usuarios', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-usuarios', 'Error al conectar', 'error');
+    }
+}
+
+async function toggleUsuario(id, activo) {
+    try {
+        await fetch(`${API}/usuarios/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activo: !activo })
+        });
+        cargarUsuarios();
+    } catch (e) {
+        alert('Error al actualizar usuario');
+    }
+}
+
+// ===== HORARIOS =====
+async function cargarHorarios() {
+    try {
+        const res = await fetch(`${API}/horarios`);
+        const horarios = await res.json();
+        const contenedor = document.getElementById('tabla-horarios');
+
+        contenedor.innerHTML = `
+            <div style="margin-bottom:10px; font-size:13px; color:#888">
+                Modificá los horarios y hacé click en Guardar en cada fila.
+            </div>
+            ${horarios.map(h => `
+                <div class="horario-row">
+                    <label>${h.nombre_dia}</label>
+                    <div>
+                        <input type="checkbox" id="hab-${h.dia_semana}"
+                            ${h.habilitado ? 'checked' : ''}
+                            onchange="toggleDia(${h.dia_semana})">
+                        <label for="hab-${h.dia_semana}" style="font-weight:normal; font-size:13px">
+                            Habilitado
+                        </label>
+                    </div>
+                    <div>
+                        <label style="font-size:12px; color:#888">Apertura</label>
+                        <input type="time" id="ap-${h.dia_semana}"
+                            value="${h.hora_apertura ? h.hora_apertura.slice(0,5) : ''}"
+                            style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; color:#888">Cierre</label>
+                        <input type="time" id="ci-${h.dia_semana}"
+                            value="${h.hora_cierre ? h.hora_cierre.slice(0,5) : ''}"
+                            style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px">
+                    </div>
+                    <button class="btn btn-primary" onclick="guardarHorario(${h.dia_semana})">
+                        Guardar
+                    </button>
+                </div>
+            `).join('')}
+        `;
+    } catch (e) {
+        document.getElementById('tabla-horarios').innerHTML = '<p class="empty">Error al cargar horarios</p>';
+    }
+}
+
+function toggleDia(dia) {
+    const habilitado = document.getElementById(`hab-${dia}`).checked;
+    const apertura = document.getElementById(`ap-${dia}`);
+    const cierre = document.getElementById(`ci-${dia}`);
+    apertura.disabled = !habilitado;
+    cierre.disabled = !habilitado;
+}
+
+async function guardarHorario(dia) {
+    const habilitado = document.getElementById(`hab-${dia}`).checked;
+    const apertura = document.getElementById(`ap-${dia}`).value;
+    const cierre = document.getElementById(`ci-${dia}`).value;
+
+    try {
+        const res = await fetch(`${API}/horarios/${dia}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                habilitado,
+                hora_apertura: habilitado ? apertura + ':00' : null,
+                hora_cierre: habilitado ? cierre + ':00' : null
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-horarios', '✅ Horario actualizado correctamente', 'exito');
+        } else {
+            mostrarMensaje('mensaje-horarios', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-horarios', 'Error al guardar', 'error');
+    }
+}
+
+// ===== FECHAS BLOQUEADAS =====
+async function cargarFechasBloqueadas() {
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas`);
+        const fechas = await res.json();
+        const contenedor = document.getElementById('tabla-fechas');
+
+        if (!fechas.length) {
+            contenedor.innerHTML = '<p class="empty">No hay fechas bloqueadas</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>Motivo</th><th>Acción</th></tr>
+                </thead>
+                <tbody>
+                    ${fechas.map(f => `
+                        <tr>
+                            <td>${f.fecha}</td>
+                            <td>${f.motivo}</td>
+                            <td>
+                                <button class="btn btn-danger"
+                                    onclick="eliminarFechaBloqueada('${f.fecha}')">
+                                    Desbloquear
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-fechas').innerHTML = '<p class="empty">Error al cargar fechas</p>';
+    }
+}
+
+async function agregarFechaBloqueada() {
+    const fecha = document.getElementById('fecha-bloquear').value;
+    const motivo = document.getElementById('motivo-bloquear').value.trim();
+
+    if (!fecha || !motivo) {
+        mostrarMensaje('mensaje-fechas', 'Completá la fecha y el motivo', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fecha, motivo })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-fechas', `✅ ${data.mensaje}`, 'exito');
+            document.getElementById('fecha-bloquear').value = '';
+            document.getElementById('motivo-bloquear').value = '';
+            cargarFechasBloqueadas();
+        } else {
+            mostrarMensaje('mensaje-fechas', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-fechas', 'Error al conectar', 'error');
+    }
+}
+
+async function eliminarFechaBloqueada(fecha) {
+    if (!confirm(`¿Desbloquear el ${fecha}?`)) return;
+    try {
+        const res = await fetch(`${API}/fechas-bloqueadas/${fecha}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-fechas', `✅ ${data.mensaje}`, 'exito');
+            cargarFechasBloqueadas();
+        } else {
+            mostrarMensaje('mensaje-fechas', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-fechas', 'Error al conectar', 'error');
+    }
+}
+
+// ===== UTILIDAD =====
+function mostrarMensaje(id, texto, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = `mensaje ${tipo}`;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+}
+</script>
+
+</body>
+</html>
