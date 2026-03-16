@@ -6,8 +6,10 @@ from typing import Optional
 import asyncpg
 import os
 from dotenv import load_dotenv
+import resend
 
 load_dotenv()
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 app = FastAPI(title="Reserva de Aulas")
 
@@ -43,6 +45,18 @@ class CancelarReserva(BaseModel):
 class FechaBloqueada(BaseModel):
     fecha: date
     motivo: str
+
+# ===== EMAIL =====
+def enviar_email(destinatario: str, asunto: str, cuerpo: str):
+    try:
+        resend.Emails.send({
+            "from": "Reserva de Aulas <onboarding@resend.dev>",
+            "to": destinatario,
+            "subject": asunto,
+            "html": cuerpo
+        })
+    except Exception as e:
+        print(f"Error al enviar email: {e}")
 
 # ===== ENDPOINTS =====
 
@@ -132,6 +146,26 @@ async def crear_reserva(reserva: ReservaCreate):
             reserva.aula_id, reserva.usuario_id, reserva.fecha,
             reserva.hora_inicio, reserva.hora_fin
         )
+        # Obtener email del usuario
+        usuario = await db.fetchrow(
+            "SELECT email, nombre FROM usuarios WHERE id = $1",
+            reserva.usuario_id
+        )
+        if usuario:
+            enviar_email(
+                usuario["email"],
+                "✅ Reserva confirmada",
+                f"""
+                <h2>¡Reserva confirmada!</h2>
+                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
+                <table style="border-collapse:collapse; margin-top:15px;">
+                    <tr><td style="padding:8px; font-weight:bold">Aula:</td><td style="padding:8px">{reserva.aula_id}</td></tr>
+                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha}</td></tr>
+                    <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio} - {reserva.hora_fin}</td></tr>
+                </table>
+                <p style="margin-top:15px; color:#888">Sistema de Reserva de Aulas</p>
+                """
+            )
         return {"mensaje": "Reserva creada", "id": str(result["id"])}
     except HTTPException:
         raise
@@ -156,6 +190,22 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
             "UPDATE reservas SET estado='cancelada' WHERE id=$1",
             reserva_id
         )
+        # Notificar cancelación
+        usuario = await db.fetchrow(
+            "SELECT email, nombre FROM usuarios WHERE id = $1",
+            reserva["usuario_id"]
+        )
+        if usuario:
+            enviar_email(
+                usuario["email"],
+                "❌ Reserva cancelada",
+                f"""
+                <h2>Reserva cancelada</h2>
+                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue cancelada.</p>
+                <p style="margin-top:15px; color:#888">Si no realizaste esta cancelación, contactá al administrador.</p>
+                <p style="color:#888">Sistema de Reserva de Aulas</p>
+                """
+            )
         return {"mensaje": "Reserva cancelada correctamente"}
     finally:
         await db.close()
