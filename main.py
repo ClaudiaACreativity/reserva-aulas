@@ -5,13 +5,14 @@ from datetime import date, time, datetime
 from typing import Optional
 import asyncpg
 import os
-from dotenv import load_dotenv
 import resend
+from dotenv import load_dotenv
 
 load_dotenv()
-resend.api_key = os.getenv("RESEND_API_KEY")
 
 app = FastAPI(title="Reserva de Aulas")
+
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +31,18 @@ async def get_db():
         password=os.getenv("DB_PASSWORD")
     )
 
+# ===== EMAIL =====
+def enviar_email(destinatario: str, asunto: str, cuerpo: str):
+    try:
+        resend.Emails.send({
+            "from": "Reserva de Aulas <onboarding@resend.dev>",
+            "to": destinatario,
+            "subject": asunto,
+            "html": cuerpo
+        })
+    except Exception as e:
+        print(f"Error al enviar email: {e}")
+
 # Modelos
 class ReservaCreate(BaseModel):
     aula_id: str
@@ -46,17 +59,15 @@ class FechaBloqueada(BaseModel):
     fecha: date
     motivo: str
 
-# ===== EMAIL =====
-def enviar_email(destinatario: str, asunto: str, cuerpo: str):
-    try:
-        resend.Emails.send({
-            "from": "Reserva de Aulas <onboarding@resend.dev>",
-            "to": destinatario,
-            "subject": asunto,
-            "html": cuerpo
-        })
-    except Exception as e:
-        print(f"Error al enviar email: {e}")
+class AulaCreate(BaseModel):
+    nombre: str
+    capacidad: int
+    edificio: str
+
+class HorarioUpdate(BaseModel):
+    habilitado: bool
+    hora_apertura: Optional[time] = None
+    hora_cierre: Optional[time] = None
 
 # ===== ENDPOINTS =====
 
@@ -70,6 +81,33 @@ async def listar_aulas():
     try:
         aulas = await db.fetch("SELECT * FROM aulas WHERE activa = TRUE")
         return [dict(a) for a in aulas]
+    finally:
+        await db.close()
+
+@app.post("/aulas")
+async def crear_aula(aula: AulaCreate):
+    db = await get_db()
+    try:
+        result = await db.fetchrow(
+            """INSERT INTO aulas (nombre, capacidad, edificio)
+               VALUES ($1, $2, $3) RETURNING id""",
+            aula.nombre, aula.capacidad, aula.edificio
+        )
+        return {"mensaje": "Aula creada", "id": str(result["id"])}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await db.close()
+
+@app.patch("/aulas/{aula_id}")
+async def toggle_aula(aula_id: str, datos: dict):
+    db = await get_db()
+    try:
+        await db.execute(
+            "UPDATE aulas SET activa = $1 WHERE id = $2",
+            datos["activa"], aula_id
+        )
+        return {"mensaje": "Aula actualizada"}
     finally:
         await db.close()
 
@@ -146,7 +184,8 @@ async def crear_reserva(reserva: ReservaCreate):
             reserva.aula_id, reserva.usuario_id, reserva.fecha,
             reserva.hora_inicio, reserva.hora_fin
         )
-        # Obtener email del usuario
+
+        # Obtener datos para el email
         usuario = await db.fetchrow(
             "SELECT email, nombre FROM usuarios WHERE id = $1",
             reserva.usuario_id
@@ -166,23 +205,6 @@ async def crear_reserva(reserva: ReservaCreate):
                     <tr><td style="padding:8px; font-weight:bold">Aula:</td><td style="padding:8px">{aula['nombre']}</td></tr>
                     <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
                     <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
-                </table>
-                <p style="margin-top:15px; color:#888">Sistema de Reserva de Aulas</p>
-                """
-            )
-        return {"mensaje": "Reserva creada", "id": str(result["id"])}
-        )
-        if usuario:
-            enviar_email(
-                usuario["email"],
-                "✅ Reserva confirmada",
-                f"""
-                <h2>¡Reserva confirmada!</h2>
-                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
-                <table style="border-collapse:collapse; margin-top:15px;">
-                    <tr><td style="padding:8px; font-weight:bold">Aula:</td><td style="padding:8px">{reserva.aula_id}</td></tr>
-                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha}</td></tr>
-                    <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio} - {reserva.hora_fin}</td></tr>
                 </table>
                 <p style="margin-top:15px; color:#888">Sistema de Reserva de Aulas</p>
                 """
@@ -211,7 +233,6 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
             "UPDATE reservas SET estado='cancelada' WHERE id=$1",
             reserva_id
         )
-        # Notificar cancelación
         usuario = await db.fetchrow(
             "SELECT email, nombre FROM usuarios WHERE id = $1",
             reserva["usuario_id"]
@@ -227,6 +248,24 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
                 <p style="color:#888">Sistema de Reserva de Aulas</p>
                 """
             )
+        return {"mensaje": "Reserva cancelada correctamente"}
+    finally:
+        await db.close()
+
+@app.delete("/reservas/{reserva_id}/admin")
+async def cancelar_reserva_admin(reserva_id: str):
+    db = await get_db()
+    try:
+        reserva = await db.fetchrow(
+            "SELECT id FROM reservas WHERE id=$1 AND estado='activa'",
+            reserva_id
+        )
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        await db.execute(
+            "UPDATE reservas SET estado='cancelada' WHERE id=$1",
+            reserva_id
+        )
         return {"mensaje": "Reserva cancelada correctamente"}
     finally:
         await db.close()
@@ -258,6 +297,27 @@ async def crear_usuario(usuario: dict):
     finally:
         await db.close()
 
+@app.get("/usuarios")
+async def listar_usuarios():
+    db = await get_db()
+    try:
+        usuarios = await db.fetch("SELECT * FROM usuarios ORDER BY nombre")
+        return [dict(u) for u in usuarios]
+    finally:
+        await db.close()
+
+@app.patch("/usuarios/{usuario_id}")
+async def toggle_usuario(usuario_id: str, datos: dict):
+    db = await get_db()
+    try:
+        await db.execute(
+            "UPDATE usuarios SET activo = $1 WHERE id = $2",
+            datos["activo"], usuario_id
+        )
+        return {"mensaje": "Usuario actualizado"}
+    finally:
+        await db.close()
+
 @app.get("/reservas/usuario")
 async def reservas_por_usuario(email: str):
     db = await get_db()
@@ -271,6 +331,43 @@ async def reservas_por_usuario(email: str):
                WHERE u.email = $1
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
             email
+        )
+        return [dict(r) for r in reservas]
+    finally:
+        await db.close()
+
+@app.get("/reservas")
+async def listar_todas_reservas():
+    db = await get_db()
+    try:
+        reservas = await db.fetch(
+            """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
+                      r.usuario_id, a.nombre as aula_nombre,
+                      u.nombre as docente_nombre, u.email as docente_email
+               FROM reservas r
+               JOIN aulas a ON r.aula_id = a.id
+               JOIN usuarios u ON r.usuario_id = u.id
+               ORDER BY r.fecha DESC, r.hora_inicio DESC"""
+        )
+        return [dict(r) for r in reservas]
+    finally:
+        await db.close()
+
+@app.get("/reservas/calendario")
+async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
+    db = await get_db()
+    try:
+        reservas = await db.fetch(
+            """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin,
+                      a.id as aula_id, a.nombre as aula_nombre,
+                      u.nombre as docente_nombre
+               FROM reservas r
+               JOIN aulas a ON r.aula_id = a.id
+               JOIN usuarios u ON r.usuario_id = u.id
+               WHERE r.fecha BETWEEN $1 AND $2
+               AND r.estado = 'activa'
+               ORDER BY r.fecha, r.hora_inicio""",
+            fecha_inicio, fecha_fin
         )
         return [dict(r) for r in reservas]
     finally:
@@ -314,80 +411,6 @@ async def eliminar_fecha_bloqueada(fecha: date):
     finally:
         await db.close()
 
-# ===== GESTIÓN DE AULAS =====
-class AulaCreate(BaseModel):
-    nombre: str
-    capacidad: int
-    edificio: str
-
-@app.post("/aulas")
-async def crear_aula(aula: AulaCreate):
-    db = await get_db()
-    try:
-        result = await db.fetchrow(
-            """INSERT INTO aulas (nombre, capacidad, edificio)
-               VALUES ($1, $2, $3) RETURNING id""",
-            aula.nombre, aula.capacidad, aula.edificio
-        )
-        return {"mensaje": "Aula creada", "id": str(result["id"])}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        await db.close()
-
-@app.patch("/aulas/{aula_id}")
-async def toggle_aula(aula_id: str, datos: dict):
-    db = await get_db()
-    try:
-        await db.execute(
-            "UPDATE aulas SET activa = $1 WHERE id = $2",
-            datos["activa"], aula_id
-        )
-        return {"mensaje": "Aula actualizada"}
-    finally:
-        await db.close()
-
-# ===== GESTIÓN DE USUARIOS =====
-@app.get("/usuarios")
-async def listar_usuarios():
-    db = await get_db()
-    try:
-        usuarios = await db.fetch("SELECT * FROM usuarios ORDER BY nombre")
-        return [dict(u) for u in usuarios]
-    finally:
-        await db.close()
-
-@app.patch("/usuarios/{usuario_id}")
-async def toggle_usuario(usuario_id: str, datos: dict):
-    db = await get_db()
-    try:
-        await db.execute(
-            "UPDATE usuarios SET activo = $1 WHERE id = $2",
-            datos["activo"], usuario_id
-        )
-        return {"mensaje": "Usuario actualizado"}
-    finally:
-        await db.close()
-
-# ===== CONTROL DE RESERVAS =====
-@app.get("/reservas")
-async def listar_todas_reservas():
-    db = await get_db()
-    try:
-        reservas = await db.fetch(
-            """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
-                      r.usuario_id, a.nombre as aula_nombre,
-                      u.nombre as docente_nombre, u.email as docente_email
-               FROM reservas r
-               JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
-               ORDER BY r.fecha DESC, r.hora_inicio DESC"""
-        )
-        return [dict(r) for r in reservas]
-    finally:
-        await db.close()
-
-# ===== GESTIÓN DE HORARIOS =====
 @app.get("/horarios")
 async def listar_horarios():
     db = await get_db()
@@ -398,11 +421,6 @@ async def listar_horarios():
         return [dict(h) for h in horarios]
     finally:
         await db.close()
-
-class HorarioUpdate(BaseModel):
-    habilitado: bool
-    hora_apertura: Optional[time] = None
-    hora_cierre: Optional[time] = None
 
 @app.patch("/horarios/{dia_semana}")
 async def actualizar_horario(dia_semana: int, datos: HorarioUpdate):
@@ -419,41 +437,3 @@ async def actualizar_horario(dia_semana: int, datos: HorarioUpdate):
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await db.close()
-
-@app.delete("/reservas/{reserva_id}/admin")
-async def cancelar_reserva_admin(reserva_id: str):
-    db = await get_db()
-    try:
-        reserva = await db.fetchrow(
-            "SELECT id FROM reservas WHERE id=$1 AND estado='activa'",
-            reserva_id
-        )
-        if not reserva:
-            raise HTTPException(status_code=404, detail="Reserva no encontrada")
-        await db.execute(
-            "UPDATE reservas SET estado='cancelada' WHERE id=$1",
-            reserva_id
-        )
-        return {"mensaje": "Reserva cancelada correctamente"}
-    finally:
-        await db.close()
-
-@app.get("/reservas/calendario")
-async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
-    db = await get_db()
-    try:
-        reservas = await db.fetch(
-            """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin,
-                      a.id as aula_id, a.nombre as aula_nombre,
-                      u.nombre as docente_nombre
-               FROM reservas r
-               JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
-               WHERE r.fecha BETWEEN $1 AND $2
-               AND r.estado = 'activa'
-               ORDER BY r.fecha, r.hora_inicio""",
-            fecha_inicio, fecha_fin
-        )
-        return [dict(r) for r in reservas]
-    finally:
-        await db.close()        
