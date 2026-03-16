@@ -582,6 +582,7 @@ async function crearReserva() {
             document.getElementById('fecha').value = '';
             document.getElementById('hora-inicio').value = '';
             document.getElementById('hora-fin').value = '';
+            renderCalendario();
         } else {
             mostrarMensaje('mensaje-reserva', `❌ ${data.detail}`, 'error');
         }
