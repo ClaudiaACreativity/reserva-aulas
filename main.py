@@ -151,6 +151,27 @@ async def crear_reserva(reserva: ReservaCreate):
             "SELECT email, nombre FROM usuarios WHERE id = $1",
             reserva.usuario_id
         )
+        aula = await db.fetchrow(
+            "SELECT nombre FROM aulas WHERE id = $1",
+            reserva.aula_id
+        )
+        if usuario:
+            enviar_email(
+                usuario["email"],
+                "✅ Reserva confirmada",
+                f"""
+                <h2>¡Reserva confirmada!</h2>
+                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
+                <table style="border-collapse:collapse; margin-top:15px;">
+                    <tr><td style="padding:8px; font-weight:bold">Aula:</td><td style="padding:8px">{aula['nombre']}</td></tr>
+                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha}</td></tr>
+                    <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
+                </table>
+                <p style="margin-top:15px; color:#888">Sistema de Reserva de Aulas</p>
+                """
+            )
+        return {"mensaje": "Reserva creada", "id": str(result["id"])}
+        )
         if usuario:
             enviar_email(
                 usuario["email"],
