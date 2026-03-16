@@ -164,7 +164,7 @@ async def crear_reserva(reserva: ReservaCreate):
                 <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
                 <table style="border-collapse:collapse; margin-top:15px;">
                     <tr><td style="padding:8px; font-weight:bold">Aula:</td><td style="padding:8px">{aula['nombre']}</td></tr>
-                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha}</td></tr>
+                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
                     <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
                 </table>
                 <p style="margin-top:15px; color:#888">Sistema de Reserva de Aulas</p>
