@@ -366,3 +366,23 @@ async def cancelar_reserva_admin(reserva_id: str):
         return {"mensaje": "Reserva cancelada correctamente"}
     finally:
         await db.close()
+
+@app.get("/reservas/calendario")
+async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
+    db = await get_db()
+    try:
+        reservas = await db.fetch(
+            """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin,
+                      a.id as aula_id, a.nombre as aula_nombre,
+                      u.nombre as docente_nombre
+               FROM reservas r
+               JOIN aulas a ON r.aula_id = a.id
+               JOIN usuarios u ON r.usuario_id = u.id
+               WHERE r.fecha BETWEEN $1 AND $2
+               AND r.estado = 'activa'
+               ORDER BY r.fecha, r.hora_inicio""",
+            fecha_inicio, fecha_fin
+        )
+        return [dict(r) for r in reservas]
+    finally:
+        await db.close()        
