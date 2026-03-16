@@ -169,6 +169,18 @@
         .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
 
         .card-admin h2 { color: #7d3c98; border-bottom-color: #d7bde2; }
+
+        /* CALENDARIO */
+        .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .cal-tabla th { background: #1B4F8A; color: white; padding: 8px; font-size: 13px; text-align: center; }
+        .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; vertical-align: top; min-height: 60px; font-size: 12px; }
+        .cal-dia-num { font-weight: bold; color: #888; margin-bottom: 4px; }
+        .cal-reserva { background: #1B4F8A; color: white; border-radius: 4px; padding: 3px 6px; margin-bottom: 3px; font-size: 11px; cursor: default; }
+        .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 6px; margin-bottom: 3px; font-size: 11px; cursor: pointer; }
+        .cal-libre:hover { background: #a8dbbe; }
+        .cal-cerrado { background: #f5f5f5; }
+        .cal-hoy { background: #fffde7; }
+        .cal-mes-td { height: 80px; }
     </style>
 </head>
 <body>
@@ -181,6 +193,26 @@
 </header>
 
 <div class="container">
+
+    <!-- SECCIÓN 0: CALENDARIO -->
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0; border:none; padding:0">Calendario de reservas</h2>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="btn btn-primary" onclick="navegarCalendario(-1)">◀</button>
+                <span id="titulo-calendario" style="font-weight:bold; font-size:15px; min-width:200px; text-align:center"></span>
+                <button class="btn btn-primary" onclick="navegarCalendario(1)">▶</button>
+                <div style="display:flex; gap:5px; margin-left:15px;">
+                    <button class="btn btn-primary" id="btn-semana" onclick="cambiarVista('semana')">Semana</button>
+                    <button class="btn" id="btn-mes" onclick="cambiarVista('mes')"
+                        style="background:#e0e8f0; color:#1B4F8A;">Mes</button>
+                </div>
+            </div>
+        </div>
+        <div id="calendario-container" style="overflow-x:auto;">
+            <p class="empty">Cargando calendario...</p>
+        </div>
+    </div>
 
     <!-- SECCIÓN 1: AULAS -->
     <div class="card">
@@ -270,6 +302,202 @@
 
 <script>
 const API = 'https://reserva-aulas.onrender.com';
+
+// ===== CALENDARIO =====
+let vistaActual = 'semana';
+let fechaBase = new Date();
+
+function cambiarVista(vista) {
+    vistaActual = vista;
+    document.getElementById('btn-semana').style.background = vista === 'semana' ? '#1B4F8A' : '#e0e8f0';
+    document.getElementById('btn-semana').style.color = vista === 'semana' ? 'white' : '#1B4F8A';
+    document.getElementById('btn-mes').style.background = vista === 'mes' ? '#1B4F8A' : '#e0e8f0';
+    document.getElementById('btn-mes').style.color = vista === 'mes' ? 'white' : '#1B4F8A';
+    renderCalendario();
+}
+
+function navegarCalendario(dir) {
+    if (vistaActual === 'semana') {
+        fechaBase.setDate(fechaBase.getDate() + dir * 7);
+    } else {
+        fechaBase.setMonth(fechaBase.getMonth() + dir);
+    }
+    renderCalendario();
+}
+
+function getLunes(fecha) {
+    const d = new Date(fecha);
+    const dia = d.getDay();
+    const diff = dia === 0 ? -6 : 1 - dia;
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+
+function formatFecha(fecha) {
+    return fecha.toISOString().split('T')[0];
+}
+
+function formatHora(h) {
+    return h.toString().padStart(2, '0') + ':00';
+}
+
+const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+async function renderCalendario() {
+    const container = document.getElementById('calendario-container');
+    container.innerHTML = '<p class="empty">Cargando...</p>';
+
+    let fechaInicio, fechaFin;
+
+    if (vistaActual === 'semana') {
+        fechaInicio = getLunes(fechaBase);
+        fechaFin = new Date(fechaInicio);
+        fechaFin.setDate(fechaFin.getDate() + 5);
+        document.getElementById('titulo-calendario').textContent =
+            `${fechaInicio.getDate()} ${MESES[fechaInicio.getMonth()]} — ${fechaFin.getDate()} ${MESES[fechaFin.getMonth()]} ${fechaFin.getFullYear()}`;
+    } else {
+        fechaInicio = new Date(fechaBase.getFullYear(), fechaBase.getMonth(), 1);
+        fechaFin = new Date(fechaBase.getFullYear(), fechaBase.getMonth() + 1, 0);
+        document.getElementById('titulo-calendario').textContent =
+            `${MESES[fechaBase.getMonth()]} ${fechaBase.getFullYear()}`;
+    }
+
+    try {
+        const [resReservas, resAulas, resHorarios] = await Promise.all([
+            fetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(fechaInicio)}&fecha_fin=${formatFecha(fechaFin)}`),
+            fetch(`${API}/aulas`),
+            fetch(`${API}/horarios`)
+        ]);
+
+        const reservas = await resReservas.json();
+        const aulas = await resAulas.json();
+        const horarios = await resHorarios.json();
+
+        if (vistaActual === 'semana') {
+            renderSemana(fechaInicio, reservas, aulas, horarios);
+        } else {
+            renderMes(fechaInicio, fechaFin, reservas, aulas, horarios);
+        }
+    } catch (e) {
+        container.innerHTML = '<p class="empty">Error al cargar el calendario</p>';
+    }
+}
+
+function renderSemana(lunes, reservas, aulas, horarios) {
+    const hoy = formatFecha(new Date());
+    const dias = [];
+    for (let i = 0; i < 6; i++) {
+        const d = new Date(lunes);
+        d.setDate(d.getDate() + i);
+        dias.push(d);
+    }
+
+    let html = '<table class="cal-tabla"><thead><tr><th>Aula</th>';
+    dias.forEach(d => {
+        const esFinde = d.getDay() === 0;
+        if (!esFinde) {
+            const esHoy = formatFecha(d) === hoy;
+            html += `<th${esHoy ? ' style="background:#2980b9"' : ''}>${DIAS[d.getDay()-1]}<br>${d.getDate()}/${d.getMonth()+1}</th>`;
+        }
+    });
+    html += '</tr></thead><tbody>';
+
+    aulas.forEach(aula => {
+        html += `<tr><td style="font-weight:bold; font-size:12px; background:#f8fafc">${aula.nombre}</td>`;
+        dias.forEach(d => {
+            if (d.getDay() === 0) return;
+            const fechaStr = formatFecha(d);
+            const diaConfig = horarios.find(h => h.dia_semana === (d.getDay() === 0 ? 6 : d.getDay() - 1));
+            const esHoy = fechaStr === hoy;
+
+            if (!diaConfig || !diaConfig.habilitado) {
+                html += `<td class="cal-cerrado"></td>`;
+                return;
+            }
+
+            const resDelDia = reservas.filter(r => r.fecha === fechaStr && r.aula_id === aula.id);
+            let contenido = '';
+            resDelDia.forEach(r => {
+                contenido += `<div class="cal-reserva">🔒 ${r.hora_inicio.slice(0,5)}-${r.hora_fin.slice(0,5)}<br>${r.docente_nombre}</div>`;
+            });
+
+            // Mostrar franja libre si no hay reservas
+            if (resDelDia.length === 0) {
+                contenido += `<div class="cal-libre" onclick="precargarReserva('${aula.id}','${aula.nombre}','${fechaStr}')">+ Reservar</div>`;
+            }
+
+            html += `<td class="${esHoy ? 'cal-hoy' : ''}">${contenido}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('calendario-container').innerHTML = html;
+}
+
+function renderMes(fechaInicio, fechaFin, reservas, aulas, horarios) {
+    const hoy = formatFecha(new Date());
+    let html = '<table class="cal-tabla"><thead><tr>';
+    DIAS.forEach(d => html += `<th>${d}</th>`);
+    html += '</tr></thead><tbody><tr>';
+
+    // Espacios vacíos al inicio
+    const primerDia = fechaInicio.getDay() === 0 ? 6 : fechaInicio.getDay() - 1;
+    for (let i = 0; i < primerDia; i++) html += '<td class="cal-cerrado cal-mes-td"></td>';
+
+    let diaActual = new Date(fechaInicio);
+    let col = primerDia;
+
+    while (diaActual <= fechaFin) {
+        if (col === 6) { html += '</tr><tr>'; col = 0; }
+
+        const fechaStr = formatFecha(diaActual);
+        const diaSemana = diaActual.getDay() === 0 ? 6 : diaActual.getDay() - 1;
+        const config = horarios.find(h => h.dia_semana === diaSemana);
+        const esHoy = fechaStr === hoy;
+        const cerrado = !config || !config.habilitado;
+        const resDelDia = reservas.filter(r => r.fecha === fechaStr);
+
+        html += `<td class="cal-mes-td ${cerrado ? 'cal-cerrado' : ''} ${esHoy ? 'cal-hoy' : ''}">
+            <div class="cal-dia-num">${diaActual.getDate()}</div>`;
+
+        if (!cerrado) {
+            resDelDia.slice(0, 2).forEach(r => {
+                html += `<div class="cal-reserva">${r.aula_nombre} ${r.hora_inicio.slice(0,5)}</div>`;
+            });
+            if (resDelDia.length > 2) {
+                html += `<div style="font-size:11px; color:#888">+${resDelDia.length - 2} más</div>`;
+            }
+        }
+
+        html += '</td>';
+        diaActual.setDate(diaActual.getDate() + 1);
+        col++;
+    }
+
+    // Rellenar última fila
+    while (col < 6) { html += '<td class="cal-cerrado cal-mes-td"></td>'; col++; }
+    html += '</tr></tbody></table>';
+    document.getElementById('calendario-container').innerHTML = html;
+}
+
+function precargarReserva(aulaId, aulaNombre, fecha) {
+    // Seleccionar el aula visualmente
+    document.querySelectorAll('.aula-card').forEach(c => c.classList.remove('seleccionada'));
+    const cards = document.querySelectorAll('.aula-card');
+    cards.forEach(c => {
+        if (c.querySelector('h3').textContent === aulaNombre) {
+            c.classList.add('seleccionada');
+        }
+    });
+    document.getElementById('aula-id').value = aulaId;
+    document.getElementById('aula-nombre').value = aulaNombre;
+    document.getElementById('fecha').value = fecha;
+
+    // Hacer scroll al formulario
+    document.getElementById('fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 
 // ===== CARGAR AULAS =====
 async function cargarAulas() {
@@ -540,8 +768,10 @@ function mostrarMensaje(id, texto, tipo) {
 }
 
 // Iniciar
+// Iniciar
 cargarAulas();
 cargarFechasBloqueadas();
+renderCalendario();
 </script>
 
 </body>
