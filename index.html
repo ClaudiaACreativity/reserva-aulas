@@ -171,16 +171,15 @@
         .card-admin h2 { color: #7d3c98; border-bottom-color: #d7bde2; }
 
         /* CALENDARIO */
-        .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .cal-tabla th { background: #1B4F8A; color: white; padding: 8px; font-size: 13px; text-align: center; }
-        .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; vertical-align: top; min-height: 60px; font-size: 12px; }
-        .cal-dia-num { font-weight: bold; color: #888; margin-bottom: 4px; }
-        .cal-reserva { background: #1B4F8A; color: white; border-radius: 4px; padding: 3px 6px; margin-bottom: 3px; font-size: 11px; cursor: default; }
-        .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 6px; margin-bottom: 3px; font-size: 11px; cursor: pointer; }
+        .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 12px; }
+        .cal-tabla th { background: #1B4F8A; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
+        .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; text-align: center; height: 45px; }
+        .cal-reserva { background: #1B4F8A; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
+        .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 5px; font-size: 11px; cursor: pointer; }
         .cal-libre:hover { background: #a8dbbe; }
-        .cal-cerrado { background: #f5f5f5; }
-        .cal-hoy { background: #fffde7; }
-        .cal-mes-td { height: 80px; }
+        .cal-libre-cell { cursor: pointer; }
+        .cal-libre-cell:hover { background: #f0fdf4; }
+        .cal-reserva-cell { background: #eef2fb; }
     </style>
 </head>
 <body>
@@ -196,18 +195,26 @@
 
     <!-- SECCIÓN 0: CALENDARIO -->
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; border:none; padding:0">Calendario de reservas</h2>
-            <div style="display:flex; gap:10px; align-items:center;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                 <button class="btn btn-primary" onclick="navegarCalendario(-1)">◀</button>
                 <span id="titulo-calendario" style="font-weight:bold; font-size:15px; min-width:200px; text-align:center"></span>
                 <button class="btn btn-primary" onclick="navegarCalendario(1)">▶</button>
-                <div style="display:flex; gap:5px; margin-left:15px;">
-                    <button class="btn btn-primary" id="btn-semana" onclick="cambiarVista('semana')">Semana</button>
-                    <button class="btn" id="btn-mes" onclick="cambiarVista('mes')"
-                        style="background:#e0e8f0; color:#1B4F8A;">Mes</button>
+                <button class="btn btn-primary" onclick="navegarCalendario(0)">Hoy</button>
+                <div style="display:flex; gap:5px; margin-left:10px;">
+                    <button class="btn" id="btn-dia" onclick="cambiarVista('dia')"
+                        style="background:#1B4F8A; color:white;">Día</button>
+                    <button class="btn" id="btn-semana" onclick="cambiarVista('semana')"
+                        style="background:#e0e8f0; color:#1B4F8A;">Semana</button>
                 </div>
             </div>
+        </div>
+        <div id="selector-aula-semana" style="display:none; margin-bottom:15px;">
+            <label style="font-size:13px; font-weight:bold; color:#555;">Aula a visualizar:</label>
+            <select id="select-aula-semana" onchange="renderCalendario()"
+                style="margin-left:10px; padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+            </select>
         </div>
         <div id="calendario-container" style="overflow-x:auto;">
             <p class="empty">Cargando calendario...</p>
@@ -304,23 +311,26 @@
 const API = 'https://reserva-aulas.onrender.com';
 
 // ===== CALENDARIO =====
-let vistaActual = 'semana';
+let vistaActual = 'dia';
 let fechaBase = new Date();
 
 function cambiarVista(vista) {
     vistaActual = vista;
+    document.getElementById('btn-dia').style.background = vista === 'dia' ? '#1B4F8A' : '#e0e8f0';
+    document.getElementById('btn-dia').style.color = vista === 'dia' ? 'white' : '#1B4F8A';
     document.getElementById('btn-semana').style.background = vista === 'semana' ? '#1B4F8A' : '#e0e8f0';
     document.getElementById('btn-semana').style.color = vista === 'semana' ? 'white' : '#1B4F8A';
-    document.getElementById('btn-mes').style.background = vista === 'mes' ? '#1B4F8A' : '#e0e8f0';
-    document.getElementById('btn-mes').style.color = vista === 'mes' ? 'white' : '#1B4F8A';
+    document.getElementById('selector-aula-semana').style.display = vista === 'semana' ? 'block' : 'none';
     renderCalendario();
 }
 
 function navegarCalendario(dir) {
-    if (vistaActual === 'semana') {
-        fechaBase.setDate(fechaBase.getDate() + dir * 7);
+    if (dir === 0) {
+        fechaBase = new Date();
+    } else if (vistaActual === 'dia') {
+        fechaBase.setDate(fechaBase.getDate() + dir);
     } else {
-        fechaBase.setMonth(fechaBase.getMonth() + dir);
+        fechaBase.setDate(fechaBase.getDate() + dir * 7);
     }
     renderCalendario();
 }
@@ -337,97 +347,103 @@ function formatFecha(fecha) {
     return fecha.toISOString().split('T')[0];
 }
 
-function formatHora(h) {
-    return h.toString().padStart(2, '0') + ':00';
-}
-
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 async function renderCalendario() {
     const container = document.getElementById('calendario-container');
     container.innerHTML = '<p class="empty">Cargando...</p>';
 
-    let fechaInicio, fechaFin;
-
-    if (vistaActual === 'semana') {
-        fechaInicio = getLunes(fechaBase);
-        fechaFin = new Date(fechaInicio);
-        fechaFin.setDate(fechaFin.getDate() + 5);
-        document.getElementById('titulo-calendario').textContent =
-            `${fechaInicio.getDate()} ${MESES[fechaInicio.getMonth()]} — ${fechaFin.getDate()} ${MESES[fechaFin.getMonth()]} ${fechaFin.getFullYear()}`;
-    } else {
-        fechaInicio = new Date(fechaBase.getFullYear(), fechaBase.getMonth(), 1);
-        fechaFin = new Date(fechaBase.getFullYear(), fechaBase.getMonth() + 1, 0);
-        document.getElementById('titulo-calendario').textContent =
-            `${MESES[fechaBase.getMonth()]} ${fechaBase.getFullYear()}`;
-    }
-
     try {
-        const [resReservas, resAulas, resHorarios] = await Promise.all([
-            fetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(fechaInicio)}&fecha_fin=${formatFecha(fechaFin)}`),
+        const [resAulas, resHorarios] = await Promise.all([
             fetch(`${API}/aulas`),
             fetch(`${API}/horarios`)
         ]);
-
-        const reservas = await resReservas.json();
         const aulas = await resAulas.json();
         const horarios = await resHorarios.json();
 
-        if (vistaActual === 'semana') {
-            renderSemana(fechaInicio, reservas, aulas, horarios);
+        // Poblar selector de aula para vista semana
+        const selectAula = document.getElementById('select-aula-semana');
+        if (selectAula.options.length === 0) {
+            aulas.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = a.nombre;
+                selectAula.appendChild(opt);
+            });
+        }
+
+        if (vistaActual === 'dia') {
+            await renderDia(aulas, horarios);
         } else {
-            renderMes(fechaInicio, fechaFin, reservas, aulas, horarios);
+            await renderSemana(aulas, horarios);
         }
     } catch (e) {
         container.innerHTML = '<p class="empty">Error al cargar el calendario</p>';
     }
 }
 
-function renderSemana(lunes, reservas, aulas, horarios) {
-    const hoy = formatFecha(new Date());
-    const dias = [];
-    for (let i = 0; i < 6; i++) {
-        const d = new Date(lunes);
-        d.setDate(d.getDate() + i);
-        dias.push(d);
+async function renderDia(aulas, horarios) {
+    const hoy = formatFecha(fechaBase);
+    const diaSemana = fechaBase.getDay() === 0 ? 6 : fechaBase.getDay() - 1;
+    const config = horarios.find(h => h.dia_semana === diaSemana);
+
+    document.getElementById('titulo-calendario').textContent =
+        `${DIAS_SEMANA[fechaBase.getDay()]} ${fechaBase.getDate()} de ${MESES[fechaBase.getMonth()]} ${fechaBase.getFullYear()}`;
+
+    if (!config || !config.habilitado) {
+        document.getElementById('calendario-container').innerHTML =
+            '<p class="empty">El instituto no abre este día</p>';
+        return;
     }
 
-    let html = '<table class="cal-tabla"><thead><tr><th>Aula</th>';
-    dias.forEach(d => {
-        const esFinde = d.getDay() === 0;
-        if (!esFinde) {
-            const esHoy = formatFecha(d) === hoy;
-            html += `<th${esHoy ? ' style="background:#2980b9"' : ''}>${DIAS[d.getDay()-1]}<br>${d.getDate()}/${d.getMonth()+1}</th>`;
-        }
-    });
+    const resReservas = await fetch(`${API}/reservas/calendario?fecha_inicio=${hoy}&fecha_fin=${hoy}`);
+    const reservas = await resReservas.json();
+
+    // Generar franjas horarias de 1 hora
+    const horaAp = parseInt(config.hora_apertura.slice(0,2));
+    const horaCi = parseInt(config.hora_cierre.slice(0,2));
+    const franjas = [];
+    for (let h = horaAp; h < horaCi; h++) {
+        franjas.push(h.toString().padStart(2,'0') + ':00');
+    }
+
+    let html = '<table class="cal-tabla"><thead><tr>';
+    html += '<th style="width:70px">Horario</th>';
+    aulas.forEach(a => html += `<th>${a.nombre}</th>`);
     html += '</tr></thead><tbody>';
 
-    aulas.forEach(aula => {
-        html += `<tr><td style="font-weight:bold; font-size:12px; background:#f8fafc">${aula.nombre}</td>`;
-        dias.forEach(d => {
-            if (d.getDay() === 0) return;
-            const fechaStr = formatFecha(d);
-            const diaConfig = horarios.find(h => h.dia_semana === (d.getDay() === 0 ? 6 : d.getDay() - 1));
-            const esHoy = fechaStr === hoy;
+    franjas.forEach(franja => {
+        const horaNum = parseInt(franja.slice(0,2));
+        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
 
-            if (!diaConfig || !diaConfig.habilitado) {
-                html += `<td class="cal-cerrado"></td>`;
-                return;
+        aulas.forEach(aula => {
+            const res = reservas.find(r =>
+                r.aula_id === aula.id &&
+                parseInt(r.hora_inicio.slice(0,2)) <= horaNum &&
+                parseInt(r.hora_fin.slice(0,2)) > horaNum
+            );
+
+            if (res) {
+                html += `<td class="cal-reserva-cell">
+                    <div class="cal-reserva">🔒 ${res.docente_nombre}<br>
+                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
+                </td>`;
+            } else {
+                const ahora = new Date();
+                const fechaFranja = new Date(fechaBase);
+                fechaFranja.setHours(horaNum, 0, 0);
+                const pasado = fechaFranja < ahora;
+                if (pasado) {
+                    html += `<td style="background:#f5f5f5"></td>`;
+                } else {
+                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${aula.id}','${aula.nombre}','${hoy}','${franja}')">
+                        <div class="cal-libre">+ Reservar</div>
+                    </td>`;
+                }
             }
-
-            const resDelDia = reservas.filter(r => r.fecha === fechaStr && r.aula_id === aula.id);
-            let contenido = '';
-            resDelDia.forEach(r => {
-                contenido += `<div class="cal-reserva">🔒 ${r.hora_inicio.slice(0,5)}-${r.hora_fin.slice(0,5)}<br>${r.docente_nombre}</div>`;
-            });
-
-            // Mostrar franja libre si no hay reservas
-            if (resDelDia.length === 0) {
-                contenido += `<div class="cal-libre" onclick="precargarReserva('${aula.id}','${aula.nombre}','${fechaStr}')">+ Reservar</div>`;
-            }
-
-            html += `<td class="${esHoy ? 'cal-hoy' : ''}">${contenido}</td>`;
         });
         html += '</tr>';
     });
@@ -436,54 +452,102 @@ function renderSemana(lunes, reservas, aulas, horarios) {
     document.getElementById('calendario-container').innerHTML = html;
 }
 
-function renderMes(fechaInicio, fechaFin, reservas, aulas, horarios) {
-    const hoy = formatFecha(new Date());
-    let html = '<table class="cal-tabla"><thead><tr>';
-    DIAS.forEach(d => html += `<th>${d}</th>`);
-    html += '</tr></thead><tbody><tr>';
+async function renderSemana(aulas, horarios) {
+    const aulaId = document.getElementById('select-aula-semana').value;
+    const aulaNombre = document.getElementById('select-aula-semana').selectedOptions[0]?.text || '';
 
-    // Espacios vacíos al inicio
-    const primerDia = fechaInicio.getDay() === 0 ? 6 : fechaInicio.getDay() - 1;
-    for (let i = 0; i < primerDia; i++) html += '<td class="cal-cerrado cal-mes-td"></td>';
+    const lunes = getLunes(fechaBase);
+    const sabado = new Date(lunes);
+    sabado.setDate(sabado.getDate() + 5);
 
-    let diaActual = new Date(fechaInicio);
-    let col = primerDia;
+    document.getElementById('titulo-calendario').textContent =
+        `${aulaNombre} — ${lunes.getDate()} ${MESES[lunes.getMonth()]} al ${sabado.getDate()} ${MESES[sabado.getMonth()]}`;
 
-    while (diaActual <= fechaFin) {
-        if (col === 6) { html += '</tr><tr>'; col = 0; }
+    const resReservas = await fetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
+    const reservas = await resReservas.json();
+    const resAula = reservas.filter(r => r.aula_id === aulaId);
 
-        const fechaStr = formatFecha(diaActual);
-        const diaSemana = diaActual.getDay() === 0 ? 6 : diaActual.getDay() - 1;
-        const config = horarios.find(h => h.dia_semana === diaSemana);
-        const esHoy = fechaStr === hoy;
-        const cerrado = !config || !config.habilitado;
-        const resDelDia = reservas.filter(r => r.fecha === fechaStr);
+    // Calcular horario máximo de la semana
+    let horaMin = 7, horaMax = 20;
+    horarios.forEach(h => {
+        if (h.habilitado && h.hora_apertura) horaMin = Math.min(horaMin, parseInt(h.hora_apertura.slice(0,2)));
+        if (h.habilitado && h.hora_cierre) horaMax = Math.max(horaMax, parseInt(h.hora_cierre.slice(0,2)));
+    });
 
-        html += `<td class="cal-mes-td ${cerrado ? 'cal-cerrado' : ''} ${esHoy ? 'cal-hoy' : ''}">
-            <div class="cal-dia-num">${diaActual.getDate()}</div>`;
-
-        if (!cerrado) {
-            resDelDia.slice(0, 2).forEach(r => {
-                html += `<div class="cal-reserva">${r.aula_nombre} ${r.hora_inicio.slice(0,5)}</div>`;
-            });
-            if (resDelDia.length > 2) {
-                html += `<div style="font-size:11px; color:#888">+${resDelDia.length - 2} más</div>`;
-            }
-        }
-
-        html += '</td>';
-        diaActual.setDate(diaActual.getDate() + 1);
-        col++;
+    const dias = [];
+    for (let i = 0; i < 6; i++) {
+        const d = new Date(lunes);
+        d.setDate(d.getDate() + i);
+        dias.push(d);
     }
 
-    // Rellenar última fila
-    while (col < 6) { html += '<td class="cal-cerrado cal-mes-td"></td>'; col++; }
-    html += '</tr></tbody></table>';
+    let html = '<table class="cal-tabla"><thead><tr><th style="width:70px">Horario</th>';
+    dias.forEach(d => {
+        const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
+        const config = horarios.find(h => h.dia_semana === diaSemana);
+        const cerrado = !config || !config.habilitado;
+        const esHoy = formatFecha(d) === formatFecha(new Date());
+        html += `<th style="${cerrado ? 'background:#888' : ''} ${esHoy ? 'background:#2980b9' : ''}">
+            ${DIAS[diaSemana]}<br>${d.getDate()}/${d.getMonth()+1}
+        </th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    for (let h = horaMin; h < horaMax; h++) {
+        const franja = h.toString().padStart(2,'0') + ':00';
+        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
+
+        dias.forEach(d => {
+            const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
+            const config = horarios.find(h2 => h2.dia_semana === diaSemana);
+            const cerrado = !config || !config.habilitado;
+            const fechaStr = formatFecha(d);
+
+            if (cerrado) {
+                html += `<td style="background:#f0f0f0"></td>`;
+                return;
+            }
+
+            const horaApDia = parseInt(config.hora_apertura.slice(0,2));
+            const horaCiDia = parseInt(config.hora_cierre.slice(0,2));
+            if (h < horaApDia || h >= horaCiDia) {
+                html += `<td style="background:#f0f0f0"></td>`;
+                return;
+            }
+
+            const res = resAula.find(r =>
+                r.fecha === fechaStr &&
+                parseInt(r.hora_inicio.slice(0,2)) <= h &&
+                parseInt(r.hora_fin.slice(0,2)) > h
+            );
+
+            if (res) {
+                html += `<td class="cal-reserva-cell">
+                    <div class="cal-reserva">🔒 ${res.docente_nombre}<br>
+                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
+                </td>`;
+            } else {
+                const ahora = new Date();
+                const fechaFranja = new Date(d);
+                fechaFranja.setHours(h, 0, 0);
+                const pasado = fechaFranja < ahora;
+                if (pasado) {
+                    html += `<td style="background:#f5f5f5"></td>`;
+                } else {
+                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${aulaId}','${aulaNombre}','${fechaStr}','${franja}')">
+                        <div class="cal-libre">+ Reservar</div>
+                    </td>`;
+                }
+            }
+        });
+        html += '</tr>';
+    }
+
+    html += '</tbody></table>';
     document.getElementById('calendario-container').innerHTML = html;
 }
 
-function precargarReserva(aulaId, aulaNombre, fecha) {
-    // Seleccionar el aula visualmente
+function precargarReserva(aulaId, aulaNombre, fecha, hora) {
     document.querySelectorAll('.aula-card').forEach(c => c.classList.remove('seleccionada'));
     const cards = document.querySelectorAll('.aula-card');
     cards.forEach(c => {
@@ -494,11 +558,9 @@ function precargarReserva(aulaId, aulaNombre, fecha) {
     document.getElementById('aula-id').value = aulaId;
     document.getElementById('aula-nombre').value = aulaNombre;
     document.getElementById('fecha').value = fecha;
-
-    // Hacer scroll al formulario
+    if (hora) document.getElementById('hora-inicio').value = hora;
     document.getElementById('fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
-
 // ===== CARGAR AULAS =====
 async function cargarAulas() {
     try {
