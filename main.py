@@ -78,7 +78,7 @@ class FechaBloqueada(BaseModel):
 class AulaCreate(BaseModel):
     nombre: str
     capacidad: int
-    edificio: str
+    edificio_id: int
 
 class HorarioUpdate(BaseModel):
     habilitado: bool
@@ -105,9 +105,9 @@ async def crear_aula(aula: AulaCreate):
     db = await get_db()
     try:
         result = await db.fetchrow(
-            """INSERT INTO aulas (nombre, capacidad, edificio)
+            """INSERT INTO aulas (nombre, capacidad, edificio_id)
                VALUES ($1, $2, $3) RETURNING id""",
-            aula.nombre, aula.capacidad, aula.edificio
+            aula.nombre, aula.capacidad, aula.edificio_id
         )
         return {"mensaje": "Aula creada", "id": str(result["id"])}
     except Exception as e:
@@ -476,3 +476,35 @@ async def crear_edificio(datos: dict):
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+ @app.patch("/edificios/{edificio_id}")
+async def actualizar_edificio(edificio_id: int, datos: dict):
+    db = await get_db()
+    try:
+        if "nombre" in datos:
+            await db.execute(
+                "UPDATE edificios SET nombre = $1 WHERE id = $2",
+                datos["nombre"], edificio_id
+            )
+        if "activo" in datos:
+            await db.execute(
+                "UPDATE edificios SET activo = $1 WHERE id = $2",
+                datos["activo"], edificio_id
+            )
+        return {"mensaje": "Edificio actualizado"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/edificios/{edificio_id}/aulas")
+async def aulas_por_edificio(edificio_id: int):
+    db = await get_db()
+    try:
+        aulas = await db.fetch(
+            "SELECT * FROM aulas WHERE edificio_id = $1 AND activa = TRUE",
+            edificio_id
+        )
+        return [dict(a) for a in aulas]
+    finally:
+        await release_db(db)       
