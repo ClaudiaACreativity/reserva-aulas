@@ -190,7 +190,7 @@
     <!-- PANEL RESERVAS -->
     <div class="panel activo" id="panel-reservas">
         <div class="card">
-            <h2>Todas las reservas</h2>
+            <h2>Todas las reservas <button class="btn btn-success" style="float:right; font-size:13px; padding:7px 14px;" onclick="exportarExcel()">📥 Exportar a Excel</button></h2>
             <div id="tabla-todas-reservas"><p class="empty">Cargando...</p></div>
         </div>
     </div>
@@ -857,6 +857,11 @@ async function eliminarFechaBloqueada(fecha) {
     } catch (e) {
         mostrarMensaje('mensaje-fechas', 'Error al conectar', 'error');
     }
+}
+
+// ===== EXPORTAR EXCEL =====
+async function exportarExcel() {
+    window.open(`${API}/reservas/exportar`, '_blank');
 }
 
 // ===== UTILIDAD =====
