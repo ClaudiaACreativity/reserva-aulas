@@ -835,7 +835,11 @@ function mostrarMensaje(id, texto, tipo) {
 async function iniciar() {
     try {
         await fetch(`${API}/`);
-    } catch(e) {}
+        // Esperar 3 segundos para que Render despierte completamente
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    } catch(e) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+    }
     cargarAulas();
     cargarFechasBloqueadas();
     renderCalendario();
