@@ -830,11 +830,18 @@ function mostrarMensaje(id, texto, tipo) {
     setTimeout(() => el.style.display = 'none', 4000);
 }
 
-// Iniciar
-// Iniciar
-cargarAulas();
-cargarFechasBloqueadas();
-renderCalendario();
+
+// Iniciar — despertar servidor primero
+async function iniciar() {
+    try {
+        await fetch(`${API}/`);
+    } catch(e) {}
+    cargarAulas();
+    cargarFechasBloqueadas();
+    renderCalendario();
+}
+
+iniciar();
 </script>
 
 </body>
