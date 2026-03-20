@@ -143,7 +143,6 @@ async def consultar_disponibilidad(aula_id: str, fecha: date):
 async def crear_reserva(reserva: ReservaCreate):
     db = await get_db()
     try:
-        # Verificar que la fecha no sea pasada
         ahora = datetime.now()
         fecha_hora_inicio = datetime.combine(reserva.fecha, reserva.hora_inicio)
         if fecha_hora_inicio < ahora:
@@ -152,7 +151,6 @@ async def crear_reserva(reserva: ReservaCreate):
                 detail="La fecha y hora de reserva debe ser posterior a la actual"
             )
 
-        # Verificar si la fecha está bloqueada
         fecha_bloqueada = await db.fetchrow(
             "SELECT motivo FROM fechas_bloqueadas WHERE fecha = $1",
             reserva.fecha
@@ -163,37 +161,31 @@ async def crear_reserva(reserva: ReservaCreate):
                 detail=f"No se puede reservar en esa fecha: {fecha_bloqueada['motivo']}"
             )
 
-        # Obtener el día de la semana (0=Lunes, 6=Domingo)
         dia_semana = reserva.fecha.weekday()
 
-        # Consultar configuración de ese día
         config = await db.fetchrow(
             "SELECT * FROM configuracion_horarios WHERE dia_semana = $1",
             dia_semana
         )
 
-        # Verificar si el día está habilitado
         if not config or not config["habilitado"]:
             raise HTTPException(
                 status_code=400,
                 detail=f"El instituto no abre los {config['nombre_dia']}s"
             )
 
-        # Verificar hora de apertura
         if reserva.hora_inicio < config["hora_apertura"]:
             raise HTTPException(
                 status_code=400,
                 detail=f"El instituto abre a las {config['hora_apertura'].strftime('%H:%M')} ese día"
             )
 
-        # Verificar hora de cierre
         if reserva.hora_fin > config["hora_cierre"]:
             raise HTTPException(
                 status_code=400,
                 detail=f"El instituto cierra a las {config['hora_cierre'].strftime('%H:%M')} ese día"
             )
 
-        # Crear la reserva
         result = await db.fetchrow(
             """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin)
                VALUES ($1, $2, $3, $4, $5) RETURNING id""",
@@ -201,7 +193,6 @@ async def crear_reserva(reserva: ReservaCreate):
             reserva.hora_inicio, reserva.hora_fin
         )
 
-        # Obtener datos para el email
         usuario = await db.fetchrow(
             "SELECT email, nombre FROM usuarios WHERE id = $1",
             reserva.usuario_id
@@ -477,7 +468,7 @@ async def crear_edificio(datos: dict):
     finally:
         await release_db(db)
 
- @app.patch("/edificios/{edificio_id}")
+@app.patch("/edificios/{edificio_id}")
 async def actualizar_edificio(edificio_id: int, datos: dict):
     db = await get_db()
     try:
@@ -507,4 +498,4 @@ async def aulas_por_edificio(edificio_id: int):
         )
         return [dict(a) for a in aulas]
     finally:
-        await release_db(db)       
+        await release_db(db)
