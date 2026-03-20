@@ -7,6 +7,9 @@ import asyncpg
 import os
 import resend
 from dotenv import load_dotenv
+from fastapi.responses import StreamingResponse
+import openpyxl
+from io import BytesIO
 
 load_dotenv()
 
@@ -499,3 +502,55 @@ async def aulas_por_edificio(edificio_id: int):
         return [dict(a) for a in aulas]
     finally:
         await release_db(db)
+
+@app.get("/reservas/exportar")
+async def exportar_reservas():
+    db = await get_db()
+    try:
+        reservas = await db.fetch(
+            """SELECT r.fecha, r.hora_inicio, r.hora_fin, r.estado,
+                      a.nombre as aula_nombre,
+                      u.nombre as docente_nombre, u.email as docente_email
+               FROM reservas r
+               JOIN aulas a ON r.aula_id = a.id
+               JOIN usuarios u ON r.usuario_id = u.id
+               ORDER BY r.fecha DESC, r.hora_inicio DESC"""
+        )
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Reservas"
+
+        # Encabezados
+        encabezados = ["Fecha", "Hora inicio", "Hora fin", "Aula", "Docente", "Email", "Estado"]
+        for col, enc in enumerate(encabezados, 1):
+            celda = ws.cell(row=1, column=col, value=enc)
+            celda.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            celda.fill = openpyxl.styles.PatternFill("solid", fgColor="1B4F8A")
+
+        # Datos
+        for fila, r in enumerate(reservas, 2):
+            ws.cell(row=fila, column=1, value=r["fecha"].strftime("%d/%m/%Y"))
+            ws.cell(row=fila, column=2, value=r["hora_inicio"].strftime("%H:%M"))
+            ws.cell(row=fila, column=3, value=r["hora_fin"].strftime("%H:%M"))
+            ws.cell(row=fila, column=4, value=r["aula_nombre"])
+            ws.cell(row=fila, column=5, value=r["docente_nombre"])
+            ws.cell(row=fila, column=6, value=r["docente_email"])
+            ws.cell(row=fila, column=7, value=r["estado"])
+
+        # Ajustar ancho de columnas
+        anchos = [12, 12, 12, 15, 25, 30, 12]
+        for col, ancho in enumerate(anchos, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = ancho
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=reservas.xlsx"}
+        )
+    finally:
+        await release_db(db)        
