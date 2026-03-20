@@ -178,6 +178,7 @@
 <!-- TABS -->
 <div class="tabs">
     <div class="tab activo" onclick="cambiarTab('reservas', this)">📋 Reservas</div>
+    <div class="tab" onclick="cambiarTab('edificios', this)">🏢 Edificios</div>
     <div class="tab" onclick="cambiarTab('aulas', this)">🏫 Aulas</div>
     <div class="tab" onclick="cambiarTab('usuarios', this)">👤 Usuarios</div>
     <div class="tab" onclick="cambiarTab('horarios', this)">🕐 Horarios</div>
@@ -191,6 +192,31 @@
         <div class="card">
             <h2>Todas las reservas</h2>
             <div id="tabla-todas-reservas"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- PANEL EDIFICIOS -->
+    <div class="panel" id="panel-edificios">
+        <div class="card">
+            <h2>Nuevo edificio</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="edificio-nombre" placeholder="Ej: Sede Central">
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="edificio-direccion" placeholder="Ej: Av. Corrientes 1234">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="crearEdificio()">Agregar edificio</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-edificios"></div>
+        </div>
+        <div class="card">
+            <h2>Edificios registrados</h2>
+            <div id="tabla-edificios"><p class="empty">Cargando...</p></div>
         </div>
     </div>
 
@@ -208,8 +234,10 @@
                     <input type="number" id="aula-capacidad" placeholder="Ej: 30">
                 </div>
                 <div class="form-group">
-                    <label>Edificio</label>
-                    <input type="text" id="aula-edificio" placeholder="Ej: Edificio A">
+                <label>Edificio</label>
+                <select id="aula-edificio-id">
+                    <option value="">Seleccioná un edificio</option>
+                </select>
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
                     <button class="btn btn-primary" onclick="crearAula()">Agregar aula</button>
@@ -324,6 +352,7 @@ function cambiarTab(panel, el) {
 
 // ===== CARGAR TODO =====
 function cargarTodo() {
+    cargarEdificios();
     cargarReservas();
     cargarAulas();
     cargarUsuarios();
@@ -392,6 +421,122 @@ async function cancelarReservaAdmin(reservaId) {
     }
 }
 
+// ===== EDIFICIOS =====
+async function cargarEdificios() {
+    try {
+        const res = await fetch(`${API}/edificios`);
+        const edificios = await res.json();
+        const contenedor = document.getElementById('tabla-edificios');
+
+        // Poblar selector de edificios en formulario de aulas
+        const select = document.getElementById('aula-edificio-id');
+        select.innerHTML = '<option value="">Seleccioná un edificio</option>';
+        edificios.forEach(e => {
+            select.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
+        });
+
+        if (!edificios.length) {
+            contenedor.innerHTML = '<p class="empty">No hay edificios registrados</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Nombre</th><th>Dirección</th><th>Estado</th><th>Acción</th></tr>
+                </thead>
+                <tbody>
+                    ${edificios.map(e => `
+                        <tr>
+                            <td>
+                                <input type="text" id="nombre-edificio-${e.id}" 
+                                    value="${e.nombre}"
+                                    style="border:1px solid #ccc; border-radius:4px; padding:6px; width:100%">
+                            </td>
+                            <td>${e.direccion || '—'}</td>
+                            <td><span class="badge badge-${e.activo}">${e.activo ? 'Activo' : 'Inactivo'}</span></td>
+                            <td style="display:flex; gap:5px;">
+                                <button class="btn btn-primary" style="font-size:12px; padding:6px 12px;"
+                                    onclick="editarEdificio(${e.id})">
+                                    Guardar
+                                </button>
+                                <button class="btn ${e.activo ? 'btn-danger' : 'btn-success'}"
+                                    onclick="toggleEdificio(${e.id}, ${e.activo})">
+                                    ${e.activo ? 'Desactivar' : 'Activar'}
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (e) {
+        document.getElementById('tabla-edificios').innerHTML = '<p class="empty">Error al cargar edificios</p>';
+    }
+}
+
+async function crearEdificio() {
+    const nombre = document.getElementById('edificio-nombre').value.trim();
+    const direccion = document.getElementById('edificio-direccion').value.trim();
+
+    if (!nombre) {
+        mostrarMensaje('mensaje-edificios', 'El nombre es obligatorio', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/edificios`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, direccion })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-edificios', '✅ Edificio creado correctamente', 'exito');
+            document.getElementById('edificio-nombre').value = '';
+            document.getElementById('edificio-direccion').value = '';
+            cargarEdificios();
+        } else {
+            mostrarMensaje('mensaje-edificios', `❌ ${data.detail}`, 'error');
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-edificios', 'Error al conectar', 'error');
+    }
+}
+
+async function editarEdificio(id) {
+    const nombre = document.getElementById(`nombre-edificio-${id}`).value.trim();
+    if (!nombre) return;
+
+    try {
+        const res = await fetch(`${API}/edificios/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre })
+        });
+        if (res.ok) {
+            mostrarMensaje('mensaje-edificios', '✅ Edificio actualizado', 'exito');
+            cargarEdificios();
+        }
+    } catch (e) {
+        mostrarMensaje('mensaje-edificios', 'Error al actualizar', 'error');
+    }
+}
+
+async function toggleEdificio(id, activo) {
+    try {
+        await fetch(`${API}/edificios/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activo: !activo })
+        });
+        cargarEdificios();
+    } catch (e) {
+        alert('Error al actualizar edificio');
+    }
+}
+
+
 // ===== AULAS =====
 async function cargarAulas() {
     try {
@@ -430,9 +575,9 @@ async function cargarAulas() {
 async function crearAula() {
     const nombre = document.getElementById('aula-nombre').value.trim();
     const capacidad = document.getElementById('aula-capacidad').value;
-    const edificio = document.getElementById('aula-edificio').value.trim();
+    const edificioId = document.getElementById('aula-edificio-id').value;
 
-    if (!nombre || !capacidad || !edificio) {
+    if (!nombre || !capacidad || !edificioId) {
         mostrarMensaje('mensaje-aulas', 'Completá todos los campos', 'error');
         return;
     }
@@ -441,14 +586,18 @@ async function crearAula() {
         const res = await fetch(`${API}/aulas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, capacidad: parseInt(capacidad), edificio })
+            body: JSON.stringify({ 
+                nombre, 
+                capacidad: parseInt(capacidad), 
+                edificio_id: parseInt(edificioId) 
+            })
         });
         const data = await res.json();
         if (res.ok) {
             mostrarMensaje('mensaje-aulas', '✅ Aula creada correctamente', 'exito');
             document.getElementById('aula-nombre').value = '';
             document.getElementById('aula-capacidad').value = '';
-            document.getElementById('aula-edificio').value = '';
+            document.getElementById('aula-edificio-id').value = '';
             cargarAulas();
         } else {
             mostrarMensaje('mensaje-aulas', `❌ ${data.detail}`, 'error');
@@ -457,7 +606,6 @@ async function crearAula() {
         mostrarMensaje('mensaje-aulas', 'Error al conectar', 'error');
     }
 }
-
 async function toggleAula(id, activa) {
     try {
         await fetch(`${API}/aulas/${id}`, {
