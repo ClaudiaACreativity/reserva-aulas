@@ -22,14 +22,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-async def get_db():
-    return await asyncpg.connect(
+pool = None
+
+@app.on_event("startup")
+async def startup():
+    global pool
+    pool = await asyncpg.create_pool(
         host=os.getenv("DB_HOST"),
         port=int(os.getenv("DB_PORT")),
         database=os.getenv("DB_NAME"),
         user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD")
+        password=os.getenv("DB_PASSWORD"),
+        min_size=1,
+        max_size=5
     )
+
+@app.on_event("shutdown")
+async def shutdown():
+    await pool.close()
+
+async def get_db():
+    return await pool.acquire()
+
+async def release_db(conn):
+    await pool.release(conn)
 
 # ===== EMAIL =====
 def enviar_email(destinatario: str, asunto: str, cuerpo: str):
@@ -82,7 +98,7 @@ async def listar_aulas():
         aulas = await db.fetch("SELECT * FROM aulas WHERE activa = TRUE")
         return [dict(a) for a in aulas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.post("/aulas")
 async def crear_aula(aula: AulaCreate):
@@ -97,7 +113,7 @@ async def crear_aula(aula: AulaCreate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.patch("/aulas/{aula_id}")
 async def toggle_aula(aula_id: str, datos: dict):
@@ -109,7 +125,7 @@ async def toggle_aula(aula_id: str, datos: dict):
         )
         return {"mensaje": "Aula actualizada"}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/disponibilidad/{aula_id}/{fecha}")
 async def consultar_disponibilidad(aula_id: str, fecha: date):
@@ -121,7 +137,7 @@ async def consultar_disponibilidad(aula_id: str, fecha: date):
         )
         return [dict(r) for r in reservas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.post("/reservas")
 async def crear_reserva(reserva: ReservaCreate):
@@ -215,7 +231,7 @@ async def crear_reserva(reserva: ReservaCreate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.delete("/reservas/{reserva_id}")
 async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
@@ -250,7 +266,7 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
             )
         return {"mensaje": "Reserva cancelada correctamente"}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.delete("/reservas/{reserva_id}/admin")
 async def cancelar_reserva_admin(reserva_id: str):
@@ -268,7 +284,7 @@ async def cancelar_reserva_admin(reserva_id: str):
         )
         return {"mensaje": "Reserva cancelada correctamente"}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/usuarios/buscar")
 async def buscar_usuario(email: str):
@@ -282,7 +298,7 @@ async def buscar_usuario(email: str):
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         return dict(usuario)
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.post("/usuarios")
 async def crear_usuario(usuario: dict):
@@ -295,7 +311,7 @@ async def crear_usuario(usuario: dict):
         )
         return {"id": str(result["id"])}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/usuarios")
 async def listar_usuarios():
@@ -304,7 +320,7 @@ async def listar_usuarios():
         usuarios = await db.fetch("SELECT * FROM usuarios ORDER BY nombre")
         return [dict(u) for u in usuarios]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.patch("/usuarios/{usuario_id}")
 async def toggle_usuario(usuario_id: str, datos: dict):
@@ -316,7 +332,7 @@ async def toggle_usuario(usuario_id: str, datos: dict):
         )
         return {"mensaje": "Usuario actualizado"}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/reservas/usuario")
 async def reservas_por_usuario(email: str):
@@ -334,7 +350,7 @@ async def reservas_por_usuario(email: str):
         )
         return [dict(r) for r in reservas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/reservas")
 async def listar_todas_reservas():
@@ -351,7 +367,7 @@ async def listar_todas_reservas():
         )
         return [dict(r) for r in reservas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/reservas/calendario")
 async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
@@ -371,7 +387,7 @@ async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
         )
         return [dict(r) for r in reservas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/fechas-bloqueadas")
 async def listar_fechas_bloqueadas():
@@ -382,7 +398,7 @@ async def listar_fechas_bloqueadas():
         )
         return [dict(f) for f in fechas]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.post("/fechas-bloqueadas")
 async def agregar_fecha_bloqueada(datos: FechaBloqueada):
@@ -396,7 +412,7 @@ async def agregar_fecha_bloqueada(datos: FechaBloqueada):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.delete("/fechas-bloqueadas/{fecha}")
 async def eliminar_fecha_bloqueada(fecha: date):
@@ -409,7 +425,7 @@ async def eliminar_fecha_bloqueada(fecha: date):
             raise HTTPException(status_code=404, detail="Fecha no encontrada")
         return {"mensaje": "Fecha desbloqueada correctamente"}
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.get("/horarios")
 async def listar_horarios():
@@ -420,7 +436,7 @@ async def listar_horarios():
         )
         return [dict(h) for h in horarios]
     finally:
-        await db.close()
+        await release_db(db)
 
 @app.patch("/horarios/{dia_semana}")
 async def actualizar_horario(dia_semana: int, datos: HorarioUpdate):
@@ -436,4 +452,27 @@ async def actualizar_horario(dia_semana: int, datos: HorarioUpdate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
-        await db.close()
+        await release_db(db)
+
+@app.get("/edificios")
+async def listar_edificios():
+    db = await get_db()
+    try:
+        edificios = await db.fetch("SELECT * FROM edificios WHERE activo = TRUE")
+        return [dict(e) for e in edificios]
+    finally:
+        await release_db(db)
+
+@app.post("/edificios")
+async def crear_edificio(datos: dict):
+    db = await get_db()
+    try:
+        result = await db.fetchrow(
+            "INSERT INTO edificios (nombre, direccion) VALUES ($1, $2) RETURNING id",
+            datos["nombre"], datos.get("direccion", "")
+        )
+        return {"mensaje": "Edificio creado", "id": result["id"]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
