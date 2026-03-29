@@ -98,7 +98,12 @@ async def inicio():
 async def listar_espacios():
     db = await get_db()
     try:
-        espacios = await db.fetch("SELECT * FROM aulas WHERE activa = TRUE")
+        espacios = await db.fetch("""
+            SELECT a.*, COALESCE(e.nombre, a.edificio, '') as nombre_edificio
+            FROM aulas a
+            LEFT JOIN edificios e ON a.edificio_id = e.id
+            WHERE a.activa = TRUE
+        """)
         return [dict(e) for e in espacios]
     finally:
         await release_db(db)

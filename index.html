@@ -49,13 +49,13 @@
             border-bottom: 2px solid #e0e8f0;
         }
 
-        .espacios-grid {
+        .aulas-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 15px;
         }
 
-        .espacio-card {
+        .aula-card {
             border: 2px solid #e0e8f0;
             border-radius: 8px;
             padding: 15px;
@@ -64,18 +64,18 @@
             transition: all 0.2s;
         }
 
-        .espacio-card:hover {
+        .aula-card:hover {
             border-color: #1B4F8A;
             background: #f0f4f8;
         }
 
-        .espacio-card.seleccionada {
+        .aula-card.seleccionada {
             border-color: #1B4F8A;
             background: #e8f0fb;
         }
 
-        .espacio-card h3 { font-size: 16px; color: #1B4F8A; }
-        .espacio-card p { font-size: 13px; color: #888; margin-top: 5px; }
+        .aula-card h3 { font-size: 16px; color: #1B4F8A; }
+        .aula-card p { font-size: 13px; color: #888; margin-top: 5px; }
 
         .form-grid {
             display: grid;
@@ -187,7 +187,7 @@
 <header>
     <div>
         <h1>🏫 Sistema de Reserva de Espacios</h1>
-        <p>Gestión de espacios</p>
+        <p>Instituto — Gestión de espacios</p>
     </div>
 </header>
 
@@ -211,8 +211,8 @@
             </div>
         </div>
         <div id="selector-aula-semana" style="display:none; margin-bottom:15px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">Espacio a visualizar:</label>
-            <select id="select-espacio-semana" onchange="renderCalendario()"
+            <label style="font-size:13px; font-weight:bold; color:#555;">Aula a visualizar:</label>
+            <select id="select-aula-semana" onchange="renderCalendario()"
                 style="margin-left:10px; padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
             </select>
         </div>
@@ -221,11 +221,11 @@
         </div>
     </div>
 
-    <!-- SECCIÓN 1: AULAS -->
+    <!-- SECCIÓN 1: Espacios -->
     <div class="card">
         <h2>Espacios disponibles</h2>
-        <div class="espacios-grid" id="espacios-grid">
-            <p class="empty">Cargando espacios...</p>
+        <div class="Espacios-grid" id="Espacios-grid">
+            <p class="empty">Cargando aulas...</p>
         </div>
     </div>
 
@@ -235,16 +235,16 @@
         <div class="form-grid">
             <div class="form-group">
                 <label>Espacio seleccionado</label>
-                <input type="text" id="espacio-nombre" placeholder="Seleccioná un espacio arriba" readonly>
-                <input type="hidden" id="espacio-id">
+                <input type="text" id="aula-nombre" placeholder="Seleccioná un espacio arriba" readonly>
+                <input type="hidden" id="aula-id">
             </div>
             <div class="form-group">
                 <label>Tu nombre</label>
-                <input type="text" id="usuario-nombre" placeholder="Ej: Juan Pérez">
+                <input type="text" id="docente-nombre" placeholder="Ej: María García">
             </div>
             <div class="form-group">
                 <label>Tu email</label>
-                <input type="email" id="usuario-email" placeholder="tu@email.com">
+                <input type="email" id="docente-email" placeholder="tu@instituto.edu">
             </div>
             <div class="form-group">
                 <label>Fecha</label>
@@ -259,7 +259,7 @@
                 <input type="time" id="hora-fin" onchange="document.getElementById('fecha').blur()">
             </div>
             <div class="form-group full">
-                <button class="btn btn-primary" onclick="crearReserva()">Reservar espacio</button>
+                <button class="btn btn-primary" onclick="crearReserva()">Reservar aula</button>
             </div>
         </div>
         <div class="mensaje" id="mensaje-reserva"></div>
@@ -271,7 +271,7 @@
         <div class="form-grid" style="margin-bottom:15px">
             <div class="form-group">
                 <label>Buscar por email</label>
-                <input type="email" id="buscar-email" placeholder="tu@email.com">
+                <input type="email" id="buscar-email" placeholder="tu@instituto.edu">
             </div>
             <div class="form-group" style="justify-content: flex-end;">
                 <button class="btn btn-primary" onclick="buscarReservas()">Buscar</button>
@@ -358,14 +358,14 @@ async function renderCalendario() {
 
     try {
         const [resAulas, resHorarios] = await Promise.all([
-            fetch(`${API}/espacios`),
+            fetch(`${API}/aulas`),
             fetch(`${API}/horarios`)
         ]);
         const aulas = await resAulas.json();
         const horarios = await resHorarios.json();
 
         // Poblar selector de aula para vista semana
-        const selectAula = document.getElementById('select-espacio-semana');
+        const selectAula = document.getElementById('select-aula-semana');
         if (selectAula.options.length === 0) {
             aulas.forEach(a => {
                 const opt = document.createElement('option');
@@ -395,7 +395,7 @@ async function renderDia(aulas, horarios) {
 
     if (!config || !config.habilitado) {
         document.getElementById('calendario-container').innerHTML =
-            '<p class="empty">No hay disponibilidad este día</p>';
+            '<p class="empty">El instituto no abre este día</p>';
         return;
     }
 
@@ -421,14 +421,14 @@ async function renderDia(aulas, horarios) {
 
         aulas.forEach(aula => {
             const res = reservas.find(r =>
-                r.espacio_id === espacio.id &&
+                r.aula_id === aula.id &&
                 parseInt(r.hora_inicio.slice(0,2)) <= horaNum &&
                 parseInt(r.hora_fin.slice(0,2)) > horaNum
             );
 
             if (res) {
                 html += `<td class="cal-reserva-cell">
-                    <div class="cal-reserva">🔒 ${res.usuario_nombre}<br>
+                    <div class="cal-reserva">🔒 ${res.docente_nombre}<br>
                     <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
                 </td>`;
             } else {
@@ -439,7 +439,7 @@ async function renderDia(aulas, horarios) {
                 if (pasado) {
                     html += `<td style="background:#f5f5f5"></td>`;
                 } else {
-                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${espacio.id}','${espacio.nombre}','${hoy}','${franja}')">
+                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${aula.id}','${aula.nombre}','${hoy}','${franja}')">
                         <div class="cal-libre">+ Reservar</div>
                     </td>`;
                 }
@@ -453,8 +453,8 @@ async function renderDia(aulas, horarios) {
 }
 
 async function renderSemana(aulas, horarios) {
-    const aulaId = document.getElementById('select-espacio-semana').value;
-    const aulaNombre = document.getElementById('select-espacio-semana').selectedOptions[0]?.text || '';
+    const aulaId = document.getElementById('select-aula-semana').value;
+    const aulaNombre = document.getElementById('select-aula-semana').selectedOptions[0]?.text || '';
 
     const lunes = getLunes(fechaBase);
     const sabado = new Date(lunes);
@@ -465,7 +465,7 @@ async function renderSemana(aulas, horarios) {
 
     const resReservas = await fetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
     const reservas = await resReservas.json();
-    const resAula = reservas.filter(r => r.espacio_id === aulaId);
+    const resAula = reservas.filter(r => r.aula_id === aulaId);
 
     // Calcular horario máximo de la semana
     let horaMin = 7, horaMax = 20;
@@ -523,7 +523,7 @@ async function renderSemana(aulas, horarios) {
 
             if (res) {
                 html += `<td class="cal-reserva-cell">
-                    <div class="cal-reserva">🔒 ${res.usuario_nombre}<br>
+                    <div class="cal-reserva">🔒 ${res.docente_nombre}<br>
                     <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
                 </td>`;
             } else {
@@ -548,55 +548,60 @@ async function renderSemana(aulas, horarios) {
 }
 
 function precargarReserva(aulaId, aulaNombre, fecha, hora) {
-    document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
-    const cards = document.querySelectorAll('.espacio-card');
+    document.querySelectorAll('.aula-card').forEach(c => c.classList.remove('seleccionada'));
+    const cards = document.querySelectorAll('.aula-card');
     cards.forEach(c => {
         if (c.querySelector('h3').textContent === aulaNombre) {
             c.classList.add('seleccionada');
         }
     });
-    document.getElementById('espacio-id').value = aulaId;
-    document.getElementById('espacio-nombre').value = aulaNombre;
+    document.getElementById('aula-id').value = aulaId;
+    document.getElementById('aula-nombre').value = aulaNombre;
     document.getElementById('fecha').value = fecha;
     if (hora) document.getElementById('hora-inicio').value = hora;
     document.getElementById('fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 // ===== CARGAR AULAS =====
-async function cargarEspacios() {
+async function cargarAulas() {
     try {
-        const res = await fetch(`${API}/espacios`);
+        const res = await fetch(`${API}/aulas`);
         const aulas = await res.json();
-        const grid = document.getElementById('espacios-grid');
+        const grid = document.getElementById('aulas-grid');
 
         if (aulas.length === 0) {
-            grid.innerHTML = '<p class="empty">No hay espacios disponibles</p>';
+            grid.innerHTML = '<p class="empty">No hay aulas disponibles</p>';
             return;
         }
 
         grid.innerHTML = aulas.map(a => `
-            <div class="espacio-card" onclick="seleccionarEspacio('${a.id}', '${a.nombre}', this)">
+            <div class="aula-card" onclick="seleccionarAula('${a.id}', '${a.nombre}', this)">
                 <h3>${a.nombre}</h3>
                 <p>Capacidad: ${a.capacidad}</p>
-                <p>${a.edificio || ''}</p>
+                <p>${a.nombre_edificio || ''}</p>
+```
+
+
+```
+SELECT * FROM aulas WHERE activa = TRUE
             </div>
         `).join('');
     } catch (e) {
-        document.getElementById('espacios-grid').innerHTML = '<p class="empty">Error al cargar espacios</p>';
+        document.getElementById('aulas-grid').innerHTML = '<p class="empty">Error al cargar aulas</p>';
     }
 }
 
-function seleccionarEspacio(id, nombre, el) {
-    document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
+function seleccionarAula(id, nombre, el) {
+    document.querySelectorAll('.aula-card').forEach(c => c.classList.remove('seleccionada'));
     el.classList.add('seleccionada');
-    document.getElementById('espacio-id').value = id;
-    document.getElementById('espacio-nombre').value = nombre;
+    document.getElementById('aula-id').value = id;
+    document.getElementById('aula-nombre').value = nombre;
 }
 
 // ===== CREAR RESERVA =====
 async function crearReserva() {
-    const aulaId = document.getElementById('espacio-id').value;
-    const nombre = document.getElementById('usuario-nombre').value.trim();
-    const email = document.getElementById('usuario-email').value.trim();
+    const aulaId = document.getElementById('aula-id').value;
+    const nombre = document.getElementById('docente-nombre').value.trim();
+    const email = document.getElementById('docente-email').value.trim();
     const fecha = document.getElementById('fecha').value;
     const horaInicio = document.getElementById('hora-inicio').value;
     const horaFin = document.getElementById('hora-fin').value;
@@ -618,7 +623,7 @@ async function crearReserva() {
             const nuevoUsuario = await fetch(`${API}/usuarios`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, nombre, rol: 'usuario' })
+                body: JSON.stringify({ email, nombre, rol: 'docente' })
             });
             const u = await nuevoUsuario.json();
             usuarioId = u.id;
@@ -629,7 +634,7 @@ async function crearReserva() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                espacio_id: aulaId,
+                aula_id: aulaId,
                 usuario_id: usuarioId,
                 fecha,
                 hora_inicio: horaInicio + ':00',
@@ -672,7 +677,7 @@ async function buscarReservas() {
             <table>
                 <thead>
                     <tr>
-                        <th>Espacio</th>
+                        <th>Aula</th>
                         <th>Fecha</th>
                         <th>Horario</th>
                         <th>Estado</th>
@@ -682,7 +687,7 @@ async function buscarReservas() {
                 <tbody>
                     ${reservas.map(r => `
                         <tr>
-                            <td>${r.espacio_nombre}</td>
+                            <td>${r.aula_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
                             <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
@@ -840,7 +845,7 @@ async function iniciar() {
     } catch(e) {
         await new Promise(resolve => setTimeout(resolve, 3000));
     }
-    cargarEspacios();
+    cargarAulas();
     cargarFechasBloqueadas();
     renderCalendario();
 }
