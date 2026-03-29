@@ -578,11 +578,6 @@ async function cargarEspacios() {
                 <h3>${a.nombre}</h3>
                 <p>Capacidad: ${a.capacidad}</p>
                 <p>${a.nombre_edificio || ''}</p>
-```
-
-
-```
-SELECT * FROM aulas WHERE activa = TRUE
             </div>
         `).join('');
     } catch (e) {
