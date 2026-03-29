@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administración — Reserva de Aulas</title>
+    <title>Administración — Reserva de Espacios</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -171,7 +171,7 @@
 
 <!-- HEADER -->
 <header>
-    <h1>⚙️ Panel de Administración — Reserva de Aulas</h1>
+    <h1>⚙️ Panel de Administración — Reserva de Espacios</h1>
     <button class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
 </header>
 
@@ -179,7 +179,7 @@
 <div class="tabs">
     <div class="tab activo" onclick="cambiarTab('reservas', this)">📋 Reservas</div>
     <div class="tab" onclick="cambiarTab('edificios', this)">🏢 Edificios</div>
-    <div class="tab" onclick="cambiarTab('aulas', this)">🏫 Aulas</div>
+    <div class="tab" onclick="cambiarTab('espacios', this)">🏢 Espacios</div>
     <div class="tab" onclick="cambiarTab('usuarios', this)">👤 Usuarios</div>
     <div class="tab" onclick="cambiarTab('horarios', this)">🕐 Horarios</div>
     <div class="tab" onclick="cambiarTab('fechas', this)">📅 Fechas bloqueadas</div>
@@ -221,33 +221,33 @@
     </div>
 
     <!-- PANEL AULAS -->
-    <div class="panel" id="panel-aulas">
+    <div class="panel" id="panel-espacios">
         <div class="card">
-            <h2>Nueva aula</h2>
+            <h2>Nuevo espacio</h2>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Nombre</label>
-                    <input type="text" id="aula-nombre" placeholder="Ej: Aula 2">
+                    <input type="text" id="espacio-nombre" placeholder="Ej: Sala 1">
                 </div>
                 <div class="form-group">
                     <label>Capacidad</label>
-                    <input type="number" id="aula-capacidad" placeholder="Ej: 30">
+                    <input type="number" id="espacio-capacidad" placeholder="Ej: 30">
                 </div>
                 <div class="form-group">
                 <label>Edificio</label>
-                <select id="aula-edificio-id">
+                <select id="espacio-edificio-id">
                     <option value="">Seleccioná un edificio</option>
                 </select>
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
-                    <button class="btn btn-primary" onclick="crearAula()">Agregar aula</button>
+                    <button class="btn btn-primary" onclick="crearEspacio()">Agregar espacio</button>
                 </div>
             </div>
-            <div class="mensaje" id="mensaje-aulas"></div>
+            <div class="mensaje" id="mensaje-espacios"></div>
         </div>
         <div class="card">
-            <h2>Aulas registradas</h2>
-            <div id="tabla-aulas"><p class="empty">Cargando...</p></div>
+            <h2>Espacios registrados</h2>
+            <div id="tabla-espacios"><p class="empty">Cargando...</p></div>
         </div>
     </div>
 
@@ -262,12 +262,12 @@
                 </div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" id="usuario-email" placeholder="tu@instituto.edu">
+                    <input type="email" id="usuario-email" placeholder="tu@email.com">
                 </div>
                 <div class="form-group">
                     <label>Rol</label>
                     <select id="usuario-rol">
-                        <option value="docente">Docente</option>
+                        <option value="usuario">Usuario</option>
                         <option value="coordinador">Coordinador</option>
                         <option value="admin">Administrador</option>
                     </select>
@@ -354,7 +354,7 @@ function cambiarTab(panel, el) {
 function cargarTodo() {
     cargarEdificios();
     cargarReservas();
-    cargarAulas();
+    cargarEspacios();
     cargarUsuarios();
     cargarHorarios();
     cargarFechasBloqueadas();
@@ -376,8 +376,8 @@ async function cargarReservas() {
             <table>
                 <thead>
                     <tr>
-                        <th>Docente</th>
-                        <th>Aula</th>
+                        <th>Usuario</th>
+                        <th>Espacio</th>
                         <th>Fecha</th>
                         <th>Horario</th>
                         <th>Estado</th>
@@ -387,8 +387,8 @@ async function cargarReservas() {
                 <tbody>
                     ${reservas.map(r => `
                         <tr>
-                            <td>${r.docente_nombre}<br><small style="color:#888">${r.docente_email}</small></td>
-                            <td>${r.aula_nombre}</td>
+                            <td>${r.usuario_nombre}<br><small style="color:#888">${r.usuario_email}</small></td>
+                            <td>${r.espacio_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
                             <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
@@ -429,7 +429,7 @@ async function cargarEdificios() {
         const contenedor = document.getElementById('tabla-edificios');
 
         // Poblar selector de edificios en formulario de aulas
-        const select = document.getElementById('aula-edificio-id');
+        const select = document.getElementById('espacio-edificio-id');
         select.innerHTML = '<option value="">Seleccioná un edificio</option>';
         edificios.forEach(e => {
             select.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
@@ -462,7 +462,7 @@ async function cargarEdificios() {
                                 </button>
                                 <button class="btn ${e.activo ? 'btn-danger' : 'btn-success'}"
                                     onclick="toggleEdificio(${e.id}, ${e.activo})">
-                                    ${e.activo ? 'Desactivar' : 'Activar'}
+                                    ${e.activo ? 'Desactivar' : 'Activor'}
                                 </button>
                             </td>
                         </tr>
@@ -538,11 +538,11 @@ async function toggleEdificio(id, activo) {
 
 
 // ===== AULAS =====
-async function cargarAulas() {
+async function cargarEspacios() {
     try {
-        const res = await fetch(`${API}/aulas`);
+        const res = await fetch(`${API}/espacios`);
         const aulas = await res.json();
-        const contenedor = document.getElementById('tabla-aulas');
+        const contenedor = document.getElementById('tabla-espacios');
 
         contenedor.innerHTML = `
             <table>
@@ -552,14 +552,14 @@ async function cargarAulas() {
                 <tbody>
                     ${aulas.map(a => `
                         <tr>
-                            <td>${a.nombre}</td>
-                            <td>${a.capacidad}</td>
-                            <td>${a.edificio}</td>
-                            <td><span class="badge badge-${a.activa}">${a.activa ? 'Activa' : 'Inactiva'}</span></td>
+                            <td>${e.nombre}</td>
+                            <td>${e.capacidad}</td>
+                            <td>${e.edificio}</td>
+                            <td><span class="badge badge-${e.activa}">${e.activa ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
-                                <button class="btn ${a.activa ? 'btn-danger' : 'btn-success'}"
-                                    onclick="toggleAula('${a.id}', ${a.activa})">
-                                    ${a.activa ? 'Desactivar' : 'Activar'}
+                                <button class="btn ${e.activa ? 'btn-danger' : 'btn-success'}"
+                                    onclick="toggleEspacio('${a.id}', ${e.activa})">
+                                    ${e.activa ? 'Desactivar' : 'Activor'}
                                 </button>
                             </td>
                         </tr>
@@ -568,14 +568,14 @@ async function cargarAulas() {
             </table>
         `;
     } catch (e) {
-        document.getElementById('tabla-aulas').innerHTML = '<p class="empty">Error al cargar aulas</p>';
+        document.getElementById('tabla-espacios').innerHTML = '<p class="empty">Error al cargar aulas</p>';
     }
 }
 
-async function crearAula() {
-    const nombre = document.getElementById('aula-nombre').value.trim();
-    const capacidad = document.getElementById('aula-capacidad').value;
-    const edificioId = document.getElementById('aula-edificio-id').value;
+async function crearEspacio() {
+    const nombre = document.getElementById('espacio-nombre').value.trim();
+    const capacidad = document.getElementById('espacio-capacidad').value;
+    const edificioId = document.getElementById('espacio-edificio-id').value;
 
     if (!nombre || !capacidad || !edificioId) {
         mostrarMensaje('mensaje-aulas', 'Completá todos los campos', 'error');
@@ -583,7 +583,7 @@ async function crearAula() {
     }
 
     try {
-        const res = await fetch(`${API}/aulas`, {
+        const res = await fetch(`${API}/espacios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -594,11 +594,11 @@ async function crearAula() {
         });
         const data = await res.json();
         if (res.ok) {
-            mostrarMensaje('mensaje-aulas', '✅ Aula creada correctamente', 'exito');
-            document.getElementById('aula-nombre').value = '';
-            document.getElementById('aula-capacidad').value = '';
-            document.getElementById('aula-edificio-id').value = '';
-            cargarAulas();
+            mostrarMensaje('mensaje-aulas', '✅ Espacio creado correctamente', 'exito');
+            document.getElementById('espacio-nombre').value = '';
+            document.getElementById('espacio-capacidad').value = '';
+            document.getElementById('espacio-edificio-id').value = '';
+            cargarEspacios();
         } else {
             mostrarMensaje('mensaje-aulas', `❌ ${data.detail}`, 'error');
         }
@@ -606,14 +606,14 @@ async function crearAula() {
         mostrarMensaje('mensaje-aulas', 'Error al conectar', 'error');
     }
 }
-async function toggleAula(id, activa) {
+async function toggleEspacio(id, activa) {
     try {
-        await fetch(`${API}/aulas/${id}`, {
+        await fetch(`${API}/espacios/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activa: !activa })
         });
-        cargarAulas();
+        cargarEspacios();
     } catch (e) {
         alert('Error al actualizar aula');
     }
@@ -641,7 +641,7 @@ async function cargarUsuarios() {
                             <td>
                                 <button class="btn ${u.activo ? 'btn-danger' : 'btn-success'}"
                                     onclick="toggleUsuario('${u.id}', ${u.activo})">
-                                    ${u.activo ? 'Desactivar' : 'Activar'}
+                                    ${u.activo ? 'Desactivar' : 'Activor'}
                                 </button>
                             </td>
                         </tr>
