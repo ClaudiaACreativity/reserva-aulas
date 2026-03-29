@@ -462,7 +462,7 @@ async function cargarEdificios() {
                                 </button>
                                 <button class="btn ${e.activo ? 'btn-danger' : 'btn-success'}"
                                     onclick="toggleEdificio(${e.id}, ${e.activo})">
-                                    ${e.activo ? 'Desactivar' : 'Activor'}
+                                    ${e.activo ? 'Desactivar' : 'Activar'}
                                 </button>
                             </td>
                         </tr>
@@ -541,7 +541,7 @@ async function toggleEdificio(id, activo) {
 async function cargarEspacios() {
     try {
         const res = await fetch(`${API}/espacios`);
-        const aulas = await res.json();
+        const espacios = await res.json();
         const contenedor = document.getElementById('tabla-espacios');
 
         contenedor.innerHTML = `
@@ -550,7 +550,7 @@ async function cargarEspacios() {
                     <tr><th>Nombre</th><th>Capacidad</th><th>Edificio</th><th>Estado</th><th>Acción</th></tr>
                 </thead>
                 <tbody>
-                    ${aulas.map(a => `
+                    ${espacios.map(e => `
                         <tr>
                             <td>${e.nombre}</td>
                             <td>${e.capacidad}</td>
@@ -558,8 +558,8 @@ async function cargarEspacios() {
                             <td><span class="badge badge-${e.activa}">${e.activa ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
                                 <button class="btn ${e.activa ? 'btn-danger' : 'btn-success'}"
-                                    onclick="toggleEspacio('${a.id}', ${e.activa})">
-                                    ${e.activa ? 'Desactivar' : 'Activor'}
+                                    onclick="toggleEspacio('${e.id}', ${e.activa})">
+                                    ${e.activa ? 'Desactivar' : 'Activar'}
                                 </button>
                             </td>
                         </tr>
@@ -568,7 +568,7 @@ async function cargarEspacios() {
             </table>
         `;
     } catch (e) {
-        document.getElementById('tabla-espacios').innerHTML = '<p class="empty">Error al cargar aulas</p>';
+        document.getElementById('tabla-espacios').innerHTML = '<p class="empty">Error al cargar espacios</p>';
     }
 }
 
@@ -578,7 +578,7 @@ async function crearEspacio() {
     const edificioId = document.getElementById('espacio-edificio-id').value;
 
     if (!nombre || !capacidad || !edificioId) {
-        mostrarMensaje('mensaje-aulas', 'Completá todos los campos', 'error');
+        mostrarMensaje('mensaje-espacios', 'Completá todos los campos', 'error');
         return;
     }
 
@@ -594,16 +594,16 @@ async function crearEspacio() {
         });
         const data = await res.json();
         if (res.ok) {
-            mostrarMensaje('mensaje-aulas', '✅ Espacio creado correctamente', 'exito');
+            mostrarMensaje('mensaje-espacios', '✅ Espacio creado correctamente', 'exito');
             document.getElementById('espacio-nombre').value = '';
             document.getElementById('espacio-capacidad').value = '';
             document.getElementById('espacio-edificio-id').value = '';
             cargarEspacios();
         } else {
-            mostrarMensaje('mensaje-aulas', `❌ ${data.detail}`, 'error');
+            mostrarMensaje('mensaje-espacios', `❌ ${data.detail}`, 'error');
         }
     } catch (e) {
-        mostrarMensaje('mensaje-aulas', 'Error al conectar', 'error');
+        mostrarMensaje('mensaje-espacios', 'Error al conectar', 'error');
     }
 }
 async function toggleEspacio(id, activa) {
@@ -615,7 +615,7 @@ async function toggleEspacio(id, activa) {
         });
         cargarEspacios();
     } catch (e) {
-        alert('Error al actualizar aula');
+        alert('Error al actualizar espacio');
     }
 }
 
@@ -641,7 +641,7 @@ async function cargarUsuarios() {
                             <td>
                                 <button class="btn ${u.activo ? 'btn-danger' : 'btn-success'}"
                                     onclick="toggleUsuario('${u.id}', ${u.activo})">
-                                    ${u.activo ? 'Desactivar' : 'Activor'}
+                                    ${u.activo ? 'Desactivar' : 'Activar'}
                                 </button>
                             </td>
                         </tr>
