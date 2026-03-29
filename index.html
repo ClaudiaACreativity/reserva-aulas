@@ -224,7 +224,7 @@
     <!-- SECCIÓN 1: Espacios -->
     <div class="card">
         <h2>Espacios disponibles</h2>
-        <div class="Espacios-grid" id="Espacios-grid">
+        <div class="espacios-grid" id="espacios-grid">
             <p class="empty">Cargando espacios...</p>
         </div>
     </div>
@@ -395,7 +395,7 @@ async function renderDia(aulas, horarios) {
 
     if (!config || !config.habilitado) {
         document.getElementById('calendario-container').innerHTML =
-            '<p class="empty">El instituto no abre este día</p>';
+            '<p class="empty">No hay disponibilidad este día</p>';
         return;
     }
 
