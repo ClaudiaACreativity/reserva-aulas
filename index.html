@@ -577,7 +577,7 @@ async function cargarEspacios() {
             <div class="espacio-card" onclick="seleccionarEspacio('${a.id}', '${a.nombre}', this)">
                 <h3>${a.nombre}</h3>
                 <p>Capacidad: ${a.capacidad}</p>
-                <p>${a.edificio}</p>
+                <p>${a.edificio || ''}</p>
             </div>
         `).join('');
     } catch (e) {
