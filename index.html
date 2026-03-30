@@ -187,7 +187,7 @@
 <header>
     <div>
         <h1>🏫 Sistema de Reserva de Espacios</h1>
-        <p>Instituto — Gestión de espacios</p>
+        <p id="header-subtitulo">Gestión de espacios</p>
     </div>
 </header>
 
@@ -309,6 +309,24 @@
 
 <script>
 const API = 'https://reserva-aulas.onrender.com';
+const TENANT_SLUG = 'prueba';
+
+async function apiFetch(url, options = {}) {
+    options.headers = {
+        ...options.headers,
+        'X-Tenant-Slug': TENANT_SLUG
+    };
+    return fetch(url, options);
+}
+const TENANT_SLUG = 'prueba';
+
+async function apiFetch(url, options = {}) {
+    options.headers = {
+        ...options.headers,
+        'X-Tenant-Slug': TENANT_SLUG
+    };
+    return fetch(url, options);
+}
 
 // ===== CALENDARIO =====
 let vistaActual = 'dia';
@@ -358,8 +376,8 @@ async function renderCalendario() {
 
     try {
         const [resAulas, resHorarios] = await Promise.all([
-            fetch(`${API}/espacios`),
-            fetch(`${API}/horarios`)
+            apiFetch(`${API}/espacios`),
+            apiFetch(`${API}/horarios`)
         ]);
         const aulas = await resAulas.json();
         const horarios = await resHorarios.json();
@@ -399,7 +417,7 @@ async function renderDia(aulas, horarios) {
         return;
     }
 
-    const resReservas = await fetch(`${API}/reservas/calendario?fecha_inicio=${hoy}&fecha_fin=${hoy}`);
+    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${hoy}&fecha_fin=${hoy}`);
     const reservas = await resReservas.json();
 
     // Generar franjas horarias de 1 hora
@@ -463,7 +481,7 @@ async function renderSemana(aulas, horarios) {
     document.getElementById('titulo-calendario').textContent =
         `${aulaNombre} — ${lunes.getDate()} ${MESES[lunes.getMonth()]} al ${sabado.getDate()} ${MESES[sabado.getMonth()]}`;
 
-    const resReservas = await fetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
+    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
     const reservas = await resReservas.json();
     const resAula = reservas.filter(r => r.aula_id === aulaId);
 
@@ -564,7 +582,7 @@ function precargarReserva(espacioId, aulaNombre, fecha, hora) {
 // ===== CARGAR AULAS =====
 async function cargarEspacios() {
     try {
-        const res = await fetch(`${API}/espacios`);
+        const res = await apiFetch(`${API}/espacios`);
         const aulas = await res.json();
         const grid = document.getElementById('espacios-grid');
 
@@ -608,14 +626,14 @@ async function crearReserva() {
 
     try {
         // Buscar o crear usuario
-        const usuarioRes = await fetch(`${API}/usuarios/buscar?email=${email}`);
+        const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${email}`);
         let usuarioId;
 
         if (usuarioRes.ok) {
             const usuario = await usuarioRes.json();
             usuarioId = usuario.id;
         } else {
-            const nuevoUsuario = await fetch(`${API}/usuarios`, {
+            const nuevoUsuario = await apiFetch(`${API}/usuarios`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, nombre, rol: 'usuario' })
@@ -625,7 +643,7 @@ async function crearReserva() {
         }
 
         // Crear reserva
-        const res = await fetch(`${API}/reservas`, {
+        const res = await apiFetch(`${API}/reservas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -659,7 +677,7 @@ async function buscarReservas() {
     if (!email) return;
 
     try {
-        const res = await fetch(`${API}/reservas/usuario?email=${email}`);
+        const res = await apiFetch(`${API}/reservas/usuario?email=${email}`);
         const reservas = await res.json();
         const contenedor = document.getElementById('tabla-reservas');
 
@@ -708,7 +726,7 @@ async function cancelarReserva(reservaId, usuarioId) {
     if (!confirm('¿Confirmás que querés cancelar esta reserva?')) return;
 
     try {
-        const res = await fetch(`${API}/reservas/${reservaId}`, {
+        const res = await apiFetch(`${API}/reservas/${reservaId}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reserva_id: reservaId, usuario_id: usuarioId })
@@ -730,7 +748,7 @@ async function cancelarReserva(reservaId, usuarioId) {
 // ===== FECHAS BLOQUEADAS =====
 async function cargarFechasBloqueadas() {
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas`);
+        const res = await apiFetch(`${API}/fechas-bloqueadas`);
         const fechas = await res.json();
         const contenedor = document.getElementById('tabla-fechas-bloqueadas');
 
@@ -779,7 +797,7 @@ async function agregarFechaBloqueada() {
     }
 
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas`, {
+        const res = await apiFetch(`${API}/fechas-bloqueadas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fecha, motivo })
@@ -804,7 +822,7 @@ async function eliminarFechaBloqueada(fecha) {
     if (!confirm(`¿Desbloquear el ${fecha}?`)) return;
 
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas/${fecha}`, {
+        const res = await apiFetch(`${API}/fechas-bloqueadas/${fecha}`, {
             method: 'DELETE'
         });
 
@@ -834,7 +852,7 @@ function mostrarMensaje(id, texto, tipo) {
 // Iniciar — despertar servidor primero
 async function iniciar() {
     try {
-        await fetch(`${API}/`);
+        await apiFetch(`${API}/`);
         // Esperar 3 segundos para que Render despierte completamente
         await new Promise(resolve => setTimeout(resolve, 3000));
     } catch(e) {

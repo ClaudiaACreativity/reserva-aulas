@@ -171,7 +171,7 @@
 
 <!-- HEADER -->
 <header>
-    <h1>⚙️ Panel de Administración — Reserva de Espacios</h1>
+    <h1 id="header-titulo">⚙️ Panel de Administración</h1>
     <button class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
 </header>
 
@@ -322,6 +322,15 @@
 
 <script>
 const API = 'https://reserva-aulas.onrender.com';
+const TENANT_SLUG = 'prueba';
+
+async function apiFetch(url, options = {}) {
+    options.headers = {
+        ...options.headers,
+        'X-Tenant-Slug': TENANT_SLUG
+    };
+    return fetch(url, options);
+}
 const PASSWORD = 'sL2#di!KBw';
 
 // ===== LOGIN =====
@@ -352,6 +361,7 @@ function cambiarTab(panel, el) {
 
 // ===== CARGAR TODO =====
 function cargarTodo() {
+    cargarTenant();
     cargarEdificios();
     cargarReservas();
     cargarEspacios();
@@ -360,10 +370,22 @@ function cargarTodo() {
     cargarFechasBloqueadas();
 }
 
+async function cargarTenant() {
+    try {
+        const res = await apiFetch(`${API}/tenant`);
+        if (res.ok) {
+            const tenant = await res.json();
+            document.getElementById('header-titulo').textContent = '⚙️ Panel de Administración — ' + tenant.nombre;
+        }
+    } catch(e) {
+        console.log('Error al cargar tenant:', e);
+    }
+}
+
 // ===== RESERVAS =====
 async function cargarReservas() {
     try {
-        const res = await fetch(`${API}/reservas`);
+        const res = await apiFetch(`${API}/reservas`);
         const reservas = await res.json();
         const contenedor = document.getElementById('tabla-todas-reservas');
 
@@ -412,7 +434,7 @@ async function cargarReservas() {
 async function cancelarReservaAdmin(reservaId) {
     if (!confirm('¿Cancelar esta reserva?')) return;
     try {
-        const res = await fetch(`${API}/reservas/${reservaId}/admin`, { method: 'DELETE' });
+        const res = await apiFetch(`${API}/reservas/${reservaId}/admin`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) cargarReservas();
         else alert(data.detail);
@@ -424,7 +446,7 @@ async function cancelarReservaAdmin(reservaId) {
 // ===== EDIFICIOS =====
 async function cargarEdificios() {
     try {
-        const res = await fetch(`${API}/edificios`);
+        const res = await apiFetch(`${API}/edificios`);
         const edificios = await res.json();
         const contenedor = document.getElementById('tabla-edificios');
 
@@ -485,7 +507,7 @@ async function crearEdificio() {
     }
 
     try {
-        const res = await fetch(`${API}/edificios`, {
+        const res = await apiFetch(`${API}/edificios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre, direccion })
@@ -509,7 +531,7 @@ async function editarEdificio(id) {
     if (!nombre) return;
 
     try {
-        const res = await fetch(`${API}/edificios/${id}`, {
+        const res = await apiFetch(`${API}/edificios/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre })
@@ -525,7 +547,7 @@ async function editarEdificio(id) {
 
 async function toggleEdificio(id, activo) {
     try {
-        await fetch(`${API}/edificios/${id}`, {
+        await apiFetch(`${API}/edificios/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activo: !activo })
@@ -540,7 +562,7 @@ async function toggleEdificio(id, activo) {
 // ===== AULAS =====
 async function cargarEspacios() {
     try {
-        const res = await fetch(`${API}/espacios`);
+        const res = await apiFetch(`${API}/espacios`);
         const espacios = await res.json();
         const contenedor = document.getElementById('tabla-espacios');
 
@@ -583,7 +605,7 @@ async function crearEspacio() {
     }
 
     try {
-        const res = await fetch(`${API}/espacios`, {
+        const res = await apiFetch(`${API}/espacios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -608,7 +630,7 @@ async function crearEspacio() {
 }
 async function toggleEspacio(id, activa) {
     try {
-        await fetch(`${API}/espacios/${id}`, {
+        await apiFetch(`${API}/espacios/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activa: !activa })
@@ -622,7 +644,7 @@ async function toggleEspacio(id, activa) {
 // ===== USUARIOS =====
 async function cargarUsuarios() {
     try {
-        const res = await fetch(`${API}/usuarios`);
+        const res = await apiFetch(`${API}/usuarios`);
         const usuarios = await res.json();
         const contenedor = document.getElementById('tabla-usuarios');
 
@@ -665,7 +687,7 @@ async function crearUsuario() {
     }
 
     try {
-        const res = await fetch(`${API}/usuarios`, {
+        const res = await apiFetch(`${API}/usuarios`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre, email, rol })
@@ -686,7 +708,7 @@ async function crearUsuario() {
 
 async function toggleUsuario(id, activo) {
     try {
-        await fetch(`${API}/usuarios/${id}`, {
+        await apiFetch(`${API}/usuarios/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activo: !activo })
@@ -700,7 +722,7 @@ async function toggleUsuario(id, activo) {
 // ===== HORARIOS =====
 async function cargarHorarios() {
     try {
-        const res = await fetch(`${API}/horarios`);
+        const res = await apiFetch(`${API}/horarios`);
         const horarios = await res.json();
         const contenedor = document.getElementById('tabla-horarios');
 
@@ -756,7 +778,7 @@ async function guardarHorario(dia) {
     const cierre = document.getElementById(`ci-${dia}`).value;
 
     try {
-        const res = await fetch(`${API}/horarios/${dia}`, {
+        const res = await apiFetch(`${API}/horarios/${dia}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -779,7 +801,7 @@ async function guardarHorario(dia) {
 // ===== FECHAS BLOQUEADAS =====
 async function cargarFechasBloqueadas() {
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas`);
+        const res = await apiFetch(`${API}/fechas-bloqueadas`);
         const fechas = await res.json();
         const contenedor = document.getElementById('tabla-fechas');
 
@@ -824,7 +846,7 @@ async function agregarFechaBloqueada() {
     }
 
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas`, {
+        const res = await apiFetch(`${API}/fechas-bloqueadas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fecha, motivo })
@@ -846,7 +868,7 @@ async function agregarFechaBloqueada() {
 async function eliminarFechaBloqueada(fecha) {
     if (!confirm(`¿Desbloquear el ${fecha}?`)) return;
     try {
-        const res = await fetch(`${API}/fechas-bloqueadas/${fecha}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API}/fechas-bloqueadas/${fecha}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
             mostrarMensaje('mensaje-fechas', `✅ ${data.mensaje}`, 'exito');
