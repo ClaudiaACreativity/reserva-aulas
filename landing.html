@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReservaSpace — Gestión de espacios para tu organización</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --green: #71D997;
+            --green-hover: #5bc583;
+            --green-pale: #E8F7EE;
+            --dark: #2C3E50;
+            --dark-2: #1a2b38;
+            --body-text: #4A5568;
+            --light-bg: #F9F9FB;
+            --white: #ffffff;
+            --border: #e8ecef;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--light-bg);
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        /* ===== NAV ===== */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 64px;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 22px;
+            color: var(--dark);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span { color: var(--green-hover); }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 40px;
+        }
+
+        nav ul a {
+            text-decoration: none;
+            color: var(--body-text);
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav ul a:hover { color: var(--dark); }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 26px;
+            border-radius: 50px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.25s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .btn-primary:hover {
+            background: var(--green-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(113,217,151,0.35);
+        }
+
+        .btn-dark {
+            background: var(--dark);
+            color: white;
+        }
+
+        .btn-dark:hover {
+            background: var(--dark-2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(44,62,80,0.25);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--dark);
+            border: 2px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--dark);
+            background: var(--dark);
+            color: white;
+        }
+
+        .btn-lg { padding: 15px 38px; font-size: 15px; }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding-top: 72px;
+        }
+
+        .hero-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 64px;
+            background: linear-gradient(135deg, var(--light-bg) 0%, var(--green-pale) 100%);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--white);
+            border: 1px solid rgba(113,217,151,0.4);
+            color: var(--green-hover);
+            padding: 7px 18px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 28px;
+            width: fit-content;
+            letter-spacing: 0.3px;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 7px; height: 7px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.4); }
+        }
+
+        h1 {
+            font-size: 58px;
+            font-weight: 900;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            color: var(--dark);
+        }
+
+        h1 em {
+            font-style: normal;
+            color: var(--green-hover);
+        }
+
+        .hero-desc {
+            font-size: 16px;
+            color: var(--body-text);
+            line-height: 1.8;
+            margin-bottom: 40px;
+            font-weight: 400;
+            max-width: 440px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .hero-note {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--body-text);
+            margin-top: 18px;
+            font-weight: 500;
+        }
+
+        .hero-note::before {
+            content: '✓';
+            color: var(--green-hover);
+            font-weight: 800;
+        }
+
+        .hero-right {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-right img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            bottom: 36px; left: 36px; right: 36px;
+            background: rgba(44,62,80,0.88);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 22px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .overlay-stat { text-align: center; }
+
+        .overlay-stat .num {
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--green);
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .overlay-stat .label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.45);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .overlay-divider {
+            width: 1px; height: 36px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ===== CLIENTES ===== */
+        .clientes {
+            padding: 40px 64px;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .clientes-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 48px;
+        }
+
+        .clientes p {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--body-text);
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
+        .clientes-grid {
+            display: flex;
+            gap: 36px;
+            flex-wrap: wrap;
+        }
+
+        .cliente-tipo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--body-text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .cliente-tipo span { font-size: 18px; }
+
+        /* ===== MOSAIC ===== */
+        .mosaic {
+            padding: 96px 64px;
+            background: var(--light-bg);
+        }
+
+        .mosaic-inner { max-width: 1100px; margin: 0 auto; }
+
+        .section-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--green-hover);
+            margin-bottom: 16px;
+        }
+
+        .section-tag::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--green);
+        }
+
+        h2 {
+            font-size: 44px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 14px;
+            color: var(--dark);
+        }
+
+        .section-sub {
+            font-size: 16px;
+            color: var(--body-text);
+            font-weight: 400;
+            line-height: 1.75;
+            max-width: 480px;
+            margin-bottom: 52px;
+        }
+
+        .mosaic-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 280px 280px;
+            gap: 14px;
+        }
+
+        .mosaic-item {
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .mosaic-item img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .mosaic-item:hover img { transform: scale(1.05); }
+        .mosaic-item.tall { grid-row: span 2; }
+
+        .mosaic-caption {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(44,62,80,0.85) 0%, transparent 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== FEATURES ===== */
+        .features {
+            padding: 96px 64px;
+            background: var(--white);
+        }
+
+        .features-inner { max-width: 1100px; margin: 0 auto; }
+
+        .features-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: end;
+            margin-bottom: 56px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .feature-card {
+            background: var(--white);
+            padding: 36px 30px;
+            transition: background 0.3s;
+        }
+
+        .feature-card:hover { background: var(--green-pale); }
+
+        .feature-num {
+            font-size: 36px;
+            font-weight: 900;
+            color: rgba(113,217,151,0.35);
+            line-height: 1;
+            margin-bottom: 18px;
+            letter-spacing: -1px;
+        }
+
+        .feature-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+
+        .feature-card p {
+            font-size: 13px;
+            color: var(--body-text);
+            line-height: 1.75;
+            font-weight: 400;
+        }
+
+        /* ===== SPLIT ===== */
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 580px;
+        }
+
+        .split-img { position: relative; overflow: hidden; }
+        .split-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        .split-content {
+            background: var(--dark);
+            padding: 80px 68px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .split-content .section-tag { color: var(--green); }
+        .split-content h2 { color: var(--white); }
+        .split-content .section-sub { color: rgba(255,255,255,0.45); }
+
+        .check-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .check-list li::before {
+            content: '✓';
+            width: 20px; height: 20px;
+            background: var(--green);
+            color: var(--dark);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ===== PLANES ===== */
+        .planes {
+            padding: 96px 64px;
+            background: var(--light-bg);
+        }
+
+        .planes-inner { max-width: 1100px; margin: 0 auto; }
+
+        .planes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 52px;
+            gap: 40px;
+        }
+
+        .planes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .plan-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 38px 30px;
+            border: 1.5px solid var(--border);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 60px rgba(44,62,80,0.1);
+        }
+
+        .plan-card.featured {
+            background: var(--dark);
+            border-color: var(--dark);
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -13px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--green);
+            color: var(--dark);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 5px 18px;
+            border-radius: 50px;
+            white-space: nowrap;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .plan-nombre {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--dark);
+            letter-spacing: -0.3px;
+        }
+
+        .plan-card.featured .plan-nombre { color: var(--white); }
+
+        .plan-desc {
+            font-size: 13px;
+            color: var(--body-text);
+            margin-bottom: 24px;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .plan-card.featured .plan-desc { color: rgba(255,255,255,0.4); }
+
+        .plan-precio {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .plan-card.featured .plan-precio { border-bottom-color: rgba(255,255,255,0.08); }
+
+        .plan-monto {
+            font-size: 50px;
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1;
+            color: var(--dark);
+        }
+
+        .plan-card.featured .plan-monto { color: var(--green); }
+
+        .plan-moneda {
+            font-size: 20px;
+            font-weight: 600;
+            vertical-align: super;
+        }
+
+        .plan-periodo {
+            font-size: 12px;
+            color: var(--body-text);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .plan-card.featured .plan-periodo { color: rgba(255,255,255,0.35); }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 28px;
+        }
+
+        .plan-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--body-text);
+            font-weight: 500;
+        }
+
+        .plan-card.featured .plan-features li {
+            border-bottom-color: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.7);
+        }
+
+        .plan-features li::before {
+            content: '✓';
+            color: var(--green-hover);
+            font-weight: 800;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .plan-card.featured .plan-features li::before { color: var(--green); }
+
+        .btn-plan {
+            width: 100%;
+            justify-content: center;
+            padding: 13px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .plan-card.featured .btn-plan {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .plan-card.featured .btn-plan:hover {
+            background: var(--green-hover);
+            color: white;
+        }
+
+        /* ===== REGISTRO ===== */
+        .registro {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 700px;
+        }
+
+        .registro-img { position: relative; overflow: hidden; }
+        .registro-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        .registro-img-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(44,62,80,0.65) 0%, rgba(113,217,151,0.25) 100%);
+        }
+
+        .registro-img-text {
+            position: absolute;
+            bottom: 48px; left: 48px; right: 48px;
+        }
+
+        .registro-img-text h3 {
+            font-size: 34px;
+            font-weight: 900;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .registro-img-text p {
+            font-size: 15px;
+            color: rgba(255,255,255,0.65);
+            line-height: 1.65;
+            font-weight: 400;
+        }
+
+        .registro-form {
+            background: var(--dark);
+            padding: 68px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .registro-form .section-tag { color: var(--green); margin-bottom: 14px; }
+        .registro-form h2 { color: var(--white); font-size: 34px; margin-bottom: 8px; }
+        .registro-form .section-sub { color: rgba(255,255,255,0.4); margin-bottom: 32px; font-size: 14px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-bottom: 12px;
+        }
+
+        .form-group.full { grid-column: 1 / -1; }
+
+        .form-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.45);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group input,
+        .form-group select {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--white);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+            transition: border 0.2s, background 0.2s;
+        }
+
+        .form-group input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--green);
+            background: rgba(113,217,151,0.05);
+        }
+
+        .form-group select option { background: var(--dark-2); color: white; }
+
+        .slug-preview {
+            font-size: 11px;
+            color: rgba(255,255,255,0.3);
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .slug-preview span { color: var(--green); }
+
+        .btn-registro {
+            width: 100%;
+            justify-content: center;
+            padding: 14px;
+            font-size: 14px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+
+        .form-nota {
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+            margin-top: 12px;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .form-nota strong { color: var(--green); }
+
+        .error-msg {
+            background: rgba(255,100,100,0.1);
+            border: 1px solid rgba(255,100,100,0.25);
+            color: #ff8080;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .success-box {
+            display: none;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .success-box .icon { font-size: 52px; margin-bottom: 18px; }
+
+        .success-box h3 {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--white);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .success-box p {
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+            line-height: 1.75;
+            font-weight: 400;
+        }
+
+        .success-box strong { color: var(--green); }
+
+        /* ===== FOOTER ===== */
+        footer {
+            padding: 32px 64px;
+            background: var(--dark-2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+
+        footer .logo { color: var(--white); }
+        footer p { font-size: 12px; color: rgba(255,255,255,0.2); font-weight: 500; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 960px) {
+            nav { padding: 16px 24px; }
+            nav ul { display: none; }
+            .hero { grid-template-columns: 1fr; }
+            .hero-right { height: 380px; }
+            .hero-left { padding: 56px 24px; }
+            h1 { font-size: 38px; }
+            .mosaic, .features, .planes, .clientes { padding: 60px 24px; }
+            .mosaic-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+            .mosaic-item.tall { grid-row: span 1; }
+            .features-header { grid-template-columns: 1fr; }
+            .features-grid, .planes-grid { grid-template-columns: 1fr; }
+            .split, .registro { grid-template-columns: 1fr; }
+            .split-img, .registro-img { height: 320px; }
+            .split-content, .registro-form { padding: 56px 24px; }
+            .form-row { grid-template-columns: 1fr; }
+            .planes-header { flex-direction: column; align-items: flex-start; }
+            .clientes-inner { flex-direction: column; align-items: flex-start; gap: 20px; }
+            footer { flex-direction: column; gap: 10px; text-align: center; padding: 28px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <a href="#" class="logo">Reserva<span>Space</span></a>
+    <ul>
+        <li><a href="#features">Funcionalidades</a></li>
+        <li><a href="#planes">Planes</a></li>
+        <li><a href="#registro">Comenzar</a></li>
+    </ul>
+    <a href="#registro" class="btn btn-primary">Prueba gratuita →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-left">
+        <div class="hero-badge">30 días gratis · Sin tarjeta de crédito</div>
+        <h1>Reservá espacios,<br><em>sin fricciones</em></h1>
+        <p class="hero-desc">La plataforma más simple para gestionar reservas de aulas, consultorios, canchas y cualquier espacio físico. Tu organización, ordenada en minutos.</p>
+        <div class="hero-actions">
+            <a href="#registro" class="btn btn-dark btn-lg">Empezar gratis →</a>
+            <a href="#planes" class="btn btn-outline btn-lg">Ver planes</a>
+        </div>
+        <p class="hero-note">30 días de acceso completo, sin tarjeta de crédito</p>
+    </div>
+    <div class="hero-right">
+        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=900&auto=format&fit=crop&q=80" alt="Espacio moderno de trabajo">
+        <div class="hero-overlay">
+            <div class="overlay-stat">
+                <div class="num">+500</div>
+                <div class="label">Reservas mensuales</div>
+            </div>
+            <div class="overlay-divider"></div>
+            <div class="overlay-stat">
+                <div class="num">30s</div>
+                <div class="label">Para reservar</div>
+            </div>
+            <div class="overlay-divider"></div>
+            <div class="overlay-stat">
+                <div class="num">0</div>
+                <div class="label">Conflictos de horario</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CLIENTES -->
+<section class="clientes">
+    <div class="clientes-inner">
+        <p>Ideal para</p>
+        <div class="clientes-grid">
+            <div class="cliente-tipo"><span>🏫</span> Institutos educativos</div>
+            <div class="cliente-tipo"><span>🏥</span> Clínicas y consultorios</div>
+            <div class="cliente-tipo"><span>🎾</span> Clubes deportivos</div>
+            <div class="cliente-tipo"><span>💼</span> Espacios de coworking</div>
+            <div class="cliente-tipo"><span>🎭</span> Centros culturales</div>
+        </div>
+    </div>
+</section>
+
+<!-- MOSAIC -->
+<section class="mosaic">
+    <div class="mosaic-inner">
+        <div class="section-tag">Espacios que gestionamos</div>
+        <h2>Para cada espacio,<br>una solución</h2>
+        <p class="section-sub">Desde un aula hasta una cancha de pádel. Si tiene un horario, lo podés gestionar con ReservaSpace.</p>
+        <div class="mosaic-grid">
+            <div class="mosaic-item tall">
+                <img src="https://images.pexels.com/photos/32897040/pexels-photo-32897040.jpeg?w=600&auto=compress&cs=tinysrgb" alt="Cancha de pádel">
+                <div class="mosaic-caption">Clubes deportivos</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80" alt="Aula escolar">
+                <div class="mosaic-caption">Institutos educativos</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=600&auto=format&fit=crop&q=80" alt="Consultorio médico">
+                <div class="mosaic-caption">Clínicas y consultorios</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&auto=format&fit=crop&q=80" alt="Coworking">
+                <div class="mosaic-caption">Espacios de coworking</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600&auto=format&fit=crop&q=80" alt="Centro cultural">
+                <div class="mosaic-caption">Centros culturales</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <div class="features-inner">
+        <div class="features-header">
+            <div>
+                <div class="section-tag">Funcionalidades</div>
+                <h2>Todo lo que necesitás,<br>nada más</h2>
+            </div>
+            <p class="section-sub" style="margin-bottom:0">Diseñado para que cualquier usuario reserve en segundos y el administrador tenga control total sin complicaciones.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-num">01</div>
+                <h3>Calendario visual en tiempo real</h3>
+                <p>Vista diaria y semanal con disponibilidad actualizada al instante. Un click para reservar cualquier turno libre.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">02</div>
+                <h3>Reservas protegidas</h3>
+                <p>Solo el usuario que creó la reserva puede cancelarla. Sin sorpresas, sin conflictos de horario, sin llamados.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">03</div>
+                <h3>Notificaciones automáticas</h3>
+                <p>Emails de confirmación y cancelación enviados automáticamente. Cada usuario siempre informado.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">04</div>
+                <h3>Multi-edificio y multi-sede</h3>
+                <p>Gestioná múltiples edificios y sectores desde un solo panel. Ideal para organizaciones con varias sedes.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">05</div>
+                <h3>Horarios configurables</h3>
+                <p>Horarios de apertura por día de semana. Feriados y fechas bloqueadas con un click.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">06</div>
+                <h3>Exportación a Excel</h3>
+                <p>Descargá el historial completo de reservas en formato Excel. Control total de tu operación.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SPLIT -->
+<section class="split">
+    <div class="split-img">
+        <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&auto=format&fit=crop&q=80" alt="Panel de administración">
+    </div>
+    <div class="split-content">
+        <div class="section-tag">Para administradores</div>
+        <h2 style="margin-bottom:12px">Control total,<br>sin complicaciones</h2>
+        <p class="section-sub">Tu panel de administración es intuitivo y completo. Gestionás todo desde un solo lugar, sin soporte técnico.</p>
+        <ul class="check-list">
+            <li>Gestión de espacios, edificios y usuarios</li>
+            <li>Configuración de horarios por día de semana</li>
+            <li>Bloqueo de fechas: feriados, vacaciones, eventos</li>
+            <li>Cancelación de cualquier reserva desde el panel</li>
+            <li>Exportación del historial completo a Excel</li>
+            <li>Logo y colores personalizados de tu organización</li>
+        </ul>
+    </div>
+</section>
+
+<!-- PLANES -->
+<section class="planes" id="planes">
+    <div class="planes-inner">
+        <div class="planes-header">
+            <div>
+                <div class="section-tag">Precios</div>
+                <h2>Planes para<br>cada organización</h2>
+            </div>
+            <p class="section-sub" style="margin-bottom:0; max-width:340px">Todos los planes incluyen <strong>30 días de prueba gratuita</strong>. Sin tarjeta de crédito.</p>
+        </div>
+        <div class="planes-grid">
+            <div class="plan-card">
+                <div class="plan-nombre">Básico</div>
+                <div class="plan-desc">Para organizaciones pequeñas que están empezando.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>15</div>
+                    <div class="plan-periodo">USD por mes</div>
+                </div>
+                <ul class="plan-features">
+                    <li>1 edificio</li>
+                    <li>Hasta 10 espacios</li>
+                    <li>Hasta 30 usuarios</li>
+                    <li>Calendario visual</li>
+                    <li>Notificaciones por email</li>
+                    <li>Exportación a Excel</li>
+                </ul>
+                <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+            </div>
+            <div class="plan-card featured">
+                <div class="plan-badge">Más popular</div>
+                <div class="plan-nombre">Profesional</div>
+                <div class="plan-desc">Para organizaciones medianas con múltiples sedes.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>35</div>
+                    <div class="plan-periodo">USD por mes</div>
+                </div>
+                <ul class="plan-features">
+                    <li>Hasta 3 edificios</li>
+                    <li>Hasta 50 espacios</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Todo lo del plan Básico</li>
+                    <li>Logo y colores personalizados</li>
+                    <li>Reportes avanzados</li>
+                    <li>Soporte prioritario</li>
+                </ul>
+                <a href="#registro" class="btn btn-plan">Comenzar gratis →</a>
+            </div>
+            <div class="plan-card">
+                <div class="plan-nombre">Enterprise</div>
+                <div class="plan-desc">Para grandes instituciones sin límites de crecimiento.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>80</div>
+                    <div class="plan-periodo">USD por mes</div>
+                </div>
+                <ul class="plan-features">
+                    <li>Edificios ilimitados</li>
+                    <li>Espacios ilimitados</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Todo lo del plan Profesional</li>
+                    <li>Dominio personalizado</li>
+                    <li>Acceso a API</li>
+                    <li>Soporte dedicado 24/7</li>
+                </ul>
+                <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- REGISTRO -->
+<section class="registro" id="registro">
+    <div class="registro-img">
+        <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&auto=format&fit=crop&q=80" alt="Equipo trabajando">
+        <div class="registro-img-overlay"></div>
+        <div class="registro-img-text">
+            <h3>Tu sistema listo<br>en minutos</h3>
+            <p>Sin instalaciones, sin técnicos, sin complicaciones. Solo registrarte y empezar a reservar.</p>
+        </div>
+    </div>
+    <div class="registro-form">
+        <div class="section-tag">Registro</div>
+        <h2>Empezá hoy,<br>gratis</h2>
+        <p class="section-sub">30 días de acceso completo. Sin compromisos.</p>
+
+        <div id="form-container">
+            <div class="error-msg" id="reg-error"></div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre de tu organización *</label>
+                    <input type="text" id="reg-nombre" placeholder="Ej: Instituto San Martín">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de organización *</label>
+                    <select id="reg-tipo">
+                        <option value="">Seleccioná...</option>
+                        <option value="educacion">Instituto / Escuela</option>
+                        <option value="salud">Clínica / Consultorio</option>
+                        <option value="deporte">Club deportivo</option>
+                        <option value="coworking">Coworking</option>
+                        <option value="cultura">Centro cultural</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tu nombre *</label>
+                    <input type="text" id="reg-admin-nombre" placeholder="Nombre completo">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="reg-email" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Plan *</label>
+                    <select id="reg-plan">
+                        <option value="basic">Básico — $15/mes</option>
+                        <option value="professional" selected>Profesional — $35/mes</option>
+                        <option value="enterprise">Enterprise — $80/mes</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>URL deseada *</label>
+                    <input type="text" id="reg-slug" placeholder="mi-instituto">
+                    <div class="slug-preview">Tu URL: <span id="slug-display">mi-instituto</span>.reservaspace.com</div>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-registro" onclick="registrar()">
+                Comenzar prueba gratuita →
+            </button>
+            <p class="form-nota">Al registrarte aceptás los términos de uso.<br><strong>30 días gratis</strong> · Sin tarjeta de crédito · Cancelá cuando quieras</p>
+        </div>
+
+        <div class="success-box" id="success-box">
+            <div class="icon">🎉</div>
+            <h3>¡Tu cuenta está lista!</h3>
+            <p>Te enviamos un email a<br><strong id="success-email"></strong><br><br>Tu sistema está disponible en<br><strong id="success-url"></strong></p>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <a href="#" class="logo">Reserva<span>Space</span></a>
+    <p>© 2026 ReservaSpace · Todos los derechos reservados</p>
+</footer>
+
+<script>
+const API = 'https://reserva-aulas.onrender.com';
+
+document.getElementById('reg-nombre').addEventListener('input', function() {
+    const slug = this.value.toLowerCase()
+        .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e')
+        .replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o')
+        .replace(/[úùü]/g, 'u').replace(/ñ/g, 'n')
+        .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 30);
+    document.getElementById('reg-slug').value = slug;
+    document.getElementById('slug-display').textContent = slug || 'mi-organizacion';
+});
+
+document.getElementById('reg-slug').addEventListener('input', function() {
+    document.getElementById('slug-display').textContent = this.value || 'mi-organizacion';
+});
+
+async function registrar() {
+    const nombre = document.getElementById('reg-nombre').value.trim();
+    const tipo = document.getElementById('reg-tipo').value;
+    const adminNombre = document.getElementById('reg-admin-nombre').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const plan = document.getElementById('reg-plan').value;
+    const slug = document.getElementById('reg-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
+    const errorEl = document.getElementById('reg-error');
+
+    errorEl.style.display = 'none';
+
+    if (!nombre || !tipo || !adminNombre || !email || !slug) {
+        errorEl.textContent = 'Por favor completá todos los campos obligatorios.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+        errorEl.textContent = 'La URL solo puede contener letras minúsculas, números y guiones.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const btn = document.querySelector('.btn-registro');
+    btn.textContent = 'Registrando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/registro`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, tipo, email_admin: email, nombre_admin: adminNombre, plan_id: plan, slug })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('success-box').style.display = 'block';
+            document.getElementById('success-email').textContent = email;
+            document.getElementById('success-url').textContent = `${slug}.reservaspace.com`;
+        } else {
+            errorEl.textContent = data.detail || 'Error al registrar. Intentá de nuevo.';
+            errorEl.style.display = 'block';
+            btn.textContent = 'Comenzar prueba gratuita →';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        errorEl.textContent = 'Error de conexión. Intentá de nuevo.';
+        errorEl.style.display = 'block';
+        btn.textContent = 'Comenzar prueba gratuita →';
+        btn.disabled = false;
+    }
+}
+</script>
+
+</body>
+</html>
