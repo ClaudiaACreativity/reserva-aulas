@@ -318,15 +318,6 @@ async function apiFetch(url, options = {}) {
     };
     return fetch(url, options);
 }
-const TENANT_SLUG = 'prueba';
-
-async function apiFetch(url, options = {}) {
-    options.headers = {
-        ...options.headers,
-        'X-Tenant-Slug': TENANT_SLUG
-    };
-    return fetch(url, options);
-}
 
 // ===== CALENDARIO =====
 let vistaActual = 'dia';
