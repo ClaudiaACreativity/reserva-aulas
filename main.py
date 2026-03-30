@@ -649,3 +649,123 @@ async def exportar_reservas(request: Request):
         )
     finally:
         await release_db(db)
+
+
+# ===== REGISTRO DE NUEVO TENANT =====
+
+class RegistroCreate(BaseModel):
+    nombre: str
+    tipo: str
+    email_admin: str
+    nombre_admin: str
+    plan_id: str
+    slug: str
+
+@app.post("/registro")
+async def registrar_tenant(datos: RegistroCreate):
+    db = await get_db()
+    try:
+        # Validar que el slug no esté tomado
+        existente = await db.fetchrow(
+            "SELECT id FROM tenants WHERE slug = $1",
+            datos.slug
+        )
+        if existente:
+            raise HTTPException(
+                status_code=400,
+                detail="Esa URL ya está en uso. Por favor elegí otra."
+            )
+
+        # Validar que el email no esté registrado
+        email_existente = await db.fetchrow(
+            "SELECT id FROM tenants WHERE email_admin = $1",
+            datos.email_admin
+        )
+        if email_existente:
+            raise HTTPException(
+                status_code=400,
+                detail="Ya existe una cuenta registrada con ese email."
+            )
+
+        # Crear el tenant
+        tenant = await db.fetchrow(
+            """INSERT INTO tenants (nombre, slug, email_admin, plan_id, trial_hasta, suscripcion_activa)
+               VALUES ($1, $2, $3, $4, CURRENT_DATE + INTERVAL '30 days', FALSE)
+               RETURNING id, nombre, slug, trial_hasta""",
+            datos.nombre, datos.slug, datos.email_admin, datos.plan_id
+        )
+
+        tenant_id = tenant["id"]
+
+        # Crear horarios por defecto (lunes a viernes 8:00-20:00, finde cerrado)
+        dias = [
+            (0, "Lunes",     True,  "08:00", "20:00"),
+            (1, "Martes",    True,  "08:00", "20:00"),
+            (2, "Miércoles", True,  "08:00", "20:00"),
+            (3, "Jueves",    True,  "08:00", "20:00"),
+            (4, "Viernes",   True,  "08:00", "20:00"),
+            (5, "Sábado",    False, None,    None),
+            (6, "Domingo",   False, None,    None),
+        ]
+
+        for dia_semana, nombre_dia, habilitado, apertura, cierre in dias:
+            await db.execute(
+                """INSERT INTO configuracion_horarios
+                   (dia_semana, nombre_dia, habilitado, hora_apertura, hora_cierre, tenant_id)
+                   VALUES ($1, $2, $3, $4, $5, $6)""",
+                dia_semana, nombre_dia, habilitado, apertura, cierre, tenant_id
+            )
+
+        # Enviar email de bienvenida
+        trial_hasta = tenant["trial_hasta"].strftime("%d/%m/%Y")
+        enviar_email(
+            datos.email_admin,
+            "🎉 ¡Bienvenido a ReservaSpace!",
+            f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
+                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">¡Bienvenido a ReservaSpace!</h1>
+                </div>
+                <div style="background: #F9F9FB; padding: 32px; border-radius: 0 0 12px 12px;">
+                    <p style="font-size: 16px; color: #2C3E50;">Hola <b>{datos.nombre_admin}</b>,</p>
+                    <p style="color: #4A5568; line-height: 1.7;">
+                        Tu cuenta para <b>{datos.nombre}</b> fue creada exitosamente.
+                        Tenés <b>30 días de prueba gratuita</b> hasta el <b>{trial_hasta}</b>.
+                    </p>
+                    <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 24px 0;">
+                        <p style="margin: 0 0 8px; color: #4A5568;"><b>Tu URL de acceso:</b></p>
+                        <p style="margin: 0; font-size: 18px; color: #2C3E50; font-weight: bold;">
+                            {datos.slug}.reservaspace.com
+                        </p>
+                    </div>
+                    <p style="color: #4A5568; line-height: 1.7;">
+                        Para empezar, entrá a tu panel de administración y configurá tus espacios y horarios.
+                    </p>
+                    <div style="text-align: center; margin-top: 28px;">
+                        <a href="https://claudiaacreativity.github.io/reserva-aulas/admin.html"
+                           style="background: #71D997; color: #2C3E50; padding: 14px 32px;
+                                  border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 15px;">
+                            Ir al panel de administración →
+                        </a>
+                    </div>
+                    <p style="margin-top: 28px; color: #888; font-size: 13px; text-align: center;">
+                        ¿Tenés dudas? Escribinos a soporte@reservaspace.com
+                    </p>
+                </div>
+            </div>
+            """
+        )
+
+        return {
+            "mensaje": "Cuenta creada exitosamente",
+            "tenant_id": str(tenant_id),
+            "slug": datos.slug,
+            "trial_hasta": trial_hasta
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
