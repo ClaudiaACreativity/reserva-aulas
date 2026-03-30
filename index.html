@@ -186,7 +186,7 @@
 
 <header>
     <div>
-        <h1>🏫 Sistema de Reserva de Espacios</h1>
+        <h1 id="header-titulo">🏢 Sistema de Reserva de Espacios</h1>
         <p id="header-subtitulo">Gestión de espacios</p>
     </div>
 </header>
@@ -849,6 +849,22 @@ function mostrarMensaje(id, texto, tipo) {
 }
 
 
+// ===== TENANT =====
+async function cargarTenant() {
+    try {
+        const res = await apiFetch(`${API}/tenant`);
+        if (res.ok) {
+            const tenant = await res.json();
+            const titulo = document.getElementById('header-titulo');
+            const subtitulo = document.getElementById('header-subtitulo');
+            if (titulo) titulo.textContent = '🏢 ' + tenant.nombre;
+            if (subtitulo) subtitulo.textContent = 'Gestión de espacios';
+        }
+    } catch(e) {
+        console.log('Error al cargar tenant:', e);
+    }
+}
+
 // Iniciar — despertar servidor primero
 async function iniciar() {
     try {
@@ -858,6 +874,7 @@ async function iniciar() {
     } catch(e) {
         await new Promise(resolve => setTimeout(resolve, 3000));
     }
+    cargarTenant();
     cargarEspacios();
     cargarFechasBloqueadas();
     renderCalendario();
