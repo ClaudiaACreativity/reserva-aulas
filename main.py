@@ -699,13 +699,13 @@ async def registrar_tenant(datos: RegistroCreate):
 
         # Crear horarios por defecto (lunes a viernes 8:00-20:00, finde cerrado)
         dias = [
-            (0, "Lunes",     True,  "08:00", "20:00"),
-            (1, "Martes",    True,  "08:00", "20:00"),
-            (2, "Miércoles", True,  "08:00", "20:00"),
-            (3, "Jueves",    True,  "08:00", "20:00"),
-            (4, "Viernes",   True,  "08:00", "20:00"),
-            (5, "Sábado",    False, None,    None),
-            (6, "Domingo",   False, None,    None),
+            (0, "Lunes",     True,  time(8, 0), time(20, 0)),
+            (1, "Martes",    True,  time(8, 0), time(20, 0)),
+            (2, "Miércoles", True,  time(8, 0), time(20, 0)),
+            (3, "Jueves",    True,  time(8, 0), time(20, 0)),
+            (4, "Viernes",   True,  time(8, 0), time(20, 0)),
+            (5, "Sábado",    False, None,       None),
+            (6, "Domingo",   False, None,       None),
         ]
 
         for dia_semana, nombre_dia, habilitado, apertura, cierre in dias:
