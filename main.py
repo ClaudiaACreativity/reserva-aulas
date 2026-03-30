@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import date, time, datetime
@@ -50,6 +50,33 @@ async def get_db():
 async def release_db(conn):
     await pool.release(conn)
 
+# ===== MULTI-TENANT =====
+async def get_tenant(request: Request, db):
+    host = request.headers.get("host", "")
+    # Extraer subdominio: prueba.reservas.com -> prueba
+    # En desarrollo local usamos header X-Tenant-Slug
+    slug = request.headers.get("X-Tenant-Slug", "")
+    if not slug:
+        parts = host.split(".")
+        if len(parts) >= 3:
+            slug = parts[0]
+        else:
+            # Fallback para desarrollo: usar tenant de prueba
+            slug = "prueba"
+
+    tenant = await db.fetchrow(
+        "SELECT * FROM tenants WHERE slug = $1 AND activo = TRUE",
+        slug
+    )
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Organización no encontrada")
+
+    # Verificar si el trial venció y no tiene suscripción activa
+    if not tenant["suscripcion_activa"] and tenant["trial_hasta"] < date.today():
+        raise HTTPException(status_code=402, detail="El período de prueba ha vencido. Por favor suscribite para continuar.")
+
+    return dict(tenant)
+
 # ===== EMAIL =====
 def enviar_email(destinatario: str, asunto: str, cuerpo: str):
     try:
@@ -94,63 +121,89 @@ class HorarioUpdate(BaseModel):
 async def inicio():
     return {"mensaje": "Sistema de Reserva de Espacios funcionando"}
 
-@app.get("/espacios")
-async def listar_espacios():
+@app.get("/tenant")
+async def info_tenant(request: Request):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
+        return {
+            "nombre": tenant["nombre"],
+            "slug": tenant["slug"],
+            "logo_url": tenant["logo_url"],
+            "color_primario": tenant["color_primario"],
+            "color_secundario": tenant["color_secundario"],
+            "plan": tenant["plan_id"],
+        }
+    finally:
+        await release_db(db)
+
+@app.get("/espacios")
+async def listar_espacios(request: Request):
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
         espacios = await db.fetch("""
             SELECT a.*, COALESCE(e.nombre, a.edificio, '') as nombre_edificio
             FROM aulas a
             LEFT JOIN edificios e ON a.edificio_id = e.id
-            WHERE a.activa = TRUE
-        """)
+            WHERE a.activa = TRUE AND a.tenant_id = $1
+        """, tenant["id"])
         return [dict(e) for e in espacios]
     finally:
         await release_db(db)
 
 @app.post("/espacios")
-async def crear_espacio(espacio: EspacioCreate):
+async def crear_espacio(request: Request, espacio: EspacioCreate):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         result = await db.fetchrow(
-            """INSERT INTO aulas (nombre, capacidad, edificio_id)
-               VALUES ($1, $2, $3) RETURNING id""",
-            espacio.nombre, espacio.capacidad, espacio.edificio_id
+            """INSERT INTO aulas (nombre, capacidad, edificio_id, tenant_id)
+               VALUES ($1, $2, $3, $4) RETURNING id""",
+            espacio.nombre, espacio.capacidad, espacio.edificio_id, tenant["id"]
         )
         return {"mensaje": "Espacio creado", "id": str(result["id"])}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
 
 @app.patch("/espacios/{espacio_id}")
-async def toggle_espacio(espacio_id: str, datos: dict):
+async def toggle_espacio(request: Request, espacio_id: str, datos: dict):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         await db.execute(
-            "UPDATE aulas SET activa = $1 WHERE id = $2",
-            datos["activa"], espacio_id
+            "UPDATE aulas SET activa = $1 WHERE id = $2 AND tenant_id = $3",
+            datos["activa"], espacio_id, tenant["id"]
         )
         return {"mensaje": "Espacio actualizado"}
     finally:
         await release_db(db)
 
 @app.get("/disponibilidad/{espacio_id}/{fecha}")
-async def consultar_disponibilidad(espacio_id: str, fecha: date):
+async def consultar_disponibilidad(request: Request, espacio_id: str, fecha: date):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
-            "SELECT hora_inicio, hora_fin FROM reservas WHERE aula_id=$1 AND fecha=$2 AND estado='activa'",
-            espacio_id, fecha
+            """SELECT hora_inicio, hora_fin FROM reservas
+               WHERE aula_id=$1 AND fecha=$2 AND estado='activa' AND tenant_id=$3""",
+            espacio_id, fecha, tenant["id"]
         )
         return [dict(r) for r in reservas]
     finally:
         await release_db(db)
 
 @app.post("/reservas")
-async def crear_reserva(reserva: ReservaCreate):
+async def crear_reserva(request: Request, reserva: ReservaCreate):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
+        tid = tenant["id"]
+
         ahora = datetime.now()
         fecha_hora_inicio = datetime.combine(reserva.fecha, reserva.hora_inicio)
         if fecha_hora_inicio < ahora:
@@ -160,8 +213,8 @@ async def crear_reserva(reserva: ReservaCreate):
             )
 
         fecha_bloqueada = await db.fetchrow(
-            "SELECT motivo FROM fechas_bloqueadas WHERE fecha = $1",
-            reserva.fecha
+            "SELECT motivo FROM fechas_bloqueadas WHERE fecha = $1 AND tenant_id = $2",
+            reserva.fecha, tid
         )
         if fecha_bloqueada:
             raise HTTPException(
@@ -170,10 +223,9 @@ async def crear_reserva(reserva: ReservaCreate):
             )
 
         dia_semana = reserva.fecha.weekday()
-
         config = await db.fetchrow(
-            "SELECT * FROM configuracion_horarios WHERE dia_semana = $1",
-            dia_semana
+            "SELECT * FROM configuracion_horarios WHERE dia_semana = $1 AND tenant_id = $2",
+            dia_semana, tid
         )
 
         if not config or not config["habilitado"]:
@@ -195,19 +247,19 @@ async def crear_reserva(reserva: ReservaCreate):
             )
 
         result = await db.fetchrow(
-            """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin)
-               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
+            """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id)
+               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
             reserva.espacio_id, reserva.usuario_id, reserva.fecha,
-            reserva.hora_inicio, reserva.hora_fin
+            reserva.hora_inicio, reserva.hora_fin, tid
         )
 
         usuario = await db.fetchrow(
-            "SELECT email, nombre FROM usuarios WHERE id = $1",
-            reserva.usuario_id
+            "SELECT email, nombre FROM usuarios WHERE id = $1 AND tenant_id = $2",
+            reserva.usuario_id, tid
         )
         espacio = await db.fetchrow(
-            "SELECT nombre FROM aulas WHERE id = $1",
-            reserva.espacio_id
+            "SELECT nombre FROM aulas WHERE id = $1 AND tenant_id = $2",
+            reserva.espacio_id, tid
         )
         if usuario:
             enviar_email(
@@ -221,7 +273,7 @@ async def crear_reserva(reserva: ReservaCreate):
                     <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
                     <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
                 </table>
-                <p style="margin-top:15px; color:#888">Sistema de Reserva de Espacios</p>
+                <p style="margin-top:15px; color:#888">{tenant['nombre']}</p>
                 """
             )
         return {"mensaje": "Reserva creada", "id": str(result["id"])}
@@ -233,12 +285,13 @@ async def crear_reserva(reserva: ReservaCreate):
         await release_db(db)
 
 @app.delete("/reservas/{reserva_id}")
-async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
+async def cancelar_reserva(request: Request, reserva_id: str, datos: CancelarReserva):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reserva = await db.fetchrow(
-            "SELECT usuario_id FROM reservas WHERE id=$1 AND estado='activa'",
-            reserva_id
+            "SELECT usuario_id FROM reservas WHERE id=$1 AND estado='activa' AND tenant_id=$2",
+            reserva_id, tenant["id"]
         )
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
@@ -260,7 +313,7 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
                 <h2>Reserva cancelada</h2>
                 <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue cancelada.</p>
                 <p style="margin-top:15px; color:#888">Si no realizaste esta cancelación, contactá al administrador.</p>
-                <p style="color:#888">Sistema de Reserva de Espacios</p>
+                <p style="color:#888">{tenant['nombre']}</p>
                 """
             )
         return {"mensaje": "Reserva cancelada correctamente"}
@@ -268,12 +321,13 @@ async def cancelar_reserva(reserva_id: str, datos: CancelarReserva):
         await release_db(db)
 
 @app.delete("/reservas/{reserva_id}/admin")
-async def cancelar_reserva_admin(reserva_id: str):
+async def cancelar_reserva_admin(request: Request, reserva_id: str):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reserva = await db.fetchrow(
-            "SELECT id FROM reservas WHERE id=$1 AND estado='activa'",
-            reserva_id
+            "SELECT id FROM reservas WHERE id=$1 AND estado='activa' AND tenant_id=$2",
+            reserva_id, tenant["id"]
         )
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
@@ -286,12 +340,13 @@ async def cancelar_reserva_admin(reserva_id: str):
         await release_db(db)
 
 @app.get("/usuarios/buscar")
-async def buscar_usuario(email: str):
+async def buscar_usuario(request: Request, email: str):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         usuario = await db.fetchrow(
-            "SELECT * FROM usuarios WHERE email = $1",
-            email
+            "SELECT * FROM usuarios WHERE email = $1 AND tenant_id = $2",
+            email, tenant["id"]
         )
         if not usuario:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -300,61 +355,69 @@ async def buscar_usuario(email: str):
         await release_db(db)
 
 @app.post("/usuarios")
-async def crear_usuario(usuario: dict):
+async def crear_usuario(request: Request, usuario: dict):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         result = await db.fetchrow(
-            """INSERT INTO usuarios (email, nombre, rol)
-               VALUES ($1, $2, $3) RETURNING id""",
-            usuario["email"], usuario["nombre"], usuario.get("rol", "usuario")
+            """INSERT INTO usuarios (email, nombre, rol, tenant_id)
+               VALUES ($1, $2, $3, $4) RETURNING id""",
+            usuario["email"], usuario["nombre"], usuario.get("rol", "usuario"), tenant["id"]
         )
         return {"id": str(result["id"])}
     finally:
         await release_db(db)
 
 @app.get("/usuarios")
-async def listar_usuarios():
+async def listar_usuarios(request: Request):
     db = await get_db()
     try:
-        usuarios = await db.fetch("SELECT * FROM usuarios ORDER BY nombre")
+        tenant = await get_tenant(request, db)
+        usuarios = await db.fetch(
+            "SELECT * FROM usuarios WHERE tenant_id = $1 ORDER BY nombre",
+            tenant["id"]
+        )
         return [dict(u) for u in usuarios]
     finally:
         await release_db(db)
 
 @app.patch("/usuarios/{usuario_id}")
-async def toggle_usuario(usuario_id: str, datos: dict):
+async def toggle_usuario(request: Request, usuario_id: str, datos: dict):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         await db.execute(
-            "UPDATE usuarios SET activo = $1 WHERE id = $2",
-            datos["activo"], usuario_id
+            "UPDATE usuarios SET activo = $1 WHERE id = $2 AND tenant_id = $3",
+            datos["activo"], usuario_id, tenant["id"]
         )
         return {"mensaje": "Usuario actualizado"}
     finally:
         await release_db(db)
 
 @app.get("/reservas/usuario")
-async def reservas_por_usuario(email: str):
+async def reservas_por_usuario(request: Request, email: str):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       r.usuario_id, a.nombre as espacio_nombre
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
                JOIN usuarios u ON r.usuario_id = u.id
-               WHERE u.email = $1
+               WHERE u.email = $1 AND r.tenant_id = $2
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
-            email
+            email, tenant["id"]
         )
         return [dict(r) for r in reservas]
     finally:
         await release_db(db)
 
 @app.get("/reservas")
-async def listar_todas_reservas():
+async def listar_todas_reservas(request: Request):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       r.usuario_id, a.nombre as espacio_nombre,
@@ -362,16 +425,19 @@ async def listar_todas_reservas():
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
                JOIN usuarios u ON r.usuario_id = u.id
-               ORDER BY r.fecha DESC, r.hora_inicio DESC"""
+               WHERE r.tenant_id = $1
+               ORDER BY r.fecha DESC, r.hora_inicio DESC""",
+            tenant["id"]
         )
         return [dict(r) for r in reservas]
     finally:
         await release_db(db)
 
 @app.get("/reservas/calendario")
-async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
+async def reservas_calendario(request: Request, fecha_inicio: date, fecha_fin: date):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin,
                       a.id as espacio_id, a.nombre as espacio_nombre,
@@ -381,42 +447,52 @@ async def reservas_calendario(fecha_inicio: date, fecha_fin: date):
                JOIN usuarios u ON r.usuario_id = u.id
                WHERE r.fecha BETWEEN $1 AND $2
                AND r.estado = 'activa'
+               AND r.tenant_id = $3
                ORDER BY r.fecha, r.hora_inicio""",
-            fecha_inicio, fecha_fin
+            fecha_inicio, fecha_fin, tenant["id"]
         )
         return [dict(r) for r in reservas]
     finally:
         await release_db(db)
 
 @app.get("/fechas-bloqueadas")
-async def listar_fechas_bloqueadas():
+async def listar_fechas_bloqueadas(request: Request):
     db = await get_db()
     try:
-        fechas = await db.fetch("SELECT * FROM fechas_bloqueadas ORDER BY fecha")
+        tenant = await get_tenant(request, db)
+        fechas = await db.fetch(
+            "SELECT * FROM fechas_bloqueadas WHERE tenant_id = $1 ORDER BY fecha",
+            tenant["id"]
+        )
         return [dict(f) for f in fechas]
     finally:
         await release_db(db)
 
 @app.post("/fechas-bloqueadas")
-async def agregar_fecha_bloqueada(datos: FechaBloqueada):
+async def agregar_fecha_bloqueada(request: Request, datos: FechaBloqueada):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         await db.execute(
-            "INSERT INTO fechas_bloqueadas (fecha, motivo) VALUES ($1, $2)",
-            datos.fecha, datos.motivo
+            "INSERT INTO fechas_bloqueadas (fecha, motivo, tenant_id) VALUES ($1, $2, $3)",
+            datos.fecha, datos.motivo, tenant["id"]
         )
         return {"mensaje": f"Fecha {datos.fecha} bloqueada correctamente"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
 
 @app.delete("/fechas-bloqueadas/{fecha}")
-async def eliminar_fecha_bloqueada(fecha: date):
+async def eliminar_fecha_bloqueada(request: Request, fecha: date):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         result = await db.execute(
-            "DELETE FROM fechas_bloqueadas WHERE fecha = $1", fecha
+            "DELETE FROM fechas_bloqueadas WHERE fecha = $1 AND tenant_id = $2",
+            fecha, tenant["id"]
         )
         if result == "DELETE 0":
             raise HTTPException(status_code=404, detail="Fecha no encontrada")
@@ -425,91 +501,108 @@ async def eliminar_fecha_bloqueada(fecha: date):
         await release_db(db)
 
 @app.get("/horarios")
-async def listar_horarios():
+async def listar_horarios(request: Request):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         horarios = await db.fetch(
-            "SELECT * FROM configuracion_horarios ORDER BY dia_semana"
+            "SELECT * FROM configuracion_horarios WHERE tenant_id = $1 ORDER BY dia_semana",
+            tenant["id"]
         )
         return [dict(h) for h in horarios]
     finally:
         await release_db(db)
 
 @app.patch("/horarios/{dia_semana}")
-async def actualizar_horario(dia_semana: int, datos: HorarioUpdate):
+async def actualizar_horario(request: Request, dia_semana: int, datos: HorarioUpdate):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         await db.execute(
             """UPDATE configuracion_horarios
                SET habilitado = $1, hora_apertura = $2, hora_cierre = $3
-               WHERE dia_semana = $4""",
-            datos.habilitado, datos.hora_apertura, datos.hora_cierre, dia_semana
+               WHERE dia_semana = $4 AND tenant_id = $5""",
+            datos.habilitado, datos.hora_apertura, datos.hora_cierre, dia_semana, tenant["id"]
         )
         return {"mensaje": "Horario actualizado"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
 
 @app.get("/edificios")
-async def listar_edificios():
+async def listar_edificios(request: Request):
     db = await get_db()
     try:
-        edificios = await db.fetch("SELECT * FROM edificios WHERE activo = TRUE")
+        tenant = await get_tenant(request, db)
+        edificios = await db.fetch(
+            "SELECT * FROM edificios WHERE activo = TRUE AND tenant_id = $1",
+            tenant["id"]
+        )
         return [dict(e) for e in edificios]
     finally:
         await release_db(db)
 
 @app.post("/edificios")
-async def crear_edificio(datos: dict):
+async def crear_edificio(request: Request, datos: dict):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         result = await db.fetchrow(
-            "INSERT INTO edificios (nombre, direccion) VALUES ($1, $2) RETURNING id",
-            datos["nombre"], datos.get("direccion", "")
+            "INSERT INTO edificios (nombre, direccion, tenant_id) VALUES ($1, $2, $3) RETURNING id",
+            datos["nombre"], datos.get("direccion", ""), tenant["id"]
         )
         return {"mensaje": "Edificio creado", "id": result["id"]}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
 
 @app.patch("/edificios/{edificio_id}")
-async def actualizar_edificio(edificio_id: int, datos: dict):
+async def actualizar_edificio(request: Request, edificio_id: int, datos: dict):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         if "nombre" in datos:
             await db.execute(
-                "UPDATE edificios SET nombre = $1 WHERE id = $2",
-                datos["nombre"], edificio_id
+                "UPDATE edificios SET nombre = $1 WHERE id = $2 AND tenant_id = $3",
+                datos["nombre"], edificio_id, tenant["id"]
             )
         if "activo" in datos:
             await db.execute(
-                "UPDATE edificios SET activo = $1 WHERE id = $2",
-                datos["activo"], edificio_id
+                "UPDATE edificios SET activo = $1 WHERE id = $2 AND tenant_id = $3",
+                datos["activo"], edificio_id, tenant["id"]
             )
         return {"mensaje": "Edificio actualizado"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
 
 @app.get("/edificios/{edificio_id}/espacios")
-async def espacios_por_edificio(edificio_id: int):
+async def espacios_por_edificio(request: Request, edificio_id: int):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         espacios = await db.fetch(
-            "SELECT * FROM aulas WHERE edificio_id = $1 AND activa = TRUE",
-            edificio_id
+            "SELECT * FROM aulas WHERE edificio_id = $1 AND activa = TRUE AND tenant_id = $2",
+            edificio_id, tenant["id"]
         )
         return [dict(e) for e in espacios]
     finally:
         await release_db(db)
 
 @app.get("/reservas/exportar")
-async def exportar_reservas():
+async def exportar_reservas(request: Request):
     db = await get_db()
     try:
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       a.nombre as espacio_nombre,
@@ -517,7 +610,9 @@ async def exportar_reservas():
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
                JOIN usuarios u ON r.usuario_id = u.id
-               ORDER BY r.fecha DESC, r.hora_inicio DESC"""
+               WHERE r.tenant_id = $1
+               ORDER BY r.fecha DESC, r.hora_inicio DESC""",
+            tenant["id"]
         )
 
         wb = openpyxl.Workbook()
