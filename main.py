@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi.responses import StreamingResponse
 import openpyxl
 from io import BytesIO
+import bcrypt
 
 load_dotenv()
 
@@ -137,6 +138,69 @@ async def admin_verificar(request: Request):
     if not token or len(token) != 64:
         raise HTTPException(status_code=401, detail="Token inválido")
     return {"valido": True}
+
+# ===== ADMIN DEL TENANT =====
+
+class AdminTenantLogin(BaseModel):
+    email: str
+    password: str
+
+class SetPassword(BaseModel):
+    password: str
+
+@app.post("/admin/tenant/login")
+async def admin_tenant_login(request: Request, datos: AdminTenantLogin):
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        usuario = await db.fetchrow(
+            "SELECT * FROM usuarios WHERE email = $1 AND tenant_id = $2 AND rol = 'admin' AND activo = TRUE",
+            datos.email, tenant["id"]
+        )
+        if not usuario:
+            raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+        if not usuario["password_hash"]:
+            raise HTTPException(status_code=401, detail="Este usuario no tiene contraseña configurada")
+        password_ok = bcrypt.checkpw(datos.password.encode(), usuario["password_hash"].encode())
+        if not password_ok:
+            raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+        import secrets
+        token = secrets.token_hex(32)
+        return {
+            "token": token,
+            "usuario_id": str(usuario["id"]),
+            "nombre": usuario["nombre"],
+            "email": usuario["email"]
+        }
+    finally:
+        await release_db(db)
+
+@app.post("/usuarios/{usuario_id}/set-password")
+async def set_admin_password(request: Request, usuario_id: str, datos: SetPassword):
+    """Asigna contraseña a un usuario y lo promueve a admin."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        usuario = await db.fetchrow(
+            "SELECT * FROM usuarios WHERE id = $1 AND tenant_id = $2",
+            usuario_id, tenant["id"]
+        )
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        if len(datos.password) < 8:
+            raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 8 caracteres")
+        password_hash = bcrypt.hashpw(datos.password.encode(), bcrypt.gensalt()).decode()
+        await db.execute(
+            "UPDATE usuarios SET password_hash = $1, rol = 'admin' WHERE id = $2 AND tenant_id = $3",
+            password_hash, usuario_id, tenant["id"]
+        )
+        return {"mensaje": f"{usuario['nombre']} ahora es administrador"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
 
 # ===== ENDPOINTS =====
 
