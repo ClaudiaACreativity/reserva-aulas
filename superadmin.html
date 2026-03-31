@@ -562,7 +562,7 @@ async function cargarPlanes() {
 
         // Cargar planes en el select de crear tenant
         const select = document.getElementById('nuevo-plan');
-        select.innerHTML = planes.map(p => `<option value="${p.id}">${p.nombre} — $${p.precio}/mes</option>`).join('');
+        select.innerHTML = planes.map(p => `<option value="${p.id}">${p.nombre} — $${p.precio_mensual}/mes</option>`).join('');
 
         contenedor.innerHTML = planes.map(p => `
             <div class="plan-card">
@@ -575,7 +575,7 @@ async function cargarPlanes() {
                     </div>
                     <div>
                         <label style="font-size:12px; color:#888; display:block; margin-bottom:4px">Precio (USD/mes)</label>
-                        <input type="number" id="plan-precio-${p.id}" value="${p.precio}"
+                        <input type="number" id="plan-precio-${p.id}" value="${p.precio_mensual}"
                             style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%; font-size:14px">
                     </div>
                     <div>
@@ -591,13 +591,13 @@ async function cargarPlanes() {
 
 async function guardarPlan(id) {
     const nombre = document.getElementById(`plan-nombre-${id}`).value.trim();
-    const precio = parseFloat(document.getElementById(`plan-precio-${id}`).value);
+    const precio_mensual = parseFloat(document.getElementById(`plan-precio-${id}`).value);
 
     try {
         const res = await apiFetch(`${API}/superadmin/planes/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, precio })
+            body: JSON.stringify({ nombre, precio_mensual })
         });
         const data = await res.json();
         if (res.ok) {
@@ -619,7 +619,7 @@ async function cargarFacturacion() {
         const data = await res.json();
 
         // Ingreso mensual
-        document.getElementById('ingreso-mensual').textContent = `$${data.ingreso_mensual.toFixed(2)} USD`;
+        document.getElementById('ingreso-mensual').textContent = data.ingreso_mensual > 0 ? `$${data.ingreso_mensual.toFixed(2)} USD` : '$0.00 USD';
 
         // Alertas trial
         const alertasEl = document.getElementById('alertas-trial');
@@ -655,7 +655,7 @@ async function cargarFacturacion() {
                             <td><b>${t.nombre}</b></td>
                             <td style="font-size:13px">${t.email_admin}</td>
                             <td>${t.plan_nombre}</td>
-                            <td><b>$${t.precio} USD</b></td>
+                            <td><b>$${t.plan_precio} USD</b></td>
                         </tr>
                     `).join('')}
                 </tbody>
