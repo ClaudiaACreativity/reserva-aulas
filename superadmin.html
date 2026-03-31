@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superadmin — reservatuespacio.com</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f4f8; color: #333; }
+
+        /* LOGIN */
+        .login-overlay {
+            position: fixed; inset: 0;
+            background: #2C3E50;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background: white; border-radius: 12px;
+            padding: 40px; width: 340px; text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        .login-box h1 { font-size: 20px; color: #2C3E50; margin-bottom: 6px; }
+        .login-box p { font-size: 13px; color: #888; margin-bottom: 25px; }
+        .login-box input {
+            width: 100%; padding: 12px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 15px; margin-bottom: 12px; outline: none;
+        }
+        .login-box input:focus { border-color: #2C3E50; }
+        .login-box button {
+            width: 100%; padding: 12px; background: #2C3E50;
+            color: white; border: none; border-radius: 6px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+        }
+        .login-box button:hover { background: #1a252f; }
+        .login-error { color: #e74c3c; font-size: 13px; margin-top: 10px; display: none; }
+
+        /* HEADER */
+        header {
+            background: #2C3E50; color: white;
+            padding: 15px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        header h1 { font-size: 18px; }
+        header span { font-size: 12px; background: #71D997; color: #2C3E50; padding: 3px 10px; border-radius: 20px; font-weight: bold; margin-left: 10px; }
+        .btn-salir {
+            background: rgba(255,255,255,0.15); color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        .btn-salir:hover { background: rgba(255,255,255,0.25); }
+
+        /* TABS */
+        .tabs {
+            background: white; border-bottom: 2px solid #e0e8f0;
+            display: flex; padding: 0 40px;
+        }
+        .tab {
+            padding: 15px 20px; cursor: pointer;
+            font-size: 14px; font-weight: bold; color: #888;
+            border-bottom: 3px solid transparent; margin-bottom: -2px;
+        }
+        .tab:hover { color: #2C3E50; }
+        .tab.activo { color: #2C3E50; border-bottom-color: #71D997; }
+
+        /* STATS */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px; margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white; border-radius: 10px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-align: center;
+        }
+        .stat-card .numero { font-size: 32px; font-weight: bold; color: #2C3E50; }
+        .stat-card .label { font-size: 12px; color: #888; margin-top: 4px; }
+        .stat-card.verde .numero { color: #27ae60; }
+        .stat-card.naranja .numero { color: #e67e22; }
+        .stat-card.rojo .numero { color: #e74c3c; }
+
+        /* CONTENIDO */
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .panel { display: none; }
+        .panel.activo { display: block; }
+
+        .card {
+            background: white; border-radius: 10px;
+            padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 25px;
+        }
+        .card h2 {
+            font-size: 17px; color: #2C3E50;
+            margin-bottom: 20px; padding-bottom: 10px;
+            border-bottom: 2px solid #e0e8f0;
+        }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; font-weight: bold; color: #555; }
+        .form-group input, .form-group select {
+            padding: 10px 12px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 14px; outline: none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: #2C3E50; }
+        .form-group.full { grid-column: 1 / -1; }
+
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 6px;
+            font-size: 14px; cursor: pointer; font-weight: bold; transition: background 0.2s;
+        }
+        .btn-primary { background: #2C3E50; color: white; }
+        .btn-primary:hover { background: #1a252f; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-success:hover { background: #1e8449; }
+        .btn-danger { background: #e74c3c; color: white; font-size: 12px; padding: 6px 12px; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: #e67e22; color: white; font-size: 12px; padding: 6px 12px; }
+        .btn-warning:hover { background: #ca6f1e; }
+        .btn-sm { font-size: 12px; padding: 5px 10px; }
+
+        .mensaje {
+            padding: 10px 15px; border-radius: 6px;
+            font-size: 13px; margin-top: 15px; display: none;
+        }
+        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
+        .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #2C3E50; color: white; padding: 11px 14px; text-align: left; }
+        td { padding: 10px 14px; border-bottom: 1px solid #e0e8f0; vertical-align: middle; }
+        tr:hover td { background: #f8fafc; }
+
+        .badge {
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;
+        }
+        .badge-activo { background: #d5f0e0; color: #1a5c36; }
+        .badge-trial { background: #fef9e7; color: #b7950b; }
+        .badge-vencido { background: #fdedec; color: #c0392b; }
+        .badge-inactivo { background: #f0f0f0; color: #888; }
+        .badge-pago { background: #d6eaf8; color: #1a5276; }
+
+        .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
+
+        .plan-card {
+            border: 1px solid #e0e8f0; border-radius: 8px; padding: 20px; margin-bottom: 15px;
+        }
+        .plan-card h3 { font-size: 16px; color: #2C3E50; margin-bottom: 15px; }
+        .plan-precio { font-size: 28px; font-weight: bold; color: #2C3E50; }
+        .plan-precio span { font-size: 14px; color: #888; font-weight: normal; }
+
+        .acciones-tenant { display: flex; gap: 5px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+    <div class="login-box">
+        <h1>🛡️ Panel Superadmin</h1>
+        <p>reservatuespacio.com</p>
+        <input type="password" id="password-input" placeholder="Contraseña de superadmin"
+               onkeydown="if(event.key==='Enter') iniciarSesion()">
+        <button onclick="iniciarSesion()">Ingresar</button>
+        <p class="login-error" id="login-error">Contraseña incorrecta</p>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header>
+    <h1>🛡️ Panel Superadmin <span>reservatuespacio.com</span></h1>
+    <button class="btn-salir" onclick="cerrarSesion()">Cerrar sesión</button>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+    <div class="tab activo" onclick="cambiarTab('tenants', this)">🏢 Tenants</div>
+    <div class="tab" onclick="cambiarTab('planes', this)">💳 Planes y precios</div>
+    <div class="tab" onclick="cambiarTab('facturacion', this)">💰 Facturación</div>
+</div>
+
+<div class="container">
+
+    <!-- PANEL TENANTS -->
+    <div class="panel activo" id="panel-tenants">
+
+        <!-- Stats -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card"><div class="numero" id="stat-total">—</div><div class="label">Total tenants</div></div>
+            <div class="stat-card verde"><div class="numero" id="stat-pagos">—</div><div class="label">Con suscripción activa</div></div>
+            <div class="stat-card naranja"><div class="numero" id="stat-trial">—</div><div class="label">En período de prueba</div></div>
+            <div class="stat-card rojo"><div class="numero" id="stat-vencidos">—</div><div class="label">Trial vencido</div></div>
+            <div class="stat-card"><div class="numero" id="stat-usuarios">—</div><div class="label">Usuarios totales</div></div>
+            <div class="stat-card"><div class="numero" id="stat-reservas">—</div><div class="label">Reservas activas</div></div>
+        </div>
+
+        <!-- Crear tenant -->
+        <div class="card">
+            <h2>Crear nuevo tenant</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre de la organización</label>
+                    <input type="text" id="nuevo-nombre" placeholder="Ej: Instituto San Martín">
+                </div>
+                <div class="form-group">
+                    <label>Slug (URL)</label>
+                    <input type="text" id="nuevo-slug" placeholder="Ej: sanmartin">
+                </div>
+                <div class="form-group">
+                    <label>Email del administrador</label>
+                    <input type="email" id="nuevo-email" placeholder="admin@ejemplo.com">
+                </div>
+                <div class="form-group">
+                    <label>Nombre del administrador</label>
+                    <input type="text" id="nuevo-nombre-admin" placeholder="Ej: Carlos López">
+                </div>
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="nuevo-plan">
+                        <option value="">Cargando planes...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Días de trial</label>
+                    <input type="number" id="nuevo-trial" value="30" min="1" max="365">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="crearTenant()">Crear tenant y enviar email de bienvenida</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-crear"></div>
+        </div>
+
+        <!-- Lista tenants -->
+        <div class="card">
+            <h2>Todos los tenants</h2>
+            <div id="tabla-tenants"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- PANEL PLANES -->
+    <div class="panel" id="panel-planes">
+        <div class="card">
+            <h2>Planes y precios</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:20px;">
+                Los cambios de precio afectan a nuevas suscripciones. Los tenants existentes mantienen su plan hasta que se renueve.
+            </p>
+            <div id="lista-planes"><p class="empty">Cargando...</p></div>
+            <div class="mensaje" id="mensaje-planes"></div>
+        </div>
+    </div>
+
+    <!-- PANEL FACTURACIÓN -->
+    <div class="panel" id="panel-facturacion">
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:25px;">
+            <div class="card" style="margin-bottom:0">
+                <h2>💵 Ingreso mensual estimado</h2>
+                <div style="font-size:48px; font-weight:bold; color:#27ae60; margin:15px 0" id="ingreso-mensual">—</div>
+                <div style="font-size:13px; color:#888">Suma de planes con suscripción activa</div>
+                <div style="margin-top:20px">
+                    <button class="btn btn-success" onclick="exportarFacturacion()">📥 Exportar historial a Excel</button>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom:0">
+                <h2>⚠️ Trials por vencer (próximos 7 días)</h2>
+                <div id="alertas-trial"><p class="empty">Cargando...</p></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Registrar pago</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Tenant</label>
+                    <select id="pago-tenant-id"><option value="">Seleccioná un tenant</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha del pago</label>
+                    <input type="date" id="pago-fecha">
+                </div>
+                <div class="form-group">
+                    <label>Monto (USD)</label>
+                    <input type="number" id="pago-monto" placeholder="Ej: 35" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Método de pago</label>
+                    <select id="pago-metodo">
+                        <option value="transferencia">Transferencia bancaria</option>
+                        <option value="mercadopago">MercadoPago</option>
+                        <option value="efectivo">Efectivo</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Referencia / comprobante</label>
+                    <input type="text" id="pago-referencia" placeholder="Ej: MP-123456">
+                </div>
+                <div class="form-group">
+                    <label>Registrado por</label>
+                    <input type="text" id="pago-registrado-por" placeholder="Tu nombre">
+                </div>
+                <div class="form-group full">
+                    <label>Notas</label>
+                    <input type="text" id="pago-notas" placeholder="Opcional">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="registrarPago()">Registrar pago</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pagos"></div>
+        </div>
+
+        <div class="card">
+            <h2>Tenants con suscripción activa</h2>
+            <div id="tabla-pagando"><p class="empty">Cargando...</p></div>
+        </div>
+
+        <div class="card">
+            <h2>Historial de pagos</h2>
+            <div id="tabla-historial"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const API = 'https://reserva-aulas.onrender.com';
+let superadminToken = null;
+
+function apiFetch(url, options = {}) {
+    options.headers = {
+        ...options.headers,
+        'X-Superadmin-Token': superadminToken
+    };
+    return fetch(url, options);
+}
+
+// ===== LOGIN =====
+async function iniciarSesion() {
+    const password = document.getElementById('password-input').value;
+    const btn = document.querySelector('.login-box button');
+    btn.textContent = 'Verificando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/superadmin/stats`, {
+            headers: { 'X-Superadmin-Token': password }
+        });
+        if (res.ok) {
+            superadminToken = password;
+            document.getElementById('login-overlay').style.display = 'none';
+            cargarTodo();
+        } else {
+            document.getElementById('login-error').style.display = 'block';
+            document.getElementById('password-input').value = '';
+        }
+    } catch(e) {
+        document.getElementById('login-error').style.display = 'block';
+    } finally {
+        btn.textContent = 'Ingresar';
+        btn.disabled = false;
+    }
+}
+
+function cerrarSesion() {
+    superadminToken = null;
+    document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('password-input').value = '';
+    document.getElementById('login-error').style.display = 'none';
+}
+
+// ===== TABS =====
+function cambiarTab(panel, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+    document.getElementById(`panel-${panel}`).classList.add('activo');
+    el.classList.add('activo');
+}
+
+// ===== CARGAR TODO =====
+function cargarTodo() {
+    cargarStats();
+    cargarTenants();
+    cargarPlanes();
+    cargarFacturacion();
+}
+
+// ===== STATS =====
+async function cargarStats() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/stats`);
+        const s = await res.json();
+        document.getElementById('stat-total').textContent = s.total_tenants;
+        document.getElementById('stat-pagos').textContent = s.tenants_pagos;
+        document.getElementById('stat-trial').textContent = s.tenants_trial;
+        document.getElementById('stat-vencidos').textContent = s.tenants_vencidos;
+        document.getElementById('stat-usuarios').textContent = s.total_usuarios;
+        document.getElementById('stat-reservas').textContent = s.total_reservas;
+    } catch(e) {
+        console.log('Error al cargar stats', e);
+    }
+}
+
+// ===== TENANTS =====
+async function cargarTenants() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants`);
+        const tenants = await res.json();
+        const contenedor = document.getElementById('tabla-tenants');
+
+        if (!tenants.length) {
+            contenedor.innerHTML = '<p class="empty">No hay tenants registrados</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Organización</th>
+                        <th>Slug</th>
+                        <th>Email admin</th>
+                        <th>Plan</th>
+                        <th>Estado</th>
+                        <th>Trial hasta</th>
+                        <th>Usuarios</th>
+                        <th>Reservas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tenants.map(t => {
+                        const estado = estadoTenant(t);
+                        return `
+                        <tr>
+                            <td><b>${t.nombre}</b></td>
+                            <td><code style="font-size:12px; color:#2C3E50">${t.slug}</code></td>
+                            <td style="font-size:13px">${t.email_admin}</td>
+                            <td>${t.plan_nombre || '—'}<br><small style="color:#888">$${t.plan_precio || 0}/mes</small></td>
+                            <td><span class="badge badge-${estado.clase}">${estado.texto}</span></td>
+                            <td style="font-size:13px">${t.trial_hasta ? t.trial_hasta.split('T')[0] : '—'}</td>
+                            <td style="text-align:center">${t.total_usuarios}</td>
+                            <td style="text-align:center">${t.total_reservas}</td>
+                            <td>
+                                <div class="acciones-tenant">
+                                    <button class="btn btn-warning btn-sm"
+                                        onclick="extenderTrial('${t.id}', '${t.nombre}')">
+                                        +30 días
+                                    </button>
+                                    ${t.suscripcion_activa
+                                        ? `<button class="btn btn-danger btn-sm" onclick="toggleSuscripcion('${t.id}', true)">Desactivar suscripción</button>`
+                                        : `<button class="btn btn-success btn-sm" onclick="toggleSuscripcion('${t.id}', false)">Activar suscripción</button>`
+                                    }
+                                    ${t.activo
+                                        ? `<button class="btn btn-danger btn-sm" onclick="toggleTenant('${t.id}', true)">Desactivar</button>`
+                                        : `<button class="btn btn-success btn-sm" onclick="toggleTenant('${t.id}', false)">Activar</button>`
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch(e) {
+        document.getElementById('tabla-tenants').innerHTML = '<p class="empty">Error al cargar tenants</p>';
+    }
+}
+
+function estadoTenant(t) {
+    if (!t.activo) return { clase: 'inactivo', texto: 'Inactivo' };
+    if (t.suscripcion_activa) return { clase: 'pago', texto: 'Suscripto' };
+    const hoy = new Date().toISOString().split('T')[0];
+    const trial = t.trial_hasta ? t.trial_hasta.split('T')[0] : '';
+    if (trial >= hoy) return { clase: 'trial', texto: 'En trial' };
+    return { clase: 'vencido', texto: 'Trial vencido' };
+}
+
+async function toggleTenant(id, activo) {
+    const accion = activo ? 'desactivar' : 'activar';
+    if (!confirm(`¿Querés ${accion} este tenant?`)) return;
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activo: !activo })
+        });
+        if (res.ok) { cargarTenants(); cargarStats(); }
+    } catch(e) { alert('Error al actualizar tenant'); }
+}
+
+async function toggleSuscripcion(id, activa) {
+    const accion = activa ? 'desactivar la suscripción' : 'activar la suscripción';
+    if (!confirm(`¿Querés ${accion} de este tenant?`)) return;
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suscripcion_activa: !activa })
+        });
+        if (res.ok) { cargarTenants(); cargarStats(); }
+    } catch(e) { alert('Error al actualizar suscripción'); }
+}
+
+async function extenderTrial(id, nombre) {
+    if (!confirm(`¿Extender 30 días el trial de ${nombre}?`)) return;
+    try {
+        const hoy = new Date();
+        hoy.setDate(hoy.getDate() + 30);
+        const nuevaFecha = hoy.toISOString().split('T')[0];
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trial_hasta: nuevaFecha })
+        });
+        if (res.ok) { cargarTenants(); cargarStats(); }
+    } catch(e) { alert('Error al extender trial'); }
+}
+
+async function crearTenant() {
+    const nombre = document.getElementById('nuevo-nombre').value.trim();
+    const slug = document.getElementById('nuevo-slug').value.trim().toLowerCase();
+    const email = document.getElementById('nuevo-email').value.trim();
+    const nombreAdmin = document.getElementById('nuevo-nombre-admin').value.trim();
+    const planId = document.getElementById('nuevo-plan').value;
+    const trialDias = parseInt(document.getElementById('nuevo-trial').value);
+
+    if (!nombre || !slug || !email || !nombreAdmin || !planId) {
+        mostrarMensaje('mensaje-crear', 'Completá todos los campos', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, slug, email_admin: email, nombre_admin: nombreAdmin, plan_id: planId, trial_dias: trialDias })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-crear', `✅ Tenant creado correctamente. Trial hasta: ${data.trial_hasta}`, 'exito');
+            document.getElementById('nuevo-nombre').value = '';
+            document.getElementById('nuevo-slug').value = '';
+            document.getElementById('nuevo-email').value = '';
+            document.getElementById('nuevo-nombre-admin').value = '';
+            cargarTenants();
+            cargarStats();
+        } else {
+            mostrarMensaje('mensaje-crear', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-crear', 'Error al conectar', 'error');
+    }
+}
+
+// ===== PLANES =====
+async function cargarPlanes() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/planes`);
+        const planes = await res.json();
+        const contenedor = document.getElementById('lista-planes');
+
+        // Cargar planes en el select de crear tenant
+        const select = document.getElementById('nuevo-plan');
+        select.innerHTML = planes.map(p => `<option value="${p.id}">${p.nombre} — $${p.precio}/mes</option>`).join('');
+
+        contenedor.innerHTML = planes.map(p => `
+            <div class="plan-card">
+                <h3>${p.nombre}</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:15px; align-items:end;">
+                    <div>
+                        <label style="font-size:12px; color:#888; display:block; margin-bottom:4px">Nombre del plan</label>
+                        <input type="text" id="plan-nombre-${p.id}" value="${p.nombre}"
+                            style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%; font-size:14px">
+                    </div>
+                    <div>
+                        <label style="font-size:12px; color:#888; display:block; margin-bottom:4px">Precio (USD/mes)</label>
+                        <input type="number" id="plan-precio-${p.id}" value="${p.precio}"
+                            style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%; font-size:14px">
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="guardarPlan('${p.id}')">Guardar cambios</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {
+        document.getElementById('lista-planes').innerHTML = '<p class="empty">Error al cargar planes</p>';
+    }
+}
+
+async function guardarPlan(id) {
+    const nombre = document.getElementById(`plan-nombre-${id}`).value.trim();
+    const precio = parseFloat(document.getElementById(`plan-precio-${id}`).value);
+
+    try {
+        const res = await apiFetch(`${API}/superadmin/planes/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, precio })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-planes', '✅ Plan actualizado correctamente', 'exito');
+            cargarPlanes();
+        } else {
+            mostrarMensaje('mensaje-planes', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-planes', 'Error al guardar', 'error');
+    }
+}
+
+
+// ===== FACTURACIÓN =====
+async function cargarFacturacion() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/facturacion`);
+        const data = await res.json();
+
+        // Ingreso mensual
+        document.getElementById('ingreso-mensual').textContent = `$${data.ingreso_mensual.toFixed(2)} USD`;
+
+        // Alertas trial
+        const alertasEl = document.getElementById('alertas-trial');
+        if (!data.alertas_trial.length) {
+            alertasEl.innerHTML = '<p class="empty">No hay trials por vencer esta semana 🎉</p>';
+        } else {
+            alertasEl.innerHTML = `<table>
+                <thead><tr><th>Organización</th><th>Email</th><th>Días restantes</th></tr></thead>
+                <tbody>
+                    ${data.alertas_trial.map(a => `
+                        <tr>
+                            <td><b>${a.nombre}</b></td>
+                            <td style="font-size:13px">${a.email_admin}</td>
+                            <td style="text-align:center">
+                                <span class="badge badge-vencido">${a.dias_restantes} días</span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Tenants pagando
+        const pagandoEl = document.getElementById('tabla-pagando');
+        if (!data.tenants_pagando.length) {
+            pagandoEl.innerHTML = '<p class="empty">No hay tenants con suscripción activa</p>';
+        } else {
+            pagandoEl.innerHTML = `<table>
+                <thead><tr><th>Organización</th><th>Email</th><th>Plan</th><th>Precio/mes</th></tr></thead>
+                <tbody>
+                    ${data.tenants_pagando.map(t => `
+                        <tr>
+                            <td><b>${t.nombre}</b></td>
+                            <td style="font-size:13px">${t.email_admin}</td>
+                            <td>${t.plan_nombre}</td>
+                            <td><b>$${t.precio} USD</b></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Historial
+        const historialEl = document.getElementById('tabla-historial');
+        if (!data.historial_pagos.length) {
+            historialEl.innerHTML = '<p class="empty">No hay pagos registrados todavía</p>';
+        } else {
+            historialEl.innerHTML = `<table>
+                <thead>
+                    <tr><th>Fecha</th><th>Tenant</th><th>Monto</th><th>Método</th><th>Referencia</th><th>Registrado por</th><th></th></tr>
+                </thead>
+                <tbody>
+                    ${data.historial_pagos.map(p => `
+                        <tr>
+                            <td>${p.fecha.split('T')[0]}</td>
+                            <td><b>${p.tenant_nombre}</b></td>
+                            <td><b>$${parseFloat(p.monto).toFixed(2)} ${p.moneda}</b></td>
+                            <td>${p.metodo}</td>
+                            <td style="font-size:12px; color:#888">${p.referencia || '—'}</td>
+                            <td style="font-size:12px; color:#888">${p.registrado_por || '—'}</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" onclick="eliminarPago('${p.id}')">Eliminar</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // Cargar tenants en el select de registrar pago
+        const select = document.getElementById('pago-tenant-id');
+        if (select.options.length <= 1) {
+            const resTenants = await apiFetch(`${API}/superadmin/tenants`);
+            const tenants = await resTenants.json();
+            tenants.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.nombre;
+                select.appendChild(opt);
+            });
+        }
+
+    } catch(e) {
+        console.log('Error al cargar facturación', e);
+    }
+}
+
+async function registrarPago() {
+    const tenantId = document.getElementById('pago-tenant-id').value;
+    const fecha = document.getElementById('pago-fecha').value;
+    const monto = document.getElementById('pago-monto').value;
+    const metodo = document.getElementById('pago-metodo').value;
+    const referencia = document.getElementById('pago-referencia').value.trim();
+    const registradoPor = document.getElementById('pago-registrado-por').value.trim();
+    const notas = document.getElementById('pago-notas').value.trim();
+
+    if (!tenantId || !fecha || !monto) {
+        mostrarMensaje('mensaje-pagos', 'Completá tenant, fecha y monto', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`${API}/superadmin/pagos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                tenant_id: tenantId, fecha, monto: parseFloat(monto),
+                metodo, referencia, registrado_por: registradoPor, notas
+            })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-pagos', `✅ ${data.mensaje}`, 'exito');
+            document.getElementById('pago-monto').value = '';
+            document.getElementById('pago-referencia').value = '';
+            document.getElementById('pago-notas').value = '';
+            cargarFacturacion();
+        } else {
+            mostrarMensaje('mensaje-pagos', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-pagos', 'Error al conectar', 'error');
+    }
+}
+
+async function eliminarPago(id) {
+    if (!confirm('¿Eliminar este pago del historial?')) return;
+    try {
+        const res = await apiFetch(`${API}/superadmin/pagos/${id}`, { method: 'DELETE' });
+        if (res.ok) { cargarFacturacion(); }
+    } catch(e) { alert('Error al eliminar pago'); }
+}
+
+function exportarFacturacion() {
+    window.open(`${API}/superadmin/facturacion/exportar?token=${superadminToken}`, '_blank');
+}
+
+// ===== UTILIDAD =====
+function mostrarMensaje(id, texto, tipo) {
+    const el = document.getElementById(id);
+    el.textContent = texto;
+    el.className = `mensaje ${tipo}`;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+}
+</script>
+
+</body>
+</html>

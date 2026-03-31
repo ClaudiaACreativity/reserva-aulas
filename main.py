@@ -856,3 +856,359 @@ async def registrar_tenant(datos: RegistroCreate):
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+
+# ===== SUPERADMIN =====
+
+def verificar_superadmin(request: Request):
+    token = request.headers.get("X-Superadmin-Token", "")
+    password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
+    if token != password_correcta:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
+class TenantUpdate(BaseModel):
+    activo: Optional[bool] = None
+    suscripcion_activa: Optional[bool] = None
+    plan_id: Optional[str] = None
+    trial_hasta: Optional[date] = None
+
+class PlanUpdate(BaseModel):
+    nombre: Optional[str] = None
+    precio: Optional[float] = None
+    descripcion: Optional[str] = None
+
+class TenantCreate(BaseModel):
+    nombre: str
+    slug: str
+    email_admin: str
+    nombre_admin: str
+    plan_id: str
+    trial_dias: int = 30
+
+@app.get("/superadmin/tenants")
+async def superadmin_listar_tenants(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tenants = await db.fetch("""
+            SELECT
+                t.*,
+                p.nombre as plan_nombre,
+                p.precio as plan_precio,
+                (SELECT COUNT(*) FROM usuarios u WHERE u.tenant_id = t.id) as total_usuarios,
+                (SELECT COUNT(*) FROM reservas r WHERE r.tenant_id = t.id AND r.estado = 'activa') as total_reservas
+            FROM tenants t
+            LEFT JOIN planes p ON t.plan_id = p.id
+            ORDER BY t.activo DESC, t.trial_hasta DESC
+        """)
+        return [dict(t) for t in tenants]
+    finally:
+        await release_db(db)
+
+@app.patch("/superadmin/tenants/{tenant_id}")
+async def superadmin_actualizar_tenant(request: Request, tenant_id: str, datos: TenantUpdate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tenant = await db.fetchrow("SELECT id FROM tenants WHERE id = $1", tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        if datos.activo is not None:
+            await db.execute("UPDATE tenants SET activo = $1 WHERE id = $2", datos.activo, tenant_id)
+        if datos.suscripcion_activa is not None:
+            await db.execute("UPDATE tenants SET suscripcion_activa = $1 WHERE id = $2", datos.suscripcion_activa, tenant_id)
+        if datos.plan_id is not None:
+            await db.execute("UPDATE tenants SET plan_id = $1 WHERE id = $2", datos.plan_id, tenant_id)
+        if datos.trial_hasta is not None:
+            await db.execute("UPDATE tenants SET trial_hasta = $1 WHERE id = $2", datos.trial_hasta, tenant_id)
+        return {"mensaje": "Tenant actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.post("/superadmin/tenants")
+async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        existente = await db.fetchrow("SELECT id FROM tenants WHERE slug = $1", datos.slug)
+        if existente:
+            raise HTTPException(status_code=400, detail="Ese slug ya está en uso")
+        email_existente = await db.fetchrow("SELECT id FROM tenants WHERE email_admin = $1", datos.email_admin)
+        if email_existente:
+            raise HTTPException(status_code=400, detail="Ya existe una cuenta con ese email")
+        tenant = await db.fetchrow(
+            """INSERT INTO tenants (nombre, slug, email_admin, plan_id, trial_hasta, suscripcion_activa)
+               VALUES ($1, $2, $3, $4, CURRENT_DATE + ($5 || ' days')::interval, FALSE)
+               RETURNING id, nombre, slug, trial_hasta""",
+            datos.nombre, datos.slug, datos.email_admin, datos.plan_id, str(datos.trial_dias)
+        )
+        tenant_id = tenant["id"]
+        dias = [
+            (0, "Lunes",     True,  time(8, 0), time(20, 0)),
+            (1, "Martes",    True,  time(8, 0), time(20, 0)),
+            (2, "Miércoles", True,  time(8, 0), time(20, 0)),
+            (3, "Jueves",    True,  time(8, 0), time(20, 0)),
+            (4, "Viernes",   True,  time(8, 0), time(20, 0)),
+            (5, "Sábado",    False, None,        None),
+            (6, "Domingo",   False, None,        None),
+        ]
+        for dia_semana, nombre_dia, habilitado, apertura, cierre in dias:
+            await db.execute(
+                """INSERT INTO configuracion_horarios
+                   (dia_semana, nombre_dia, habilitado, hora_apertura, hora_cierre, tenant_id)
+                   VALUES ($1, $2, $3, $4, $5, $6)""",
+                dia_semana, nombre_dia, habilitado, apertura, cierre, tenant_id
+            )
+        trial_hasta = tenant["trial_hasta"].strftime("%d/%m/%Y")
+        enviar_email(
+            datos.email_admin,
+            "Bienvenido a reservatuespacio.com!",
+            f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
+                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">Bienvenido a reservatuespacio.com!</h1>
+                </div>
+                <div style="background: #F9F9FB; padding: 32px; border-radius: 0 0 12px 12px;">
+                    <p style="font-size: 16px; color: #2C3E50;">Hola <b>{datos.nombre_admin}</b>,</p>
+                    <p style="color: #4A5568; line-height: 1.7;">
+                        Tu cuenta para <b>{datos.nombre}</b> fue creada exitosamente.
+                        Tenes <b>{datos.trial_dias} dias de prueba gratuita</b> hasta el <b>{trial_hasta}</b>.
+                    </p>
+                    <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 24px 0;">
+                        <p style="margin: 0 0 8px; color: #4A5568;"><b>Tu URL de acceso:</b></p>
+                        <p style="margin: 0; font-size: 18px; color: #2C3E50; font-weight: bold;">
+                            {datos.slug}.reservatuespacio.com
+                        </p>
+                    </div>
+                    <div style="text-align: center; margin-top: 28px;">
+                        <a href="https://claudiaacreativity.github.io/reserva-aulas/admin.html"
+                           style="background: #71D997; color: #2C3E50; padding: 14px 32px;
+                                  border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 15px;">
+                            Ir al panel de administracion
+                        </a>
+                    </div>
+                </div>
+            </div>
+            """
+        )
+        return {
+            "mensaje": "Tenant creado correctamente",
+            "tenant_id": str(tenant_id),
+            "slug": datos.slug,
+            "trial_hasta": trial_hasta
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/planes")
+async def superadmin_listar_planes(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        planes = await db.fetch("SELECT * FROM planes ORDER BY precio")
+        return [dict(p) for p in planes]
+    finally:
+        await release_db(db)
+
+@app.patch("/superadmin/planes/{plan_id}")
+async def superadmin_actualizar_plan(request: Request, plan_id: str, datos: PlanUpdate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        plan = await db.fetchrow("SELECT id FROM planes WHERE id = $1", plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan no encontrado")
+        if datos.nombre is not None:
+            await db.execute("UPDATE planes SET nombre = $1 WHERE id = $2", datos.nombre, plan_id)
+        if datos.precio is not None:
+            await db.execute("UPDATE planes SET precio = $1 WHERE id = $2", datos.precio, plan_id)
+        if datos.descripcion is not None:
+            await db.execute("UPDATE planes SET descripcion = $1 WHERE id = $2", datos.descripcion, plan_id)
+        return {"mensaje": "Plan actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/stats")
+async def superadmin_stats(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        stats = await db.fetchrow("""
+            SELECT
+                (SELECT COUNT(*) FROM tenants) as total_tenants,
+                (SELECT COUNT(*) FROM tenants WHERE activo = TRUE) as tenants_activos,
+                (SELECT COUNT(*) FROM tenants WHERE suscripcion_activa = TRUE) as tenants_pagos,
+                (SELECT COUNT(*) FROM tenants WHERE activo = TRUE AND suscripcion_activa = FALSE AND trial_hasta >= CURRENT_DATE) as tenants_trial,
+                (SELECT COUNT(*) FROM tenants WHERE activo = TRUE AND suscripcion_activa = FALSE AND trial_hasta < CURRENT_DATE) as tenants_vencidos,
+                (SELECT COUNT(*) FROM usuarios) as total_usuarios,
+                (SELECT COUNT(*) FROM reservas WHERE estado = 'activa') as total_reservas
+        """)
+        return dict(stats)
+    finally:
+        await release_db(db)
+
+# ===== SUPERADMIN — FACTURACIÓN =====
+
+class PagoCreate(BaseModel):
+    tenant_id: str
+    monto: float
+    moneda: str = "USD"
+    metodo: str
+    referencia: Optional[str] = None
+    notas: Optional[str] = None
+    fecha: date
+    registrado_por: Optional[str] = None
+
+@app.get("/superadmin/facturacion")
+async def superadmin_facturacion(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        # Ingreso mensual estimado (tenants con suscripcion activa)
+        ingreso = await db.fetchrow("""
+            SELECT COALESCE(SUM(p.precio), 0) as ingreso_mensual
+            FROM tenants t
+            JOIN planes p ON t.plan_id = p.id
+            WHERE t.suscripcion_activa = TRUE AND t.activo = TRUE
+        """)
+
+        # Tenants con trial por vencer en los próximos 7 días
+        alertas = await db.fetch("""
+            SELECT t.nombre, t.email_admin, t.slug, t.trial_hasta,
+                   (t.trial_hasta - CURRENT_DATE) as dias_restantes
+            FROM tenants t
+            WHERE t.activo = TRUE
+              AND t.suscripcion_activa = FALSE
+              AND t.trial_hasta BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+            ORDER BY t.trial_hasta
+        """)
+
+        # Tenants pagando con su plan
+        pagando = await db.fetch("""
+            SELECT t.nombre, t.email_admin, t.slug, p.nombre as plan_nombre, p.precio
+            FROM tenants t
+            JOIN planes p ON t.plan_id = p.id
+            WHERE t.suscripcion_activa = TRUE AND t.activo = TRUE
+            ORDER BY t.nombre
+        """)
+
+        # Historial de pagos
+        historial = await db.fetch("""
+            SELECT pg.*, t.nombre as tenant_nombre, t.slug as tenant_slug
+            FROM pagos pg
+            JOIN tenants t ON pg.tenant_id = t.id
+            ORDER BY pg.fecha DESC, pg.created_at DESC
+            LIMIT 100
+        """)
+
+        return {
+            "ingreso_mensual": float(ingreso["ingreso_mensual"]),
+            "alertas_trial": [dict(a) for a in alertas],
+            "tenants_pagando": [dict(p) for p in pagando],
+            "historial_pagos": [dict(h) for h in historial]
+        }
+    finally:
+        await release_db(db)
+
+@app.post("/superadmin/pagos")
+async def superadmin_registrar_pago(request: Request, datos: PagoCreate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tenant = await db.fetchrow("SELECT id, nombre FROM tenants WHERE id = $1", datos.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        pago = await db.fetchrow(
+            """INSERT INTO pagos (tenant_id, monto, moneda, metodo, referencia, notas, fecha, registrado_por)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id""",
+            datos.tenant_id, datos.monto, datos.moneda, datos.metodo,
+            datos.referencia, datos.notas, datos.fecha, datos.registrado_por
+        )
+        return {"mensaje": f"Pago registrado para {tenant['nombre']}", "id": str(pago["id"])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.delete("/superadmin/pagos/{pago_id}")
+async def superadmin_eliminar_pago(request: Request, pago_id: str):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        result = await db.execute("DELETE FROM pagos WHERE id = $1", pago_id)
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+        return {"mensaje": "Pago eliminado"}
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/facturacion/exportar")
+async def superadmin_exportar_facturacion(request: Request, token: Optional[str] = None):
+    # Allow token as query param for direct browser downloads
+    if token:
+        password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
+        if token != password_correcta:
+            raise HTTPException(status_code=401, detail="No autorizado")
+    else:
+        verificar_superadmin(request)
+    db = await get_db()
+    try:
+        pagos = await db.fetch("""
+            SELECT pg.fecha, t.nombre as tenant, t.slug, pg.monto, pg.moneda,
+                   pg.metodo, pg.referencia, pg.notas, pg.registrado_por, pg.created_at
+            FROM pagos pg
+            JOIN tenants t ON pg.tenant_id = t.id
+            ORDER BY pg.fecha DESC
+        """)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Facturación"
+
+        encabezados = ["Fecha", "Tenant", "Slug", "Monto", "Moneda", "Método", "Referencia", "Notas", "Registrado por", "Fecha registro"]
+        for col, enc in enumerate(encabezados, 1):
+            celda = ws.cell(row=1, column=col, value=enc)
+            celda.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            celda.fill = openpyxl.styles.PatternFill("solid", fgColor="2C3E50")
+
+        for fila, p in enumerate(pagos, 2):
+            ws.cell(row=fila, column=1, value=p["fecha"].strftime("%d/%m/%Y"))
+            ws.cell(row=fila, column=2, value=p["tenant"])
+            ws.cell(row=fila, column=3, value=p["slug"])
+            ws.cell(row=fila, column=4, value=float(p["monto"]))
+            ws.cell(row=fila, column=5, value=p["moneda"])
+            ws.cell(row=fila, column=6, value=p["metodo"])
+            ws.cell(row=fila, column=7, value=p["referencia"] or "")
+            ws.cell(row=fila, column=8, value=p["notas"] or "")
+            ws.cell(row=fila, column=9, value=p["registrado_por"] or "")
+            ws.cell(row=fila, column=10, value=p["created_at"].strftime("%d/%m/%Y %H:%M"))
+
+        anchos = [12, 25, 15, 10, 8, 15, 20, 25, 20, 18]
+        for col, ancho in enumerate(anchos, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = ancho
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=facturacion.xlsx"}
+        )
+    finally:
+        await release_db(db)
