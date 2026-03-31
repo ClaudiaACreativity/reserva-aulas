@@ -331,21 +331,45 @@ async function apiFetch(url, options = {}) {
     };
     return fetch(url, options);
 }
-const PASSWORD = 'sL2#di!KBw';
+// Contraseña manejada por el backend
 
 // ===== LOGIN =====
-function verificarPassword() {
+let adminToken = null;
+
+async function verificarPassword() {
     const input = document.getElementById('password-input').value;
-    if (input === PASSWORD) {
-        document.getElementById('login-overlay').style.display = 'none';
-        cargarTodo();
-    } else {
+    const btn = document.querySelector('.login-box button');
+    btn.textContent = 'Verificando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/admin/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: input })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            adminToken = data.token;
+            document.getElementById('login-overlay').style.display = 'none';
+            cargarTodo();
+        } else {
+            document.getElementById('login-error').style.display = 'block';
+            document.getElementById('password-input').value = '';
+        }
+    } catch(e) {
         document.getElementById('login-error').style.display = 'block';
         document.getElementById('password-input').value = '';
+    } finally {
+        btn.textContent = 'Ingresar';
+        btn.disabled = false;
     }
 }
 
 function cerrarSesion() {
+    adminToken = null;
     document.getElementById('login-overlay').style.display = 'flex';
     document.getElementById('password-input').value = '';
     document.getElementById('login-error').style.display = 'none';

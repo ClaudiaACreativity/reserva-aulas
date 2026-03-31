@@ -115,6 +115,29 @@ class HorarioUpdate(BaseModel):
     hora_apertura: Optional[time] = None
     hora_cierre: Optional[time] = None
 
+
+# ===== ADMIN LOGIN =====
+
+class AdminLogin(BaseModel):
+    password: str
+
+@app.post("/admin/login")
+async def admin_login(datos: AdminLogin):
+    import secrets
+    password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
+    if datos.password != password_correcta:
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta")
+    # Generar token simple
+    token = secrets.token_hex(32)
+    return {"token": token}
+
+@app.post("/admin/verificar")
+async def admin_verificar(request: Request):
+    token = request.headers.get("X-Admin-Token", "")
+    if not token or len(token) != 64:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return {"valido": True}
+
 # ===== ENDPOINTS =====
 
 @app.get("/")
