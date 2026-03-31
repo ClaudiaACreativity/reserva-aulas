@@ -81,7 +81,7 @@ async def get_tenant(request: Request, db):
 def enviar_email(destinatario: str, asunto: str, cuerpo: str):
     try:
         resend.Emails.send({
-            "from": "Reserva de Espacios <onboarding@resend.dev>",
+            "from": "ReservaSpace <hola@reservatuespacio.com>",
             "to": destinatario,
             "subject": asunto,
             "html": cuerpo
@@ -743,7 +743,7 @@ async def registrar_tenant(datos: RegistroCreate):
         trial_hasta = tenant["trial_hasta"].strftime("%d/%m/%Y")
         enviar_email(
             datos.email_admin,
-            "🎉 ¡Bienvenido a ReservaSpace!",
+            "🎉 ¡Bienvenido a reservatuespacio.com!",
             f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
@@ -758,7 +758,7 @@ async def registrar_tenant(datos: RegistroCreate):
                     <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 24px 0;">
                         <p style="margin: 0 0 8px; color: #4A5568;"><b>Tu URL de acceso:</b></p>
                         <p style="margin: 0; font-size: 18px; color: #2C3E50; font-weight: bold;">
-                            {datos.slug}.reservaspace.com
+                            {datos.slug}.reservatuespacio.com
                         </p>
                     </div>
                     <p style="color: #4A5568; line-height: 1.7;">
@@ -772,7 +772,7 @@ async def registrar_tenant(datos: RegistroCreate):
                         </a>
                     </div>
                     <p style="margin-top: 28px; color: #888; font-size: 13px; text-align: center;">
-                        ¿Tenés dudas? Escribinos a soporte@reservaspace.com
+                        ¿Tenés dudas? Escribinos a soporte@reservatuespacio.com
                     </p>
                 </div>
             </div>
