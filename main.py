@@ -1058,3 +1058,142 @@ async def superadmin_stats(request: Request):
         return dict(stats)
     finally:
         await release_db(db)
+
+# ===== SUPERADMIN — FACTURACIÓN =====
+
+class PagoCreate(BaseModel):
+    tenant_id: str
+    monto: float
+    moneda: str = "USD"
+    metodo: str
+    referencia: Optional[str] = None
+    notas: Optional[str] = None
+    fecha: date
+    registrado_por: Optional[str] = None
+
+@app.get("/superadmin/facturacion")
+async def superadmin_facturacion(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        ingreso = await db.fetchrow("""
+            SELECT COALESCE(SUM(p.precio_mensual), 0) as ingreso_mensual
+            FROM tenants t
+            JOIN planes p ON t.plan_id = p.id
+            WHERE t.suscripcion_activa = TRUE AND t.activo = TRUE
+        """)
+        alertas = await db.fetch("""
+            SELECT t.nombre, t.email_admin, t.slug, t.trial_hasta,
+                   (t.trial_hasta - CURRENT_DATE) as dias_restantes
+            FROM tenants t
+            WHERE t.activo = TRUE
+              AND t.suscripcion_activa = FALSE
+              AND t.trial_hasta BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+            ORDER BY t.trial_hasta
+        """)
+        pagando = await db.fetch("""
+            SELECT t.nombre, t.email_admin, t.slug, p.nombre as plan_nombre, p.precio_mensual as plan_precio
+            FROM tenants t
+            JOIN planes p ON t.plan_id = p.id
+            WHERE t.suscripcion_activa = TRUE AND t.activo = TRUE
+            ORDER BY t.nombre
+        """)
+        historial = await db.fetch("""
+            SELECT pg.*, t.nombre as tenant_nombre, t.slug as tenant_slug
+            FROM pagos pg
+            JOIN tenants t ON pg.tenant_id = t.id
+            ORDER BY pg.fecha DESC, pg.created_at DESC
+            LIMIT 100
+        """)
+        return {
+            "ingreso_mensual": float(ingreso["ingreso_mensual"]),
+            "alertas_trial": [dict(a) for a in alertas],
+            "tenants_pagando": [dict(p) for p in pagando],
+            "historial_pagos": [dict(h) for h in historial]
+        }
+    finally:
+        await release_db(db)
+
+@app.post("/superadmin/pagos")
+async def superadmin_registrar_pago(request: Request, datos: PagoCreate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tenant = await db.fetchrow("SELECT id, nombre FROM tenants WHERE id = $1", datos.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        pago = await db.fetchrow(
+            """INSERT INTO pagos (tenant_id, monto, moneda, metodo, referencia, notas, fecha, registrado_por)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id""",
+            datos.tenant_id, datos.monto, datos.moneda, datos.metodo,
+            datos.referencia, datos.notas, datos.fecha, datos.registrado_por
+        )
+        return {"mensaje": f"Pago registrado para {tenant['nombre']}", "id": str(pago["id"])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.delete("/superadmin/pagos/{pago_id}")
+async def superadmin_eliminar_pago(request: Request, pago_id: str):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        result = await db.execute("DELETE FROM pagos WHERE id = $1", pago_id)
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Pago no encontrado")
+        return {"mensaje": "Pago eliminado"}
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/facturacion/exportar")
+async def superadmin_exportar_facturacion(request: Request, token: Optional[str] = None):
+    if token:
+        password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
+        if token != password_correcta:
+            raise HTTPException(status_code=401, detail="No autorizado")
+    else:
+        verificar_superadmin(request)
+    db = await get_db()
+    try:
+        pagos = await db.fetch("""
+            SELECT pg.fecha, t.nombre as tenant, t.slug, pg.monto, pg.moneda,
+                   pg.metodo, pg.referencia, pg.notas, pg.registrado_por, pg.created_at
+            FROM pagos pg
+            JOIN tenants t ON pg.tenant_id = t.id
+            ORDER BY pg.fecha DESC
+        """)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Facturación"
+        encabezados = ["Fecha", "Tenant", "Slug", "Monto", "Moneda", "Método", "Referencia", "Notas", "Registrado por", "Fecha registro"]
+        for col, enc in enumerate(encabezados, 1):
+            celda = ws.cell(row=1, column=col, value=enc)
+            celda.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            celda.fill = openpyxl.styles.PatternFill("solid", fgColor="2C3E50")
+        for fila, p in enumerate(pagos, 2):
+            ws.cell(row=fila, column=1, value=p["fecha"].strftime("%d/%m/%Y"))
+            ws.cell(row=fila, column=2, value=p["tenant"])
+            ws.cell(row=fila, column=3, value=p["slug"])
+            ws.cell(row=fila, column=4, value=float(p["monto"]))
+            ws.cell(row=fila, column=5, value=p["moneda"])
+            ws.cell(row=fila, column=6, value=p["metodo"])
+            ws.cell(row=fila, column=7, value=p["referencia"] or "")
+            ws.cell(row=fila, column=8, value=p["notas"] or "")
+            ws.cell(row=fila, column=9, value=p["registrado_por"] or "")
+            ws.cell(row=fila, column=10, value=p["created_at"].strftime("%d/%m/%Y %H:%M"))
+        anchos = [12, 25, 15, 10, 8, 15, 20, 25, 20, 18]
+        for col, ancho in enumerate(anchos, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = ancho
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=facturacion.xlsx"}
+        )
+    finally:
+        await release_db(db)
