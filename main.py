@@ -1013,7 +1013,7 @@ async def superadmin_listar_planes(request: Request):
     verificar_superadmin(request)
     db = await get_db()
     try:
-        planes = await db.fetch("SELECT * FROM planes ORDER BY precio")
+        planes = await db.fetch("SELECT * FROM planes ORDER BY precio_mensual")
         return [dict(p) for p in planes]
     finally:
         await release_db(db)
