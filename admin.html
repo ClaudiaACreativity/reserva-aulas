@@ -161,11 +161,13 @@
 <div class="login-overlay" id="login-overlay">
     <div class="login-box">
         <h1>🔒 Panel de Administración</h1>
-        <p>Ingresá la contraseña para continuar</p>
+        <p>Ingresá tu email y contraseña para continuar</p>
+        <input type="email" id="email-input" placeholder="tu@email.com"
+               onkeydown="if(event.key==='Enter') verificarPassword()" style="margin-bottom:10px">
         <input type="password" id="password-input" placeholder="Contraseña"
                onkeydown="if(event.key==='Enter') verificarPassword()">
         <button onclick="verificarPassword()">Ingresar</button>
-        <p class="login-error" id="login-error">Contraseña incorrecta</p>
+        <p class="login-error" id="login-error">Email o contraseña incorrectos</p>
     </div>
 </div>
 
@@ -337,16 +339,24 @@ async function apiFetch(url, options = {}) {
 let adminToken = null;
 
 async function verificarPassword() {
+    const email = document.getElementById('email-input').value.trim();
     const input = document.getElementById('password-input').value;
     const btn = document.querySelector('.login-box button');
     btn.textContent = 'Verificando...';
     btn.disabled = true;
 
+    if (!email || !input) {
+        document.getElementById('login-error').style.display = 'block';
+        btn.textContent = 'Ingresar';
+        btn.disabled = false;
+        return;
+    }
+
     try {
-        const res = await fetch(`${API}/admin/login`, {
+        const res = await apiFetch(`${API}/admin/tenant/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: input })
+            body: JSON.stringify({ email, password: input })
         });
 
         const data = await res.json();
@@ -371,6 +381,7 @@ async function verificarPassword() {
 function cerrarSesion() {
     adminToken = null;
     document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('email-input').value = '';
     document.getElementById('password-input').value = '';
     document.getElementById('login-error').style.display = 'none';
 }
