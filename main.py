@@ -280,6 +280,7 @@ class TenantPerfilUpdate(BaseModel):
     direccion: Optional[str] = None
     whatsapp: Optional[str] = None
     redes_sociales: Optional[list] = None
+    foto_posicion: Optional[str] = None
 
 @app.patch("/tenant/perfil")
 async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
@@ -306,6 +307,8 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             campos.append(f"whatsapp = ${i}"); valores.append(datos.whatsapp); i += 1
         if datos.redes_sociales is not None:
             campos.append(f"redes_sociales = ${i}"); valores.append(json_module.dumps(datos.redes_sociales)); i += 1
+        if datos.foto_posicion is not None:
+            campos.append(f"foto_posicion = ${i}"); valores.append(datos.foto_posicion); i += 1
         if not campos:
             return {"mensaje": "No hay cambios para guardar"}
         valores.append(tenant["id"])
@@ -395,6 +398,7 @@ async def info_tenant(request: Request):
             "whatsapp": tenant["whatsapp"],
             "redes_sociales": (json_module.loads(tenant["redes_sociales"]) if isinstance(tenant["redes_sociales"], str) else tenant["redes_sociales"]) or [],
             "foto_url": tenant["foto_url"],
+            "foto_posicion": tenant["foto_posicion"],
         }
     finally:
         await release_db(db)

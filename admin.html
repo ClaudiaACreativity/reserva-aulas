@@ -406,6 +406,18 @@
                     <div id="foto-preview" style="margin:10px 0; min-height:60px">
                         <span style="color:#aaa; font-size:13px">Vista previa de la foto</span>
                     </div>
+                    <div style="margin-bottom:15px">
+                        <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:8px">Posición vertical de la foto</label>
+                        <div style="display:flex; align-items:center; gap:10px">
+                            <span style="font-size:12px; color:#888">Arriba</span>
+                            <input type="range" id="pers-foto-posicion" min="0" max="100" value="50"
+                                style="flex:1" oninput="previewPosicion(this.value)">
+                            <span style="font-size:12px; color:#888">Abajo</span>
+                        </div>
+                        <div id="foto-posicion-preview-container" style="margin-top:10px; display:none; border-radius:6px; overflow:hidden; height:120px;">
+                            <img id="foto-posicion-preview-img" style="width:100%; height:120px; object-fit:cover; transition:object-position 0.2s">
+                        </div>
+                    </div>
                     <button class="btn btn-primary" onclick="guardarImagen('foto', 'pers-foto-url', 'pers-foto-file', 'mensaje-pers-foto')">Guardar foto</button>
                 </div>
             </div>
@@ -1206,6 +1218,18 @@ async function cargarPersonalizacion() {
             if (fotoInput) fotoInput.value = tenant.foto_url;
             const fotoPrev = document.getElementById('foto-preview');
             if (fotoPrev) fotoPrev.innerHTML = `<img src="${tenant.foto_url}" style="max-height:120px; max-width:250px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
+            // Preview de posición
+            const prevImg = document.getElementById('foto-posicion-preview-img');
+            const prevContainer = document.getElementById('foto-posicion-preview-container');
+            if (prevImg && prevContainer) {
+                prevImg.src = tenant.foto_url;
+                prevContainer.style.display = 'block';
+            }
+        }
+        if (tenant.foto_posicion) {
+            const pos = tenant.foto_posicion.replace('center ', '').replace('%', '');
+            const slider = document.getElementById('pers-foto-posicion');
+            if (slider) slider.value = pos || 50;
         }
 
         // Favicon
@@ -1245,6 +1269,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pers-color-primario-hex')?.addEventListener('input', e => { if(/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) document.getElementById('pers-color-primario').value = e.target.value; });
     document.getElementById('pers-color-secundario-hex')?.addEventListener('input', e => { if(/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) document.getElementById('pers-color-secundario').value = e.target.value; });
 });
+
+function previewPosicion(val) {
+    const prevImg = document.getElementById('foto-posicion-preview-img');
+    const prevContainer = document.getElementById('foto-posicion-preview-container');
+    const fotoUrl = document.getElementById('pers-foto-url').value;
+    if (fotoUrl && prevImg) {
+        prevImg.src = fotoUrl;
+        prevImg.style.objectPosition = `center ${val}%`;
+        if (prevContainer) prevContainer.style.display = 'block';
+    }
+}
 
 function previewArchivo(inputId, previewId) {
     const file = document.getElementById(inputId).files[0];
@@ -1296,11 +1331,16 @@ async function guardarImagen(tipo, urlInputId, fileInputId, mensajeId) {
     }
 
     const campo = tipo === 'logo' ? 'logo_url' : tipo === 'favicon' ? 'favicon_url' : 'foto_url';
+    const body = { [campo]: url };
+    if (tipo === 'foto') {
+        const slider = document.getElementById('pers-foto-posicion');
+        if (slider) body.foto_posicion = `center ${slider.value}%`;
+    }
     try {
         const res = await apiFetch(`${API}/tenant/perfil`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [campo]: url })
+            body: JSON.stringify(body)
         });
         const data = await res.json();
         if (res.ok) {
