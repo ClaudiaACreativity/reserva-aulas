@@ -176,6 +176,7 @@
     <div class="tab" onclick="cambiarTab('planes', this)">💳 Planes y precios</div>
     <div class="tab" onclick="cambiarTab('facturacion', this)">💰 Facturación</div>
     <div class="tab" onclick="cambiarTab('tickets', this)">🎫 Tickets de soporte</div>
+    <div class="tab" onclick="cambiarTab('comunicaciones', this)">📧 Comunicaciones</div>
 </div>
 
 <div class="container">
@@ -370,6 +371,63 @@
 
     </div>
 
+    <!-- PANEL COMUNICACIONES -->
+    <div class="panel" id="panel-comunicaciones">
+
+        <div class="card">
+            <h2>Redactar email</h2>
+
+            <!-- Plantillas -->
+            <div style="margin-bottom:20px">
+                <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:8px">Plantillas rápidas</label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap">
+                    <button class="btn btn-sm" style="background:#e8f4fd; color:#1a5276; border:1px solid #aed6f1" onclick="usarPlantilla('mantenimiento')">🔧 Mantenimiento</button>
+                    <button class="btn btn-sm" style="background:#fef9e7; color:#7d6608; border:1px solid #f9e79f" onclick="usarPlantilla('vencimiento')">⏰ Trial por vencer</button>
+                    <button class="btn btn-sm" style="background:#e8f8f5; color:#1e8449; border:1px solid #a9dfbf" onclick="usarPlantilla('bienvenida')">👋 Bienvenida</button>
+                    <button class="btn btn-sm" style="background:#fdf2f8; color:#76448a; border:1px solid #d7bde2" onclick="usarPlantilla('promo')">🎁 Promoción</button>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Destinatarios</label>
+                    <select id="com-destinatarios" onchange="toggleTenantEspecifico(this.value)" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                        <option value="todos">Todos los tenants activos</option>
+                        <option value="trial">Tenants en período de prueba</option>
+                        <option value="especifico">Un tenant específico</option>
+                    </select>
+                </div>
+                <div class="form-group full" id="tenant-especifico-group" style="display:none">
+                    <label>Seleccioná el tenant</label>
+                    <select id="com-tenant-id" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                        <option value="">Cargando...</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label>Asunto</label>
+                    <input type="text" id="com-asunto" placeholder="Asunto del email">
+                </div>
+                <div class="form-group full">
+                    <label>Mensaje</label>
+                    <textarea id="com-mensaje" rows="8"
+                        style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical; font-family:Arial,sans-serif"
+                        placeholder="Escribí tu mensaje acá..."></textarea>
+                    <small style="color:#888; font-size:12px">Podés usar HTML básico para dar formato al mensaje.</small>
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="enviarComunicacion()">📤 Enviar email</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-comunicaciones"></div>
+        </div>
+
+        <div class="card">
+            <h2>Historial de comunicaciones</h2>
+            <div id="tabla-comunicaciones"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+
 </div>
 
 <script>
@@ -433,6 +491,7 @@ function cargarTodo() {
     cargarPlanes();
     cargarFacturacion();
     cargarTickets();
+    cargarComunicaciones();
 }
 
 // ===== STATS =====
@@ -952,6 +1011,136 @@ document.addEventListener('click', e => {
     const modal = document.getElementById('modal-ticket');
     if (e.target === modal) cerrarModal();
 });
+
+
+// ===== COMUNICACIONES =====
+const plantillas = {
+    mantenimiento: {
+        asunto: '🔧 Mantenimiento programado — reservatuespacio.com',
+        mensaje: `<p>Hola,</p>
+<p>Te informamos que el día <b>[FECHA]</b> entre las <b>[HORA INICIO]</b> y las <b>[HORA FIN]</b> realizaremos tareas de mantenimiento en la plataforma.</p>
+<p>Durante ese período el sistema podría no estar disponible. Pedimos disculpas por las molestias.</p>
+<p>Cualquier consulta podés escribirnos desde nuestro <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html">centro de soporte</a>.</p>
+<p>Saludos,<br>El equipo de reservatuespacio.com</p>`
+    },
+    vencimiento: {
+        asunto: '⏰ Tu período de prueba está por vencer',
+        mensaje: `<p>Hola,</p>
+<p>Tu período de prueba gratuita está por vencer. Para seguir usando reservatuespacio.com sin interrupciones, podés suscribirte a uno de nuestros planes.</p>
+<p>Si tenés alguna duda o necesitás ayuda para elegir el plan más adecuado, escribinos desde nuestro <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html">centro de soporte</a>.</p>
+<p>Saludos,<br>El equipo de reservatuespacio.com</p>`
+    },
+    bienvenida: {
+        asunto: '👋 ¡Bienvenido a reservatuespacio.com!',
+        mensaje: `<p>Hola,</p>
+<p>¡Bienvenido a reservatuespacio.com! Estamos muy contentos de tenerte con nosotros.</p>
+<p>Si necesitás ayuda para configurar tu cuenta o tenés alguna pregunta, estamos a disposición desde nuestro <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html">centro de soporte</a>.</p>
+<p>Saludos,<br>El equipo de reservatuespacio.com</p>`
+    },
+    promo: {
+        asunto: '🎁 Una propuesta especial para vos',
+        mensaje: `<p>Hola,</p>
+<p>[Describí acá tu promoción o propuesta especial]</p>
+<p>Para más información o consultas, escribinos desde nuestro <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html">centro de soporte</a>.</p>
+<p>Saludos,<br>El equipo de reservatuespacio.com</p>`
+    }
+};
+
+function usarPlantilla(tipo) {
+    const p = plantillas[tipo];
+    document.getElementById('com-asunto').value = p.asunto;
+    document.getElementById('com-mensaje').value = p.mensaje;
+}
+
+function toggleTenantEspecifico(valor) {
+    document.getElementById('tenant-especifico-group').style.display = valor === 'especifico' ? 'block' : 'none';
+}
+
+async function cargarComunicaciones() {
+    // Cargar tenants en el select
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants`);
+        const tenants = await res.json();
+        const select = document.getElementById('com-tenant-id');
+        select.innerHTML = tenants.map(t => `<option value="${t.id}">${t.nombre} (${t.email_admin})</option>`).join('');
+    } catch(e) { console.log('Error cargando tenants para comunicaciones'); }
+
+    // Cargar historial
+    try {
+        const res = await apiFetch(`${API}/superadmin/comunicaciones`);
+        const historial = await res.json();
+        const contenedor = document.getElementById('tabla-comunicaciones');
+
+        if (!historial.length) {
+            contenedor.innerHTML = '<p class="empty">No hay comunicaciones enviadas todavía</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>Destinatarios</th><th>Asunto</th><th>Enviados</th></tr>
+                </thead>
+                <tbody>
+                    ${historial.map(h => `
+                        <tr>
+                            <td style="font-size:13px">${h.created_at.split('T')[0]}</td>
+                            <td style="font-size:13px">${h.destinatarios}</td>
+                            <td>${h.asunto}</td>
+                            <td style="text-align:center"><b>${h.total_enviados}</b></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch(e) {
+        document.getElementById('tabla-comunicaciones').innerHTML = '<p class="empty">Error al cargar historial</p>';
+    }
+}
+
+async function enviarComunicacion() {
+    const destinatarios = document.getElementById('com-destinatarios').value;
+    const tenantId = document.getElementById('com-tenant-id').value;
+    const asunto = document.getElementById('com-asunto').value.trim();
+    const mensaje = document.getElementById('com-mensaje').value.trim();
+
+    if (!asunto || !mensaje) {
+        mostrarMensaje('mensaje-comunicaciones', 'Completá el asunto y el mensaje', 'error');
+        return;
+    }
+    if (destinatarios === 'especifico' && !tenantId) {
+        mostrarMensaje('mensaje-comunicaciones', 'Seleccioná un tenant', 'error');
+        return;
+    }
+
+    if (!confirm(`¿Confirmas el envío del email "${asunto}"?`)) return;
+
+    const btn = document.querySelector('#panel-comunicaciones .btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+        const res = await apiFetch(`${API}/superadmin/comunicaciones`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ destinatarios, tenant_id: tenantId || null, asunto, mensaje })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-comunicaciones', `✅ Email enviado a ${data.total_enviados} destinatario(s)`, 'exito');
+            document.getElementById('com-asunto').value = '';
+            document.getElementById('com-mensaje').value = '';
+            cargarComunicaciones();
+        } else {
+            mostrarMensaje('mensaje-comunicaciones', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-comunicaciones', 'Error al conectar', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📤 Enviar email';
+    }
+}
 
 // ===== UTILIDAD =====
 function mostrarMensaje(id, texto, tipo) {

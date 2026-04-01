@@ -1588,3 +1588,96 @@ async def superadmin_responder_ticket(request: Request, ticket_id: str, datos: T
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+# ===== COMUNICACIONES =====
+
+class ComunicacionCreate(BaseModel):
+    destinatarios: str  # "todos", "trial", "especifico"
+    tenant_id: Optional[str] = None
+    asunto: str
+    mensaje: str
+
+@app.post("/superadmin/comunicaciones")
+async def superadmin_enviar_comunicacion(request: Request, datos: ComunicacionCreate):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        if len(datos.asunto) > 200:
+            raise HTTPException(status_code=400, detail="Asunto demasiado largo")
+        if len(datos.mensaje) > 50000:
+            raise HTTPException(status_code=400, detail="Mensaje demasiado largo")
+
+        # Obtener destinatarios
+        if datos.destinatarios == "especifico":
+            if not datos.tenant_id:
+                raise HTTPException(status_code=400, detail="Se requiere tenant_id")
+            tenants = await db.fetch(
+                "SELECT nombre, email_admin FROM tenants WHERE id = $1 AND activo = TRUE",
+                datos.tenant_id
+            )
+        elif datos.destinatarios == "trial":
+            tenants = await db.fetch(
+                """SELECT nombre, email_admin FROM tenants
+                   WHERE activo = TRUE AND suscripcion_activa = FALSE
+                   AND trial_hasta >= CURRENT_DATE"""
+            )
+        else:  # todos
+            tenants = await db.fetch(
+                "SELECT nombre, email_admin FROM tenants WHERE activo = TRUE"
+            )
+
+        if not tenants:
+            raise HTTPException(status_code=404, detail="No se encontraron destinatarios")
+
+        total_enviados = 0
+        for tenant in tenants:
+            cuerpo = f"""
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                    <h2 style="color:#71D997; margin:0">reservatuespacio.com</h2>
+                </div>
+                <div style="background:#F9F9FB; padding:28px; border-radius:0 0 12px 12px">
+                    <p style="color:#2C3E50; margin-bottom:20px">Hola <b>{tenant['nombre']}</b>,</p>
+                    <div style="color:#4A5568; line-height:1.7">
+                        {datos.mensaje}
+                    </div>
+                    <div style="border-top:1px solid #e0e0e0; margin-top:28px; padding-top:16px; text-align:center">
+                        <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html"
+                           style="color:#888; font-size:12px; text-decoration:none">
+                            ¿Necesitás ayuda? Centro de soporte →
+                        </a>
+                    </div>
+                </div>
+            </div>
+            """
+            enviar_email(tenant["email_admin"], datos.asunto, cuerpo)
+            total_enviados += 1
+
+        # Guardar en historial
+        await db.execute(
+            """INSERT INTO comunicaciones (destinatarios, asunto, mensaje, total_enviados)
+               VALUES ($1, $2, $3, $4)""",
+            datos.destinatarios, datos.asunto, datos.mensaje, total_enviados
+        )
+
+        return {"mensaje": f"Email enviado correctamente", "total_enviados": total_enviados}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/comunicaciones")
+async def superadmin_historial_comunicaciones(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        historial = await db.fetch(
+            """SELECT * FROM comunicaciones ORDER BY created_at DESC LIMIT 50"""
+        )
+        return [dict(h) for h in historial]
+    finally:
+        await release_db(db)
+
