@@ -202,6 +202,72 @@ async def set_admin_password(request: Request, usuario_id: str, datos: SetPasswo
     finally:
         await release_db(db)
 
+
+class AdminPerfilUpdate(BaseModel):
+    nombre: Optional[str] = None
+    email: Optional[str] = None
+    password_actual: Optional[str] = None
+    password_nueva: Optional[str] = None
+
+@app.patch("/admin/perfil")
+async def actualizar_perfil_admin(request: Request, datos: AdminPerfilUpdate):
+    """Permite al admin del tenant actualizar su propio nombre, email y contraseña."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        # Identificar al admin por el header X-Admin-Email
+        email_actual = request.headers.get("X-Admin-Email", "")
+        if not email_actual:
+            raise HTTPException(status_code=400, detail="Se requiere el header X-Admin-Email")
+        usuario = await db.fetchrow(
+            "SELECT * FROM usuarios WHERE email = $1 AND tenant_id = $2 AND rol = 'admin'",
+            email_actual, tenant["id"]
+        )
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Administrador no encontrado")
+
+        # Actualizar nombre
+        if datos.nombre:
+            await db.execute(
+                "UPDATE usuarios SET nombre = $1 WHERE id = $2",
+                datos.nombre, usuario["id"]
+            )
+
+        # Actualizar email
+        if datos.email and datos.email != email_actual:
+            existente = await db.fetchrow(
+                "SELECT id FROM usuarios WHERE email = $1 AND tenant_id = $2",
+                datos.email, tenant["id"]
+            )
+            if existente:
+                raise HTTPException(status_code=400, detail="Ese email ya está en uso")
+            await db.execute(
+                "UPDATE usuarios SET email = $1 WHERE id = $2",
+                datos.email, usuario["id"]
+            )
+
+        # Actualizar contraseña
+        if datos.password_nueva:
+            if not datos.password_actual:
+                raise HTTPException(status_code=400, detail="Debés ingresar tu contraseña actual")
+            if not bcrypt.checkpw(datos.password_actual.encode(), usuario["password_hash"].encode()):
+                raise HTTPException(status_code=401, detail="La contraseña actual es incorrecta")
+            if len(datos.password_nueva) < 8:
+                raise HTTPException(status_code=400, detail="La nueva contraseña debe tener al menos 8 caracteres")
+            nuevo_hash = bcrypt.hashpw(datos.password_nueva.encode(), bcrypt.gensalt()).decode()
+            await db.execute(
+                "UPDATE usuarios SET password_hash = $1 WHERE id = $2",
+                nuevo_hash, usuario["id"]
+            )
+
+        return {"mensaje": "Perfil actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
 # ===== ENDPOINTS =====
 
 @app.get("/")
