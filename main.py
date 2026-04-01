@@ -1,5 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 from datetime import date, time, datetime
 from typing import Optional
@@ -17,6 +20,11 @@ load_dotenv()
 app = FastAPI(title="Sistema de Reserva de Espacios")
 
 resend.api_key = os.getenv("RESEND_API_KEY")
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -1374,5 +1382,188 @@ async def superadmin_exportar_facturacion(request: Request, token: Optional[str]
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": "attachment; filename=facturacion.xlsx"}
         )
+    finally:
+        await release_db(db)
+
+# ===== TICKETS DE SOPORTE =====
+
+class TicketCreate(BaseModel):
+    nombre: str
+    email: str
+    asunto: str
+    descripcion: str
+    prioridad: str = "media"
+    slug: Optional[str] = None  # para identificar el tenant
+    website: Optional[str] = None  # honeypot — debe venir vacío
+
+class TicketRespuesta(BaseModel):
+    respuesta: str
+    estado: str
+
+@app.post("/soporte/ticket")
+@limiter.limit("5/hour")
+async def crear_ticket(request: Request, datos: TicketCreate):
+    """Endpoint público — no requiere autenticación. Máx 5 tickets por IP por hora."""
+    # Validaciones de longitud
+    if len(datos.nombre) > 100:
+        raise HTTPException(status_code=400, detail="El nombre es demasiado largo")
+    if len(datos.email) > 200:
+        raise HTTPException(status_code=400, detail="El email es demasiado largo")
+    if len(datos.asunto) > 200:
+        raise HTTPException(status_code=400, detail="El asunto es demasiado largo")
+    if len(datos.descripcion) > 3000:
+        raise HTTPException(status_code=400, detail="La descripción es demasiado larga (máx 3000 caracteres)")
+    if datos.prioridad not in ["alta", "media", "baja"]:
+        raise HTTPException(status_code=400, detail="Prioridad inválida")
+    # Honeypot — si viene con el campo trampa lleno, es un bot
+    if datos.website:
+        return {"mensaje": "Ticket creado correctamente"}  # respuesta falsa al bot
+    db = await get_db()
+    try:
+        # Buscar tenant por slug si se provee
+        tenant_id = None
+        tenant_nombre = "Sin tenant"
+        if datos.slug:
+            tenant = await db.fetchrow(
+                "SELECT id, nombre FROM tenants WHERE slug = $1",
+                datos.slug
+            )
+            if tenant:
+                tenant_id = tenant["id"]
+                tenant_nombre = tenant["nombre"]
+
+        ticket = await db.fetchrow(
+            """INSERT INTO tickets (tenant_id, nombre, email, asunto, descripcion, prioridad)
+               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at""",
+            tenant_id, datos.nombre, datos.email,
+            datos.asunto, datos.descripcion, datos.prioridad
+        )
+
+        # Notificar al superadmin
+        prioridad_emoji = {"alta": "🔴", "media": "🟡", "baja": "🟢"}.get(datos.prioridad, "🟡")
+        enviar_email(
+            "hola@reservatuespacio.com",
+            f"{prioridad_emoji} Nuevo ticket de soporte — {datos.asunto}",
+            f"""
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                    <h2 style="color:#71D997; margin:0">Nuevo ticket de soporte</h2>
+                </div>
+                <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                    <table style="width:100%; border-collapse:collapse">
+                        <tr><td style="padding:8px; font-weight:bold; width:140px">Tenant:</td><td style="padding:8px">{tenant_nombre}</td></tr>
+                        <tr><td style="padding:8px; font-weight:bold">Nombre:</td><td style="padding:8px">{datos.nombre}</td></tr>
+                        <tr><td style="padding:8px; font-weight:bold">Email:</td><td style="padding:8px">{datos.email}</td></tr>
+                        <tr><td style="padding:8px; font-weight:bold">Prioridad:</td><td style="padding:8px">{prioridad_emoji} {datos.prioridad.capitalize()}</td></tr>
+                        <tr><td style="padding:8px; font-weight:bold">Asunto:</td><td style="padding:8px">{datos.asunto}</td></tr>
+                        <tr><td style="padding:8px; font-weight:bold; vertical-align:top">Descripción:</td><td style="padding:8px">{datos.descripcion}</td></tr>
+                    </table>
+                    <div style="margin-top:20px; text-align:center">
+                        <a href="https://claudiaacreativity.github.io/reserva-aulas/superadmin.html"
+                           style="background:#71D997; color:#2C3E50; padding:12px 28px; border-radius:50px; text-decoration:none; font-weight:bold">
+                            Ver en el panel superadmin →
+                        </a>
+                    </div>
+                </div>
+            </div>
+            """
+        )
+
+        # Confirmar al tenant
+        enviar_email(
+            datos.email,
+            f"✅ Recibimos tu consulta — {datos.asunto}",
+            f"""
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                    <h2 style="color:#71D997; margin:0">Recibimos tu consulta</h2>
+                </div>
+                <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                    <p>Hola <b>{datos.nombre}</b>,</p>
+                    <p>Recibimos tu consulta con el asunto <b>"{datos.asunto}"</b> y la vamos a revisar a la brevedad.</p>
+                    <div style="background:white; border:1px solid #e0e0e0; border-radius:8px; padding:16px; margin:20px 0">
+                        <p style="margin:0; color:#888; font-size:13px">Estado actual</p>
+                        <p style="margin:4px 0 0; font-size:18px; font-weight:bold; color:#e67e22">🟡 Abierto</p>
+                    </div>
+                    <p style="color:#888; font-size:13px">Te vamos a notificar por email cuando tengamos una respuesta.</p>
+                </div>
+            </div>
+            """
+        )
+
+        return {"mensaje": "Ticket creado correctamente", "id": str(ticket["id"])}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/superadmin/tickets")
+async def superadmin_listar_tickets(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tickets = await db.fetch("""
+            SELECT tk.*, t.nombre as tenant_nombre, t.slug as tenant_slug
+            FROM tickets tk
+            LEFT JOIN tenants t ON tk.tenant_id = t.id
+            ORDER BY
+                CASE tk.prioridad WHEN 'alta' THEN 1 WHEN 'media' THEN 2 ELSE 3 END,
+                tk.created_at DESC
+        """)
+        return [dict(t) for t in tickets]
+    finally:
+        await release_db(db)
+
+@app.patch("/superadmin/tickets/{ticket_id}")
+async def superadmin_responder_ticket(request: Request, ticket_id: str, datos: TicketRespuesta):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        ticket = await db.fetchrow(
+            "SELECT * FROM tickets WHERE id = $1", ticket_id
+        )
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+        await db.execute(
+            """UPDATE tickets SET respuesta = $1, estado = $2, updated_at = NOW()
+               WHERE id = $3""",
+            datos.respuesta, datos.estado, ticket_id
+        )
+
+        estado_emoji = {"abierto": "🟡", "en_progreso": "🔵", "resuelto": "🟢"}.get(datos.estado, "🟡")
+        estado_texto = {"abierto": "Abierto", "en_progreso": "En progreso", "resuelto": "Resuelto"}.get(datos.estado, datos.estado)
+
+        # Notificar al tenant
+        enviar_email(
+            ticket["email"],
+            f"{estado_emoji} Actualización de tu consulta — {ticket['asunto']}",
+            f"""
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                    <h2 style="color:#71D997; margin:0">Actualización de tu consulta</h2>
+                </div>
+                <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                    <p>Hola <b>{ticket['nombre']}</b>,</p>
+                    <p>Tu consulta <b>"{ticket['asunto']}"</b> fue actualizada.</p>
+                    <div style="background:white; border:1px solid #e0e0e0; border-radius:8px; padding:16px; margin:20px 0">
+                        <p style="margin:0; color:#888; font-size:13px">Estado actual</p>
+                        <p style="margin:4px 0 0; font-size:18px; font-weight:bold; color:#2C3E50">{estado_emoji} {estado_texto}</p>
+                    </div>
+                    <div style="background:white; border-left:4px solid #71D997; padding:16px; border-radius:0 8px 8px 0; margin:20px 0">
+                        <p style="margin:0; color:#888; font-size:13px">Respuesta</p>
+                        <p style="margin:8px 0 0; color:#2C3E50">{datos.respuesta}</p>
+                    </div>
+                    <p style="color:#888; font-size:13px">Si tenés más preguntas podés escribirnos desde el formulario de soporte.</p>
+                </div>
+            </div>
+            """
+        )
+
+        return {"mensaje": "Ticket actualizado y notificación enviada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)

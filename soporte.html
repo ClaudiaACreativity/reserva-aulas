@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soporte — reservatuespacio.com</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #2C3E50;
+            color: white;
+            padding: 20px 40px;
+            text-align: center;
+        }
+        header h1 { font-size: 22px; margin-bottom: 4px; }
+        header p { font-size: 14px; opacity: 0.8; }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+            flex: 1;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            font-size: 20px;
+            color: #2C3E50;
+            margin-bottom: 8px;
+        }
+
+        .card > p {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 11px 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            font-family: Arial, sans-serif;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus { border-color: #2C3E50; }
+
+        .form-group textarea { resize: vertical; min-height: 120px; }
+
+        .prioridad-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+        .prioridad-btn {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .prioridad-btn:hover { border-color: #2C3E50; }
+        .prioridad-btn.seleccionado { border-color: #2C3E50; background: #f0f4f8; }
+        .prioridad-btn.alta.seleccionado { border-color: #e74c3c; background: #fdedec; }
+        .prioridad-btn.media.seleccionado { border-color: #e67e22; background: #fef9e7; }
+        .prioridad-btn.baja.seleccionado { border-color: #27ae60; background: #d5f0e0; }
+
+        .btn-enviar {
+            width: 100%;
+            padding: 14px;
+            background: #2C3E50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+        .btn-enviar:hover { background: #1a252f; }
+        .btn-enviar:disabled { background: #aaa; cursor: not-allowed; }
+
+        .mensaje {
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 16px;
+            display: none;
+            line-height: 1.5;
+        }
+        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
+        .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+
+        .exito-container {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .exito-container .icono { font-size: 60px; margin-bottom: 16px; }
+        .exito-container h3 { color: #27ae60; font-size: 22px; margin-bottom: 8px; }
+        .exito-container p { color: #888; font-size: 14px; line-height: 1.6; }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+            color: #aaa;
+        }
+        footer a { color: #2C3E50; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🎫 Soporte técnico</h1>
+    <p>reservatuespacio.com — Te respondemos a la brevedad</p>
+</header>
+
+<div class="container">
+    <div class="card">
+        <h2>¿En qué te podemos ayudar?</h2>
+        <p>Completá el formulario y te vamos a responder por email. No necesitás crear una cuenta ni iniciar sesión.</p>
+
+        <div id="formulario">
+            <div class="form-group">
+                <label>Tu nombre</label>
+                <input type="text" id="nombre" placeholder="Ej: María García" autocomplete="name">
+            </div>
+
+            <div class="form-group">
+                <label>Tu email</label>
+                <input type="email" id="email" placeholder="tu@email.com" autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label>Asunto</label>
+                <input type="text" id="asunto" placeholder="Ej: No puedo ingresar al panel">
+            </div>
+
+            <div class="form-group">
+                <label>Prioridad</label>
+                <div class="prioridad-group">
+                    <button class="prioridad-btn baja" onclick="seleccionarPrioridad('baja', this)">🟢 Baja</button>
+                    <button class="prioridad-btn media seleccionado" onclick="seleccionarPrioridad('media', this)">🟡 Media</button>
+                    <button class="prioridad-btn alta" onclick="seleccionarPrioridad('alta', this)">🔴 Alta</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Descripción del problema</label>
+                <textarea id="descripcion" placeholder="Contanos con el mayor detalle posible qué está pasando..." 
+                    oninput="contarCaracteres(this)" maxlength="3000"></textarea>
+                <small id="contador-descripcion" style="color:#aaa; font-size:12px; text-align:right; display:block">0 / 3000</small>
+            </div>
+
+            <!-- Honeypot: campo trampa para bots, debe quedar vacío -->
+            <input type="text" id="website" name="website" style="display:none" tabindex="-1" autocomplete="off">
+
+            <button class="btn-enviar" onclick="enviarTicket()" id="btn-enviar">Enviar consulta</button>
+            <div class="mensaje" id="mensaje"></div>
+        </div>
+
+        <div class="exito-container" id="exito-container">
+            <div class="icono">✅</div>
+            <h3>¡Consulta enviada!</h3>
+            <p>Recibimos tu mensaje y te vamos a responder a <b id="email-confirmacion"></b> a la brevedad.<br><br>
+            También te enviamos un email de confirmación con el estado de tu consulta.</p>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <a href="https://claudiaacreativity.github.io/reserva-aulas/">← Volver al inicio</a>
+    &nbsp;·&nbsp;
+    reservatuespacio.com
+</footer>
+
+<script>
+const API = 'https://reserva-aulas.onrender.com';
+let prioridadSeleccionada = 'media';
+
+// Precargar email desde query param si viene del panel admin
+const params = new URLSearchParams(window.location.search);
+if (params.get('email')) document.getElementById('email').value = params.get('email');
+if (params.get('nombre')) document.getElementById('nombre').value = params.get('nombre');
+if (params.get('slug')) window._tenantSlug = params.get('slug');
+
+function seleccionarPrioridad(prioridad, el) {
+    document.querySelectorAll('.prioridad-btn').forEach(b => b.classList.remove('seleccionado'));
+    el.classList.add('seleccionado');
+    prioridadSeleccionada = prioridad;
+}
+
+async function enviarTicket() {
+    const nombre = document.getElementById('nombre').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const asunto = document.getElementById('asunto').value.trim();
+    const descripcion = document.getElementById('descripcion').value.trim();
+
+    if (!nombre || !email || !asunto || !descripcion) {
+        mostrarMensaje('Completá todos los campos', 'error');
+        return;
+    }
+
+    if (!email.includes('@')) {
+        mostrarMensaje('Ingresá un email válido', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-enviar');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
+    try {
+        // Validaciones del lado cliente
+        if (descripcion.length > 3000) {
+            mostrarMensaje('La descripción no puede superar los 3000 caracteres', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Enviar consulta';
+            return;
+        }
+
+        const honeypot = document.getElementById('website').value;
+
+        const res = await fetch(`${API}/soporte/ticket`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nombre, email, asunto, descripcion,
+                prioridad: prioridadSeleccionada,
+                slug: window._tenantSlug || null,
+                website: honeypot
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            document.getElementById('formulario').style.display = 'none';
+            document.getElementById('email-confirmacion').textContent = email;
+            document.getElementById('exito-container').style.display = 'block';
+        } else {
+            mostrarMensaje(`Error: ${data.detail}`, 'error');
+            btn.disabled = false;
+            btn.textContent = 'Enviar consulta';
+        }
+    } catch(e) {
+        mostrarMensaje('Error al conectar con el servidor. Intentá de nuevo.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Enviar consulta';
+    }
+}
+
+function contarCaracteres(el) {
+    const max = 3000;
+    const actual = el.value.length;
+    const contador = document.getElementById('contador-descripcion');
+    contador.textContent = `${actual} / ${max}`;
+    contador.style.color = actual > 2500 ? '#e74c3c' : '#aaa';
+}
+
+function mostrarMensaje(texto, tipo) {
+    const el = document.getElementById('mensaje');
+    el.textContent = texto;
+    el.className = `mensaje ${tipo}`;
+    el.style.display = 'block';
+}
+</script>
+
+</body>
+</html>

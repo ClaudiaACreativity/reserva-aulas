@@ -175,6 +175,7 @@
     <div class="tab activo" onclick="cambiarTab('tenants', this)">🏢 Tenants</div>
     <div class="tab" onclick="cambiarTab('planes', this)">💳 Planes y precios</div>
     <div class="tab" onclick="cambiarTab('facturacion', this)">💰 Facturación</div>
+    <div class="tab" onclick="cambiarTab('tickets', this)">🎫 Tickets de soporte</div>
 </div>
 
 <div class="container">
@@ -320,6 +321,55 @@
         </div>
     </div>
 
+    <!-- PANEL TICKETS -->
+    <div class="panel" id="panel-tickets">
+
+        <div class="card">
+            <h2>Tickets de soporte
+                <span id="badge-tickets-abiertos" style="background:#e74c3c; color:white; font-size:12px; padding:3px 10px; border-radius:20px; margin-left:10px; display:none"></span>
+            </h2>
+            <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="filtrarTickets('todos')">Todos</button>
+                <button class="btn btn-warning btn-sm" onclick="filtrarTickets('abierto')">🟡 Abiertos</button>
+                <button class="btn btn-primary btn-sm" onclick="filtrarTickets('en_progreso')" style="background:#3498db">🔵 En progreso</button>
+                <button class="btn btn-success btn-sm" onclick="filtrarTickets('resuelto')">🟢 Resueltos</button>
+            </div>
+            <div id="tabla-tickets"><p class="empty">Cargando...</p></div>
+        </div>
+
+        <!-- Modal respuesta -->
+        <div id="modal-ticket" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center">
+            <div style="background:white; border-radius:12px; padding:30px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto">
+                <h2 style="color:#2C3E50; margin-bottom:5px" id="modal-asunto"></h2>
+                <div style="font-size:13px; color:#888; margin-bottom:20px" id="modal-meta"></div>
+                <div style="background:#f9f9fb; border-radius:8px; padding:15px; margin-bottom:20px">
+                    <p style="font-size:13px; color:#888; margin:0 0 6px">Descripción</p>
+                    <p style="margin:0; color:#2C3E50" id="modal-descripcion"></p>
+                </div>
+                <div style="margin-bottom:15px">
+                    <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px">Estado</label>
+                    <select id="modal-estado" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%">
+                        <option value="abierto">🟡 Abierto</option>
+                        <option value="en_progreso">🔵 En progreso</option>
+                        <option value="resuelto">🟢 Resuelto</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:20px">
+                    <label style="font-size:13px; font-weight:bold; color:#555; display:block; margin-bottom:6px">Tu respuesta</label>
+                    <textarea id="modal-respuesta" rows="5"
+                        style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical"
+                        placeholder="Escribí tu respuesta..."></textarea>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end">
+                    <button class="btn" style="background:#e0e0e0; color:#333" onclick="cerrarModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="enviarRespuesta()">Enviar respuesta y notificar</button>
+                </div>
+                <div class="mensaje" id="mensaje-modal"></div>
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
 <script>
@@ -382,6 +432,7 @@ function cargarTodo() {
     cargarTenants();
     cargarPlanes();
     cargarFacturacion();
+    cargarTickets();
 }
 
 // ===== STATS =====
@@ -756,6 +807,151 @@ async function eliminarPago(id) {
 function exportarFacturacion() {
     window.open(`${API}/superadmin/facturacion/exportar?token=${superadminToken}`, '_blank');
 }
+
+
+// ===== TICKETS =====
+let todosLosTickets = [];
+let ticketActualId = null;
+
+async function cargarTickets() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/tickets`);
+        todosLosTickets = await res.json();
+
+        // Badge de abiertos
+        const abiertos = todosLosTickets.filter(t => t.estado === 'abierto').length;
+        const badge = document.getElementById('badge-tickets-abiertos');
+        if (abiertos > 0) {
+            badge.textContent = abiertos + ' sin responder';
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        renderTickets(todosLosTickets);
+    } catch(e) {
+        document.getElementById('tabla-tickets').innerHTML = '<p class="empty">Error al cargar tickets</p>';
+    }
+}
+
+function filtrarTickets(estado) {
+    const filtrados = estado === 'todos' ? todosLosTickets : todosLosTickets.filter(t => t.estado === estado);
+    renderTickets(filtrados);
+}
+
+function renderTickets(tickets) {
+    const contenedor = document.getElementById('tabla-tickets');
+    if (!tickets.length) {
+        contenedor.innerHTML = '<p class="empty">No hay tickets</p>';
+        return;
+    }
+
+    const estadoInfo = {
+        abierto: { emoji: '🟡', texto: 'Abierto', color: '#f39c12' },
+        en_progreso: { emoji: '🔵', texto: 'En progreso', color: '#3498db' },
+        resuelto: { emoji: '🟢', texto: 'Resuelto', color: '#27ae60' }
+    };
+    const prioridadInfo = {
+        alta: { emoji: '🔴', texto: 'Alta' },
+        media: { emoji: '🟡', texto: 'Media' },
+        baja: { emoji: '🟢', texto: 'Baja' }
+    };
+
+    contenedor.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Prioridad</th>
+                    <th>Tenant</th>
+                    <th>Nombre</th>
+                    <th>Asunto</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tickets.map(t => {
+                    const est = estadoInfo[t.estado] || estadoInfo.abierto;
+                    const pri = prioridadInfo[t.prioridad] || prioridadInfo.media;
+                    return `
+                    <tr>
+                        <td>${pri.emoji} ${pri.texto}</td>
+                        <td style="font-size:13px">${t.tenant_nombre || '—'}</td>
+                        <td>${t.nombre}<br><small style="color:#888">${t.email}</small></td>
+                        <td>${t.asunto}</td>
+                        <td><span style="color:${est.color}; font-weight:bold">${est.emoji} ${est.texto}</span></td>
+                        <td style="font-size:12px; color:#888">${t.created_at.split('T')[0]}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="abrirModal('${t.id}')">
+                                ${t.respuesta ? 'Ver / Editar' : 'Responder'}
+                            </button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function abrirModal(id) {
+    const ticket = todosLosTickets.find(t => t.id === id);
+    if (!ticket) return;
+    ticketActualId = id;
+
+    document.getElementById('modal-asunto').textContent = ticket.asunto;
+    document.getElementById('modal-meta').innerHTML = `
+        <b>${ticket.nombre}</b> &lt;${ticket.email}&gt; &nbsp;·&nbsp;
+        Tenant: ${ticket.tenant_nombre || '—'} &nbsp;·&nbsp;
+        ${ticket.created_at.split('T')[0]}
+    `;
+    document.getElementById('modal-descripcion').textContent = ticket.descripcion;
+    document.getElementById('modal-estado').value = ticket.estado;
+    document.getElementById('modal-respuesta').value = ticket.respuesta || '';
+    document.getElementById('mensaje-modal').style.display = 'none';
+
+    const modal = document.getElementById('modal-ticket');
+    modal.style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modal-ticket').style.display = 'none';
+    ticketActualId = null;
+}
+
+async function enviarRespuesta() {
+    const respuesta = document.getElementById('modal-respuesta').value.trim();
+    const estado = document.getElementById('modal-estado').value;
+
+    if (!respuesta) {
+        mostrarMensaje('mensaje-modal', 'Escribí una respuesta antes de enviar', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`${API}/superadmin/tickets/${ticketActualId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ respuesta, estado })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-modal', '✅ Respuesta enviada correctamente', 'exito');
+            setTimeout(() => { cerrarModal(); cargarTickets(); }, 1500);
+        } else {
+            mostrarMensaje('mensaje-modal', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-modal', 'Error al conectar', 'error');
+    }
+}
+
+// Cerrar modal al hacer click afuera
+document.addEventListener('click', e => {
+    const modal = document.getElementById('modal-ticket');
+    if (e.target === modal) cerrarModal();
+});
 
 // ===== UTILIDAD =====
 function mostrarMensaje(id, texto, tipo) {
