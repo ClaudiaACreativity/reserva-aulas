@@ -194,6 +194,9 @@
     </div>
     <div id="header-redes" style="display:flex; gap:12px; align-items:center"></div>
 </header>
+<div id="foto-establecimiento-container" style="width:100%; max-height:220px; overflow:hidden; display:block">
+    <img id="foto-establecimiento" src="" alt="Foto del establecimiento" style="display:none; width:100%; max-height:220px; object-fit:cover">
+</div>
 
 <div class="container">
 
@@ -856,9 +859,11 @@ async function cargarTenant() {
         if (titulo) titulo.textContent = tenant.nombre;
 
         // Logo
-        if (tenant.logo_url) {
-            const logoEl = document.getElementById('header-logo');
-            if (logoEl) { logoEl.src = tenant.logo_url; logoEl.style.display = 'block'; }
+        const logoEl = document.getElementById('header-logo');
+        if (logoEl && tenant.logo_url) {
+            logoEl.src = tenant.logo_url;
+            logoEl.style.display = 'block';
+            logoEl.onerror = () => { logoEl.style.display = 'none'; };
         }
 
         // Favicon
@@ -871,24 +876,38 @@ async function cargarTenant() {
         // Colores
         if (tenant.color_primario) {
             document.querySelectorAll('header').forEach(h => h.style.background = tenant.color_primario);
-            document.documentElement.style.setProperty('--color-primario', tenant.color_primario);
+        }
+        if (tenant.color_secundario) {
+            document.querySelectorAll('.card h2').forEach(el => el.style.color = tenant.color_secundario);
+            document.querySelectorAll('.btn-primary').forEach(el => el.style.background = tenant.color_secundario);
         }
 
-        // Info de contacto
+        // Foto del establecimiento
+        if (tenant.foto_url) {
+            const fotoEl = document.getElementById('foto-establecimiento');
+            if (fotoEl) {
+                fotoEl.src = tenant.foto_url;
+                fotoEl.style.display = 'block';
+            }
+        }
+
+        // Contacto
         const contactoEl = document.getElementById('header-contacto');
         if (contactoEl) {
             let html = '';
             if (tenant.direccion) html += `<span>📍 ${tenant.direccion}</span>`;
-            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:white; text-decoration:none">💬 WhatsApp</a>`;
+            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:white; text-decoration:none">💬 ${tenant.whatsapp}</a>`;
             contactoEl.innerHTML = html;
         }
 
-        // Redes sociales
+        // Redes sociales — parsear si viene como string
+        let redes = tenant.redes_sociales || [];
+        if (typeof redes === 'string') { try { redes = JSON.parse(redes); } catch(e) { redes = []; } }
         const redesEl = document.getElementById('header-redes');
-        if (redesEl && tenant.redes_sociales && tenant.redes_sociales.length) {
+        if (redesEl && Array.isArray(redes) && redes.length) {
             const iconos = { instagram:'📷', facebook:'📘', twitter:'🐦', linkedin:'💼', youtube:'▶️', tiktok:'🎵', whatsapp:'💬', web:'🌐' };
-            redesEl.innerHTML = tenant.redes_sociales.map(r =>
-                `<a href="${r.url}" target="_blank" style="color:white; text-decoration:none; font-size:20px" title="${r.red}">${iconos[r.red] || '🔗'}</a>`
+            redesEl.innerHTML = redes.map(r =>
+                `<a href="${r.url}" target="_blank" style="color:white; text-decoration:none; font-size:22px" title="${r.red}">${iconos[r.red] || '🔗'}</a>`
             ).join('');
         }
 

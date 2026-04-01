@@ -274,6 +274,7 @@ import json as json_module
 class TenantPerfilUpdate(BaseModel):
     logo_url: Optional[str] = None
     favicon_url: Optional[str] = None
+    foto_url: Optional[str] = None
     color_primario: Optional[str] = None
     color_secundario: Optional[str] = None
     direccion: Optional[str] = None
@@ -293,6 +294,8 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             campos.append(f"logo_url = ${i}"); valores.append(datos.logo_url); i += 1
         if datos.favicon_url is not None:
             campos.append(f"favicon_url = ${i}"); valores.append(datos.favicon_url); i += 1
+        if datos.foto_url is not None:
+            campos.append(f"foto_url = ${i}"); valores.append(datos.foto_url); i += 1
         if datos.color_primario is not None:
             campos.append(f"color_primario = ${i}"); valores.append(datos.color_primario); i += 1
         if datos.color_secundario is not None:
@@ -311,6 +314,57 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             *valores
         )
         return {"mensaje": "Perfil del tenant actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+
+@app.post("/tenant/imagen")
+async def subir_imagen_tenant(request: Request):
+    """Recibe una imagen en base64 y la guarda en Supabase Storage."""
+    import base64
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        body = await request.json()
+        imagen_b64 = body.get("imagen")
+        tipo = body.get("tipo", "logo")  # logo, favicon, foto
+        mime = body.get("mime", "image/png")
+        
+        if not imagen_b64:
+            raise HTTPException(status_code=400, detail="Se requiere el campo imagen en base64")
+        
+        import httpx
+        imagen_bytes = base64.b64decode(imagen_b64)
+        extension = mime.split("/")[-1].replace("jpeg", "jpg")
+        filename = f"{tenant['slug']}/{tipo}.{extension}"
+        
+        supabase_url = f"https://okkwfaouqdnbityotnje.supabase.co/storage/v1/object/logos/{filename}"
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        
+        if not supabase_key:
+            raise HTTPException(status_code=500, detail="SUPABASE_SERVICE_KEY no configurada")
+        
+        async with httpx.AsyncClient() as client:
+            res = await client.put(
+                supabase_url,
+                content=imagen_bytes,
+                headers={
+                    "Authorization": f"Bearer {supabase_key}",
+                    "Content-Type": mime,
+                    "x-upsert": "true"
+                }
+            )
+        
+        if res.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail=f"Error al subir imagen: {res.text}")
+        
+        url_publica = f"https://okkwfaouqdnbityotnje.supabase.co/storage/v1/object/public/logos/{filename}"
+        return {"url": url_publica}
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -339,7 +393,8 @@ async def info_tenant(request: Request):
             "plan": tenant["plan_id"],
             "direccion": tenant["direccion"],
             "whatsapp": tenant["whatsapp"],
-            "redes_sociales": tenant["redes_sociales"] or [],
+            "redes_sociales": (json_module.loads(tenant["redes_sociales"]) if isinstance(tenant["redes_sociales"], str) else tenant["redes_sociales"]) or [],
+            "foto_url": tenant["foto_url"],
         }
     finally:
         await release_db(db)

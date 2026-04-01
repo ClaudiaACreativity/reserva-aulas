@@ -375,28 +375,57 @@
                 <div class="form-group full">
                     <label>URL del logo</label>
                     <input type="text" id="pers-logo-url" placeholder="https://ejemplo.com/logo.png" autocomplete="off">
-                    <small style="color:#888; margin-top:4px">Pegá la URL de tu logo o subí una imagen más abajo</small>
+                </div>
+                <div class="form-group full">
+                    <label>O subí una imagen desde tu computadora</label>
+                    <input type="file" id="pers-logo-file" accept="image/*" onchange="previewArchivo('pers-logo-file', 'logo-preview')" style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%">
                 </div>
                 <div class="form-group full" style="text-align:center">
                     <div id="logo-preview" style="margin:10px 0; min-height:60px">
                         <span style="color:#aaa; font-size:13px">Vista previa del logo</span>
                     </div>
-                    <button class="btn btn-primary" onclick="guardarPersonalizacion()">Guardar logo</button>
+                    <button class="btn btn-primary" onclick="guardarImagen('logo', 'pers-logo-url', 'pers-logo-file', 'mensaje-pers-logo')">Guardar logo</button>
                 </div>
             </div>
             <div class="mensaje" id="mensaje-pers-logo"></div>
         </div>
 
         <div class="card">
+            <h2>Foto del establecimiento</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:15px">Se muestra en el sitio de reservas como imagen de portada.</p>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>URL de la foto</label>
+                    <input type="text" id="pers-foto-url" placeholder="https://ejemplo.com/foto.jpg" autocomplete="off">
+                </div>
+                <div class="form-group full">
+                    <label>O subí una imagen desde tu computadora</label>
+                    <input type="file" id="pers-foto-file" accept="image/*" onchange="previewArchivo('pers-foto-file', 'foto-preview')" style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%">
+                </div>
+                <div class="form-group full" style="text-align:center">
+                    <div id="foto-preview" style="margin:10px 0; min-height:60px">
+                        <span style="color:#aaa; font-size:13px">Vista previa de la foto</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="guardarImagen('foto', 'pers-foto-url', 'pers-foto-file', 'mensaje-pers-foto')">Guardar foto</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pers-foto"></div>
+        </div>
+
+        <div class="card">
             <h2>Favicon</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:15px">El ícono que aparece en la pestaña del navegador (16x16 o 32x32 px recomendado).</p>
             <div class="form-grid">
                 <div class="form-group full">
                     <label>URL del favicon</label>
                     <input type="text" id="pers-favicon-url" placeholder="https://ejemplo.com/favicon.ico" autocomplete="off">
-                    <small style="color:#888; margin-top:4px">El favicon es el ícono que aparece en la pestaña del navegador (16x16 o 32x32 px)</small>
                 </div>
                 <div class="form-group full">
-                    <button class="btn btn-primary" onclick="guardarFavicon()">Guardar favicon</button>
+                    <label>O subí una imagen desde tu computadora</label>
+                    <input type="file" id="pers-favicon-file" accept="image/*" style="padding:8px; border:1px solid #ccc; border-radius:6px; width:100%">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarImagen('favicon', 'pers-favicon-url', 'pers-favicon-file', 'mensaje-pers-favicon')">Guardar favicon</button>
                 </div>
             </div>
             <div class="mensaje" id="mensaje-pers-favicon"></div>
@@ -1168,7 +1197,15 @@ async function cargarPersonalizacion() {
         // Logo
         if (tenant.logo_url) {
             document.getElementById('pers-logo-url').value = tenant.logo_url;
-            mostrarPreviewLogo(tenant.logo_url);
+            const prev = document.getElementById('logo-preview');
+            if (prev) prev.innerHTML = `<img src="${tenant.logo_url}" style="max-height:120px; max-width:250px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
+        }
+        // Foto
+        if (tenant.foto_url) {
+            const fotoInput = document.getElementById('pers-foto-url');
+            if (fotoInput) fotoInput.value = tenant.foto_url;
+            const fotoPrev = document.getElementById('foto-preview');
+            if (fotoPrev) fotoPrev.innerHTML = `<img src="${tenant.foto_url}" style="max-height:120px; max-width:250px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
         }
 
         // Favicon
@@ -1190,19 +1227,14 @@ async function cargarPersonalizacion() {
         if (tenant.direccion) document.getElementById('pers-direccion').value = tenant.direccion;
         if (tenant.whatsapp) document.getElementById('pers-whatsapp').value = tenant.whatsapp;
 
-        // Redes
-        redesSociales = tenant.redes_sociales || [];
+        // Redes — parsear si viene como string
+        let redes = tenant.redes_sociales || [];
+        if (typeof redes === 'string') { try { redes = JSON.parse(redes); } catch(e) { redes = []; } }
+        redesSociales = Array.isArray(redes) ? redes : [];
         renderRedes();
 
     } catch(e) {
         console.log('Error al cargar personalización', e);
-    }
-}
-
-function mostrarPreviewLogo(url) {
-    const preview = document.getElementById('logo-preview');
-    if (url) {
-        preview.innerHTML = `<img src="${url}" style="max-height:80px; max-width:200px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
     }
 }
 
@@ -1214,36 +1246,69 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('pers-color-secundario-hex')?.addEventListener('input', e => { if(/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) document.getElementById('pers-color-secundario').value = e.target.value; });
 });
 
-async function guardarPersonalizacion() {
-    const logo_url = document.getElementById('pers-logo-url').value.trim();
+function previewArchivo(inputId, previewId) {
+    const file = document.getElementById(inputId).files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const preview = document.getElementById(previewId);
+        preview.innerHTML = `<img src="${e.target.result}" style="max-height:120px; max-width:250px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function guardarImagen(tipo, urlInputId, fileInputId, mensajeId) {
+    const urlInput = document.getElementById(urlInputId);
+    const fileInput = document.getElementById(fileInputId);
+    let url = urlInput ? urlInput.value.trim() : '';
+
+    // Si hay archivo seleccionado, subirlo primero
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const b64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        try {
+            const uploadRes = await apiFetch(`${API}/tenant/imagen`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imagen: b64, tipo, mime: file.type })
+            });
+            const uploadData = await uploadRes.json();
+            if (!uploadRes.ok) {
+                mostrarMensaje(mensajeId, `❌ Error al subir imagen: ${uploadData.detail}`, 'error');
+                return;
+            }
+            url = uploadData.url;
+            if (urlInput) urlInput.value = url;
+        } catch(e) {
+            mostrarMensaje(mensajeId, 'Error al subir imagen', 'error');
+            return;
+        }
+    }
+
+    if (!url) {
+        mostrarMensaje(mensajeId, 'Ingresá una URL o seleccioná un archivo', 'error');
+        return;
+    }
+
+    const campo = tipo === 'logo' ? 'logo_url' : tipo === 'favicon' ? 'favicon_url' : 'foto_url';
     try {
         const res = await apiFetch(`${API}/tenant/perfil`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ logo_url })
+            body: JSON.stringify({ [campo]: url })
         });
         const data = await res.json();
         if (res.ok) {
-            mostrarMensaje('mensaje-pers-logo', '✅ Logo guardado correctamente', 'exito');
-            mostrarPreviewLogo(logo_url);
+            mostrarMensaje(mensajeId, `✅ ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} guardado correctamente`, 'exito');
         } else {
-            mostrarMensaje('mensaje-pers-logo', `❌ ${data.detail}`, 'error');
+            mostrarMensaje(mensajeId, `❌ ${data.detail}`, 'error');
         }
-    } catch(e) { mostrarMensaje('mensaje-pers-logo', 'Error al conectar', 'error'); }
-}
-
-async function guardarFavicon() {
-    const favicon_url = document.getElementById('pers-favicon-url').value.trim();
-    try {
-        const res = await apiFetch(`${API}/tenant/perfil`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ favicon_url })
-        });
-        const data = await res.json();
-        if (res.ok) mostrarMensaje('mensaje-pers-favicon', '✅ Favicon guardado correctamente', 'exito');
-        else mostrarMensaje('mensaje-pers-favicon', `❌ ${data.detail}`, 'error');
-    } catch(e) { mostrarMensaje('mensaje-pers-favicon', 'Error al conectar', 'error'); }
+    } catch(e) { mostrarMensaje(mensajeId, 'Error al conectar', 'error'); }
 }
 
 async function guardarColores() {
