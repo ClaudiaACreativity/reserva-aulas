@@ -1022,9 +1022,12 @@ async def registrar_tenant(datos: RegistroCreate):
                             Ir al panel de administración →
                         </a>
                     </div>
-                    <p style="margin-top: 28px; color: #888; font-size: 13px; text-align: center;">
-                        ¿Tenés dudas? Escribinos a soporte@reservatuespacio.com
-                    </p>
+                    <div style="text-align:center; margin-top:20px">
+                        <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html"
+                           style="color:#888; font-size:13px; text-decoration:none">
+                            ¿Tenés dudas? Visitá nuestro centro de soporte →
+                        </a>
+                    </div>
                 </div>
             </div>
             """
@@ -1494,6 +1497,24 @@ async def crear_ticket(request: Request, datos: TicketCreate):
         return {"mensaje": "Ticket creado correctamente", "id": str(ticket["id"])}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+
+@app.get("/soporte/tickets")
+async def listar_tickets_tenant(email: str):
+    """Devuelve los tickets de un email específico."""
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email inválido")
+    db = await get_db()
+    try:
+        tickets = await db.fetch(
+            """SELECT id, asunto, descripcion, prioridad, estado, respuesta, created_at, updated_at
+               FROM tickets WHERE email = $1
+               ORDER BY created_at DESC""",
+            email
+        )
+        return [dict(t) for t in tickets]
     finally:
         await release_db(db)
 

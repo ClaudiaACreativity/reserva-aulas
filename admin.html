@@ -187,6 +187,7 @@
     <div class="tab" onclick="cambiarTab('fechas', this)">📅 Fechas bloqueadas</div>
     <div class="tab" onclick="cambiarTab('perfil', this)">👤 Mi perfil</div>
     <div class="tab" onclick="cambiarTab('personalizacion', this)">🎨 Personalización</div>
+    <div class="tab" onclick="cambiarTab('soporte', this)">🎫 Soporte</div>
 </div>
 
 <div class="container">
@@ -507,6 +508,41 @@
         </div>
     </div>
 
+
+    <!-- PANEL SOPORTE -->
+    <div class="panel" id="panel-soporte">
+        <div class="card">
+            <h2>¿Necesitás ayuda?</h2>
+            <p style="color:#666; font-size:14px; margin-bottom:24px; line-height:1.6">
+                Completá el formulario y te respondemos a la brevedad. También podés acceder desde cualquier dispositivo aunque no puedas entrar al panel.
+            </p>
+            <div style="text-align:center; margin-bottom:30px">
+                <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html" 
+                   target="_blank"
+                   style="display:inline-block; background:#1B4F8A; color:white; padding:14px 32px; border-radius:50px; text-decoration:none; font-weight:bold; font-size:15px">
+                    🎫 Abrir formulario de soporte →
+                </a>
+                <p style="color:#aaa; font-size:12px; margin-top:10px">Se abre en una nueva pestaña. No necesitás iniciar sesión.</p>
+            </div>
+            <div style="border-top:1px solid #e0e8f0; padding-top:20px">
+                <p style="font-size:13px; color:#888; margin-bottom:12px">También podés copiar este link y compartirlo o guardarlo:</p>
+                <div style="display:flex; gap:10px; align-items:center">
+                    <input type="text" value="https://claudiaacreativity.github.io/reserva-aulas/soporte.html" 
+                           id="link-soporte" readonly
+                           style="flex:1; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:13px; color:#555; background:#f9f9f9">
+                    <button class="btn btn-primary" onclick="copiarLinkSoporte()">Copiar</button>
+                </div>
+                <div class="mensaje" id="mensaje-soporte"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Mis tickets</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:15px">Historial de consultas enviadas desde esta cuenta.</p>
+            <div id="tabla-tickets-tenant"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -594,6 +630,7 @@ function cargarTodo() {
     cargarFechasBloqueadas();
     cargarPerfil();
     cargarPersonalizacion();
+    cargarTicketsTenant();
 }
 
 async function cargarTenant() {
@@ -1441,6 +1478,60 @@ async function guardarRedes() {
         if (res.ok) mostrarMensaje('mensaje-pers-redes', '✅ Redes guardadas correctamente', 'exito');
         else mostrarMensaje('mensaje-pers-redes', `❌ ${data.detail}`, 'error');
     } catch(e) { mostrarMensaje('mensaje-pers-redes', 'Error al conectar', 'error'); }
+}
+
+
+// ===== SOPORTE =====
+function copiarLinkSoporte() {
+    const input = document.getElementById('link-soporte');
+    input.select();
+    document.execCommand('copy');
+    mostrarMensaje('mensaje-soporte', '✅ Link copiado al portapapeles', 'exito');
+}
+
+async function cargarTicketsTenant() {
+    try {
+        const res = await fetch(`https://reserva-aulas.onrender.com/soporte/tickets?email=${encodeURIComponent(adminEmail)}`, {
+            headers: { 'X-Tenant-Slug': TENANT_SLUG }
+        });
+        const tickets = await res.json();
+        const contenedor = document.getElementById('tabla-tickets-tenant');
+
+        if (!tickets.length) {
+            contenedor.innerHTML = '<p class="empty">No hay tickets registrados todavía</p>';
+            return;
+        }
+
+        const estadoInfo = {
+            abierto: { emoji: '🟡', texto: 'Abierto' },
+            en_progreso: { emoji: '🔵', texto: 'En progreso' },
+            resuelto: { emoji: '🟢', texto: 'Resuelto' }
+        };
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr><th>Fecha</th><th>Asunto</th><th>Prioridad</th><th>Estado</th><th>Respuesta</th></tr>
+                </thead>
+                <tbody>
+                    ${tickets.map(t => {
+                        const est = estadoInfo[t.estado] || estadoInfo.abierto;
+                        return `
+                        <tr>
+                            <td style="font-size:13px">${t.created_at.split('T')[0]}</td>
+                            <td>${t.asunto}</td>
+                            <td>${t.prioridad}</td>
+                            <td><span style="font-weight:bold">${est.emoji} ${est.texto}</span></td>
+                            <td style="font-size:13px; color:#555">${t.respuesta || '<span style="color:#aaa">Sin respuesta aún</span>'}</td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch(e) {
+        document.getElementById('tabla-tickets-tenant').innerHTML = '<p class="empty">Error al cargar tickets</p>';
+    }
 }
 
 // ===== UTILIDAD =====
