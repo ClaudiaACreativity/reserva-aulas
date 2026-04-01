@@ -910,8 +910,7 @@ async function cargarTenant() {
                 el.style.color = textoColor;
             });
             document.getElementById('header-titulo').style.color = textoColor;
-            // Guardar para aplicar a elementos dinámicos (contacto y redes)
-            window._headerTextColor = textoColor;
+
         }
         if (tenant.color_secundario) {
             document.querySelectorAll('.card h2').forEach(el => el.style.color = tenant.color_secundario);
@@ -928,12 +927,13 @@ async function cargarTenant() {
             }
         }
 
-        // Contacto
+        // Contacto y redes — usar color con contraste automático
+        const tc = colorContraste(tenant.color_primario || '#1B4F8A');
         const contactoEl = document.getElementById('header-contacto');
         if (contactoEl) {
             let html = '';
-            if (tenant.direccion) html += `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}" target="_blank" style="color:white;text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('ubicacion')} ${tenant.direccion}</a>`;
-            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:white;text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('whatsapp')} ${tenant.whatsapp}</a>`;
+            if (tenant.direccion) html += `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('ubicacion', tc)} ${tenant.direccion}</a>`;
+            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('whatsapp', tc)} ${tenant.whatsapp}</a>`;
             contactoEl.innerHTML = html;
         }
 
@@ -943,7 +943,7 @@ async function cargarTenant() {
         const redesEl = document.getElementById('header-redes');
         if (redesEl && Array.isArray(redes) && redes.length) {
             redesEl.innerHTML = redes.map(r =>
-                `<a href="${r.url}" target="_blank" style="color:white;text-decoration:none;display:flex;align-items:center" title="${r.red}">${svgIcono(r.red)}</a>`
+                `<a href="${r.url}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center" title="${r.red}">${svgIcono(r.red, tc)}</a>`
             ).join('');
         }
 
