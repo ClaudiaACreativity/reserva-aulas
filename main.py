@@ -268,6 +268,56 @@ async def actualizar_perfil_admin(request: Request, datos: AdminPerfilUpdate):
     finally:
         await release_db(db)
 
+
+import json as json_module
+
+class TenantPerfilUpdate(BaseModel):
+    logo_url: Optional[str] = None
+    favicon_url: Optional[str] = None
+    color_primario: Optional[str] = None
+    color_secundario: Optional[str] = None
+    direccion: Optional[str] = None
+    whatsapp: Optional[str] = None
+    redes_sociales: Optional[list] = None
+
+@app.patch("/tenant/perfil")
+async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
+    """Permite al admin actualizar los datos de personalización del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        campos = []
+        valores = []
+        i = 1
+        if datos.logo_url is not None:
+            campos.append(f"logo_url = ${i}"); valores.append(datos.logo_url); i += 1
+        if datos.favicon_url is not None:
+            campos.append(f"favicon_url = ${i}"); valores.append(datos.favicon_url); i += 1
+        if datos.color_primario is not None:
+            campos.append(f"color_primario = ${i}"); valores.append(datos.color_primario); i += 1
+        if datos.color_secundario is not None:
+            campos.append(f"color_secundario = ${i}"); valores.append(datos.color_secundario); i += 1
+        if datos.direccion is not None:
+            campos.append(f"direccion = ${i}"); valores.append(datos.direccion); i += 1
+        if datos.whatsapp is not None:
+            campos.append(f"whatsapp = ${i}"); valores.append(datos.whatsapp); i += 1
+        if datos.redes_sociales is not None:
+            campos.append(f"redes_sociales = ${i}"); valores.append(json_module.dumps(datos.redes_sociales)); i += 1
+        if not campos:
+            return {"mensaje": "No hay cambios para guardar"}
+        valores.append(tenant["id"])
+        await db.execute(
+            f"UPDATE tenants SET {', '.join(campos)} WHERE id = ${i}",
+            *valores
+        )
+        return {"mensaje": "Perfil del tenant actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
 # ===== ENDPOINTS =====
 
 @app.get("/")
@@ -283,9 +333,13 @@ async def info_tenant(request: Request):
             "nombre": tenant["nombre"],
             "slug": tenant["slug"],
             "logo_url": tenant["logo_url"],
+            "favicon_url": tenant["favicon_url"],
             "color_primario": tenant["color_primario"],
             "color_secundario": tenant["color_secundario"],
             "plan": tenant["plan_id"],
+            "direccion": tenant["direccion"],
+            "whatsapp": tenant["whatsapp"],
+            "redes_sociales": tenant["redes_sociales"] or [],
         }
     finally:
         await release_db(db)

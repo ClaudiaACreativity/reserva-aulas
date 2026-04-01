@@ -185,10 +185,14 @@
 <body>
 
 <header>
-    <div>
-        <h1 id="header-titulo">🏢 Sistema de Reserva de Espacios</h1>
-        <p id="header-subtitulo">Gestión de espacios</p>
+    <div style="display:flex; align-items:center; gap:15px; flex:1">
+        <img id="header-logo" src="" alt="Logo" style="display:none; height:50px; object-fit:contain; border-radius:6px">
+        <div>
+            <h1 id="header-titulo">Sistema de Reserva de Espacios</h1>
+            <div id="header-contacto" style="display:flex; gap:15px; font-size:13px; opacity:0.9; margin-top:4px; flex-wrap:wrap"></div>
+        </div>
     </div>
+    <div id="header-redes" style="display:flex; gap:12px; align-items:center"></div>
 </header>
 
 <div class="container">
@@ -844,13 +848,50 @@ function mostrarMensaje(id, texto, tipo) {
 async function cargarTenant() {
     try {
         const res = await apiFetch(`${API}/tenant`);
-        if (res.ok) {
-            const tenant = await res.json();
-            const titulo = document.getElementById('header-titulo');
-            const subtitulo = document.getElementById('header-subtitulo');
-            if (titulo) titulo.textContent = '🏢 ' + tenant.nombre;
-            if (subtitulo) subtitulo.textContent = 'Gestión de espacios';
+        if (!res.ok) return;
+        const tenant = await res.json();
+
+        // Título
+        const titulo = document.getElementById('header-titulo');
+        if (titulo) titulo.textContent = tenant.nombre;
+
+        // Logo
+        if (tenant.logo_url) {
+            const logoEl = document.getElementById('header-logo');
+            if (logoEl) { logoEl.src = tenant.logo_url; logoEl.style.display = 'block'; }
         }
+
+        // Favicon
+        if (tenant.favicon_url) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+            link.href = tenant.favicon_url;
+        }
+
+        // Colores
+        if (tenant.color_primario) {
+            document.querySelectorAll('header').forEach(h => h.style.background = tenant.color_primario);
+            document.documentElement.style.setProperty('--color-primario', tenant.color_primario);
+        }
+
+        // Info de contacto
+        const contactoEl = document.getElementById('header-contacto');
+        if (contactoEl) {
+            let html = '';
+            if (tenant.direccion) html += `<span>📍 ${tenant.direccion}</span>`;
+            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:white; text-decoration:none">💬 WhatsApp</a>`;
+            contactoEl.innerHTML = html;
+        }
+
+        // Redes sociales
+        const redesEl = document.getElementById('header-redes');
+        if (redesEl && tenant.redes_sociales && tenant.redes_sociales.length) {
+            const iconos = { instagram:'📷', facebook:'📘', twitter:'🐦', linkedin:'💼', youtube:'▶️', tiktok:'🎵', whatsapp:'💬', web:'🌐' };
+            redesEl.innerHTML = tenant.redes_sociales.map(r =>
+                `<a href="${r.url}" target="_blank" style="color:white; text-decoration:none; font-size:20px" title="${r.red}">${iconos[r.red] || '🔗'}</a>`
+            ).join('');
+        }
+
     } catch(e) {
         console.log('Error al cargar tenant:', e);
     }

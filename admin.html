@@ -186,6 +186,7 @@
     <div class="tab" onclick="cambiarTab('horarios', this)">🕐 Horarios</div>
     <div class="tab" onclick="cambiarTab('fechas', this)">📅 Fechas bloqueadas</div>
     <div class="tab" onclick="cambiarTab('perfil', this)">👤 Mi perfil</div>
+    <div class="tab" onclick="cambiarTab('personalizacion', this)">🎨 Personalización</div>
 </div>
 
 <div class="container">
@@ -364,6 +365,107 @@
         </div>
     </div>
 
+
+    <!-- PANEL PERSONALIZACIÓN -->
+    <div class="panel" id="panel-personalizacion">
+
+        <div class="card">
+            <h2>Logo</h2>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>URL del logo</label>
+                    <input type="text" id="pers-logo-url" placeholder="https://ejemplo.com/logo.png" autocomplete="off">
+                    <small style="color:#888; margin-top:4px">Pegá la URL de tu logo o subí una imagen más abajo</small>
+                </div>
+                <div class="form-group full" style="text-align:center">
+                    <div id="logo-preview" style="margin:10px 0; min-height:60px">
+                        <span style="color:#aaa; font-size:13px">Vista previa del logo</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="guardarPersonalizacion()">Guardar logo</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pers-logo"></div>
+        </div>
+
+        <div class="card">
+            <h2>Favicon</h2>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>URL del favicon</label>
+                    <input type="text" id="pers-favicon-url" placeholder="https://ejemplo.com/favicon.ico" autocomplete="off">
+                    <small style="color:#888; margin-top:4px">El favicon es el ícono que aparece en la pestaña del navegador (16x16 o 32x32 px)</small>
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarFavicon()">Guardar favicon</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pers-favicon"></div>
+        </div>
+
+        <div class="card">
+            <h2>Colores</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Color primario</label>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <input type="color" id="pers-color-primario" style="width:60px; height:40px; padding:2px; border:1px solid #ccc; border-radius:6px; cursor:pointer">
+                        <input type="text" id="pers-color-primario-hex" placeholder="#1B4F8A" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:6px">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Color secundario</label>
+                    <div style="display:flex; gap:10px; align-items:center">
+                        <input type="color" id="pers-color-secundario" style="width:60px; height:40px; padding:2px; border:1px solid #ccc; border-radius:6px; cursor:pointer">
+                        <input type="text" id="pers-color-secundario-hex" placeholder="#71D997" style="flex:1; padding:10px; border:1px solid #ccc; border-radius:6px">
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarColores()">Guardar colores</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pers-colores"></div>
+        </div>
+
+        <div class="card">
+            <h2>Contacto</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="pers-direccion" placeholder="Ej: Av. Corrientes 1234, Buenos Aires">
+                </div>
+                <div class="form-group">
+                    <label>WhatsApp</label>
+                    <input type="text" id="pers-whatsapp" placeholder="Ej: 5491112345678 (sin + ni espacios)">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarContacto()">Guardar contacto</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-pers-contacto"></div>
+        </div>
+
+        <div class="card">
+            <h2>Redes sociales</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:15px">Agregá las redes que uses. Se mostrarán como íconos en el sitio.</p>
+            <div id="redes-lista"></div>
+            <div style="display:flex; gap:10px; margin-top:15px; flex-wrap:wrap">
+                <select id="red-nueva-nombre" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                    <option value="instagram">Instagram</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="twitter">Twitter / X</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="web">Sitio web</option>
+                </select>
+                <input type="text" id="red-nueva-url" placeholder="https://..." style="flex:1; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; min-width:200px">
+                <button class="btn btn-primary" onclick="agregarRed()">Agregar</button>
+            </div>
+            <div class="mensaje" id="mensaje-pers-redes"></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -450,6 +552,7 @@ function cargarTodo() {
     cargarHorarios();
     cargarFechasBloqueadas();
     cargarPerfil();
+    cargarPersonalizacion();
 }
 
 async function cargarTenant() {
@@ -1050,6 +1153,180 @@ async function cambiarPassword() {
     } catch(e) {
         mostrarMensaje('mensaje-perfil-password', 'Error al conectar', 'error');
     }
+}
+
+
+// ===== PERSONALIZACIÓN =====
+let redesSociales = [];
+
+async function cargarPersonalizacion() {
+    try {
+        const res = await apiFetch(`${API}/tenant`);
+        if (!res.ok) return;
+        const tenant = await res.json();
+
+        // Logo
+        if (tenant.logo_url) {
+            document.getElementById('pers-logo-url').value = tenant.logo_url;
+            mostrarPreviewLogo(tenant.logo_url);
+        }
+
+        // Favicon
+        if (tenant.favicon_url) {
+            document.getElementById('pers-favicon-url').value = tenant.favicon_url;
+        }
+
+        // Colores
+        if (tenant.color_primario) {
+            document.getElementById('pers-color-primario').value = tenant.color_primario;
+            document.getElementById('pers-color-primario-hex').value = tenant.color_primario;
+        }
+        if (tenant.color_secundario) {
+            document.getElementById('pers-color-secundario').value = tenant.color_secundario;
+            document.getElementById('pers-color-secundario-hex').value = tenant.color_secundario;
+        }
+
+        // Contacto
+        if (tenant.direccion) document.getElementById('pers-direccion').value = tenant.direccion;
+        if (tenant.whatsapp) document.getElementById('pers-whatsapp').value = tenant.whatsapp;
+
+        // Redes
+        redesSociales = tenant.redes_sociales || [];
+        renderRedes();
+
+    } catch(e) {
+        console.log('Error al cargar personalización', e);
+    }
+}
+
+function mostrarPreviewLogo(url) {
+    const preview = document.getElementById('logo-preview');
+    if (url) {
+        preview.innerHTML = `<img src="${url}" style="max-height:80px; max-width:200px; object-fit:contain; border:1px solid #e0e8f0; border-radius:6px; padding:5px">`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('pers-logo-url')?.addEventListener('input', e => mostrarPreviewLogo(e.target.value));
+    document.getElementById('pers-color-primario')?.addEventListener('input', e => document.getElementById('pers-color-primario-hex').value = e.target.value);
+    document.getElementById('pers-color-secundario')?.addEventListener('input', e => document.getElementById('pers-color-secundario-hex').value = e.target.value);
+    document.getElementById('pers-color-primario-hex')?.addEventListener('input', e => { if(/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) document.getElementById('pers-color-primario').value = e.target.value; });
+    document.getElementById('pers-color-secundario-hex')?.addEventListener('input', e => { if(/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) document.getElementById('pers-color-secundario').value = e.target.value; });
+});
+
+async function guardarPersonalizacion() {
+    const logo_url = document.getElementById('pers-logo-url').value.trim();
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logo_url })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-pers-logo', '✅ Logo guardado correctamente', 'exito');
+            mostrarPreviewLogo(logo_url);
+        } else {
+            mostrarMensaje('mensaje-pers-logo', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) { mostrarMensaje('mensaje-pers-logo', 'Error al conectar', 'error'); }
+}
+
+async function guardarFavicon() {
+    const favicon_url = document.getElementById('pers-favicon-url').value.trim();
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ favicon_url })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-pers-favicon', '✅ Favicon guardado correctamente', 'exito');
+        else mostrarMensaje('mensaje-pers-favicon', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-pers-favicon', 'Error al conectar', 'error'); }
+}
+
+async function guardarColores() {
+    const color_primario = document.getElementById('pers-color-primario-hex').value.trim();
+    const color_secundario = document.getElementById('pers-color-secundario-hex').value.trim();
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ color_primario, color_secundario })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-pers-colores', '✅ Colores guardados correctamente', 'exito');
+        else mostrarMensaje('mensaje-pers-colores', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-pers-colores', 'Error al conectar', 'error'); }
+}
+
+async function guardarContacto() {
+    const direccion = document.getElementById('pers-direccion').value.trim();
+    const whatsapp = document.getElementById('pers-whatsapp').value.trim();
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direccion, whatsapp })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-pers-contacto', '✅ Datos de contacto guardados', 'exito');
+        else mostrarMensaje('mensaje-pers-contacto', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-pers-contacto', 'Error al conectar', 'error'); }
+}
+
+const iconosRedes = {
+    instagram: '📷', facebook: '📘', twitter: '🐦', linkedin: '💼',
+    youtube: '▶️', tiktok: '🎵', whatsapp: '💬', web: '🌐'
+};
+
+function renderRedes() {
+    const contenedor = document.getElementById('redes-lista');
+    if (!redesSociales.length) {
+        contenedor.innerHTML = '<p style="color:#aaa; font-size:13px">No hay redes agregadas todavía</p>';
+        return;
+    }
+    contenedor.innerHTML = redesSociales.map((r, i) => `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px; border:1px solid #e0e8f0; border-radius:6px; margin-bottom:8px">
+            <span style="font-size:20px">${iconosRedes[r.red] || '🔗'}</span>
+            <span style="font-weight:bold; min-width:100px; font-size:14px">${r.red}</span>
+            <span style="flex:1; font-size:13px; color:#555; overflow:hidden; text-overflow:ellipsis">${r.url}</span>
+            <button class="btn btn-danger" onclick="eliminarRed(${i})">Eliminar</button>
+        </div>
+    `).join('');
+}
+
+function agregarRed() {
+    const nombre = document.getElementById('red-nueva-nombre').value;
+    const url = document.getElementById('red-nueva-url').value.trim();
+    if (!url) {
+        mostrarMensaje('mensaje-pers-redes', 'Ingresá la URL de la red', 'error');
+        return;
+    }
+    redesSociales.push({ red: nombre, url });
+    document.getElementById('red-nueva-url').value = '';
+    renderRedes();
+    guardarRedes();
+}
+
+function eliminarRed(i) {
+    redesSociales.splice(i, 1);
+    renderRedes();
+    guardarRedes();
+}
+
+async function guardarRedes() {
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ redes_sociales: redesSociales })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-pers-redes', '✅ Redes guardadas correctamente', 'exito');
+        else mostrarMensaje('mensaje-pers-redes', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-pers-redes', 'Error al conectar', 'error'); }
 }
 
 // ===== UTILIDAD =====
