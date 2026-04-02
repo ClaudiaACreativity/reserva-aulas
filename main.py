@@ -289,6 +289,9 @@ class TenantPerfilUpdate(BaseModel):
     whatsapp: Optional[str] = None
     redes_sociales: Optional[list] = None
     foto_posicion: Optional[str] = None
+    modalidad_cobro: Optional[str] = None
+    politica_cancelacion: Optional[str] = None
+    horas_cancelacion: Optional[int] = None
 
 @app.patch("/tenant/perfil")
 async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
@@ -317,6 +320,12 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             campos.append(f"redes_sociales = ${i}"); valores.append(json_module.dumps(datos.redes_sociales)); i += 1
         if datos.foto_posicion is not None:
             campos.append(f"foto_posicion = ${i}"); valores.append(datos.foto_posicion); i += 1
+        if datos.modalidad_cobro is not None:
+            campos.append(f"modalidad_cobro = ${i}"); valores.append(datos.modalidad_cobro); i += 1
+        if datos.politica_cancelacion is not None:
+            campos.append(f"politica_cancelacion = ${i}"); valores.append(datos.politica_cancelacion); i += 1
+        if datos.horas_cancelacion is not None:
+            campos.append(f"horas_cancelacion = ${i}"); valores.append(datos.horas_cancelacion); i += 1
         if not campos:
             return {"mensaje": "No hay cambios para guardar"}
         valores.append(tenant["id"])
@@ -407,6 +416,9 @@ async def info_tenant(request: Request):
             "redes_sociales": (json_module.loads(tenant["redes_sociales"]) if isinstance(tenant["redes_sociales"], str) else tenant["redes_sociales"]) or [],
             "foto_url": tenant["foto_url"],
             "foto_posicion": tenant["foto_posicion"],
+            "modalidad_cobro": tenant["modalidad_cobro"],
+            "politica_cancelacion": tenant["politica_cancelacion"],
+            "horas_cancelacion": tenant["horas_cancelacion"],
         }
     finally:
         await release_db(db)

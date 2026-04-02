@@ -188,6 +188,7 @@
     <div class="tab" onclick="cambiarTab('perfil', this)">👤 Mi perfil</div>
     <div class="tab" onclick="cambiarTab('personalizacion', this)">🎨 Personalización</div>
     <div class="tab" onclick="cambiarTab('soporte', this)">🎫 Soporte</div>
+    <div class="tab" onclick="cambiarTab('facturacion-config', this)">💳 Facturación</div>
 </div>
 
 <div class="container">
@@ -543,6 +544,61 @@
         </div>
     </div>
 
+
+    <!-- PANEL FACTURACIÓN CONFIG -->
+    <div class="panel" id="panel-facturacion-config">
+
+        <div class="card">
+            <h2>Modalidad de cobro</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
+                Elegí cómo vas a cobrarle a tus usuarios. Esta información se va a mostrar antes de que confirmen una reserva.
+            </p>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>¿Cómo cobrás a tus usuarios?</label>
+                    <select id="modalidad-cobro" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                        <option value="sin_cobro">Sin cobro — las reservas son gratuitas</option>
+                        <option value="por_reserva">Por reserva — el usuario paga al confirmar</option>
+                        <option value="mes_adelantado">Por mes adelantado — el usuario paga al inicio del mes</option>
+                        <option value="mes_vencido">Por mes vencido — el usuario recibe factura al cierre del mes</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarModalidad()">Guardar modalidad</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-modalidad"></div>
+        </div>
+
+        <div class="card">
+            <h2>Política de cancelación y reembolso</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
+                Esta política se muestra a los usuarios antes de confirmar una reserva y en las preguntas frecuentes. Podés usar la plantilla sugerida y editarla a tu gusto.
+            </p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Horas mínimas de anticipación para reembolso</label>
+                    <input type="number" id="horas-cancelacion" min="1" max="720" placeholder="Ej: 24" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                    <small style="color:#888; font-size:12px">Se actualiza automáticamente en la plantilla</small>
+                </div>
+                <div class="form-group" style="justify-content:flex-end; align-items:flex-end">
+                    <button class="btn" style="background:#e8f4fd; color:#1a5276; border:1px solid #aed6f1; font-size:13px" onclick="usarPlantilla()">📋 Usar plantilla sugerida</button>
+                </div>
+                <div class="form-group full">
+                    <label>Texto de la política</label>
+                    <textarea id="politica-cancelacion" rows="6"
+                        style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; resize:vertical; font-family:Arial,sans-serif"
+                        placeholder="Escribí tu política de cancelación..."></textarea>
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="guardarPolitica()">Guardar política</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-politica"></div>
+        </div>
+
+    </div>
+
 </div>
 
 <script>
@@ -631,6 +687,7 @@ function cargarTodo() {
     cargarPerfil();
     cargarPersonalizacion();
     cargarTicketsTenant();
+    cargarFacturacionConfig();
 }
 
 async function cargarTenant() {
@@ -1532,6 +1589,58 @@ async function cargarTicketsTenant() {
     } catch(e) {
         document.getElementById('tabla-tickets-tenant').innerHTML = '<p class="empty">Error al cargar tickets</p>';
     }
+}
+
+
+// ===== FACTURACIÓN CONFIG =====
+async function cargarFacturacionConfig() {
+    try {
+        const res = await apiFetch(`${API}/tenant`);
+        if (!res.ok) return;
+        const tenant = await res.json();
+        if (tenant.modalidad_cobro) document.getElementById('modalidad-cobro').value = tenant.modalidad_cobro;
+        if (tenant.horas_cancelacion) document.getElementById('horas-cancelacion').value = tenant.horas_cancelacion;
+        if (tenant.politica_cancelacion) document.getElementById('politica-cancelacion').value = tenant.politica_cancelacion;
+    } catch(e) { console.log('Error al cargar config facturación', e); }
+}
+
+function usarPlantilla() {
+    const horas = document.getElementById('horas-cancelacion').value || 'X';
+    document.getElementById('politica-cancelacion').value =
+        `Las cancelaciones realizadas con más de ${horas} horas de anticipación recibirán un reembolso del 100% del importe abonado. Las cancelaciones con menos de ${horas} horas de anticipación no tendrán derecho a reembolso. Para cancelar, ingresá a "Mis reservas" desde el sitio de tu organización.`;
+}
+
+async function guardarModalidad() {
+    const modalidad_cobro = document.getElementById('modalidad-cobro').value;
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modalidad_cobro })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-modalidad', '✅ Modalidad guardada correctamente', 'exito');
+        else mostrarMensaje('mensaje-modalidad', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-modalidad', 'Error al conectar', 'error'); }
+}
+
+async function guardarPolitica() {
+    const politica_cancelacion = document.getElementById('politica-cancelacion').value.trim();
+    const horas_cancelacion = parseInt(document.getElementById('horas-cancelacion').value) || 24;
+    if (!politica_cancelacion) {
+        mostrarMensaje('mensaje-politica', 'Escribí la política antes de guardar', 'error');
+        return;
+    }
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ politica_cancelacion, horas_cancelacion })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-politica', '✅ Política guardada correctamente', 'exito');
+        else mostrarMensaje('mensaje-politica', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-politica', 'Error al conectar', 'error'); }
 }
 
 // ===== UTILIDAD =====

@@ -609,6 +609,18 @@ function seleccionarEspacio(id, nombre, el) {
 }
 
 // ===== CREAR RESERVA =====
+let _reservaPendiente = null;
+
+function cerrarModalPolitica() {
+    document.getElementById('modal-politica').style.display = 'none';
+    _reservaPendiente = null;
+}
+
+async function confirmarReservaConPolitica() {
+    document.getElementById('modal-politica').style.display = 'none';
+    if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
+}
+
 async function crearReserva() {
     const espacioId = document.getElementById('espacio-id').value;
     const nombre = document.getElementById('usuario-nombre').value.trim();
@@ -622,6 +634,27 @@ async function crearReserva() {
         return;
     }
 
+    // Mostrar política si existe
+    const tenantRes = await apiFetch(`${API}/tenant`);
+    if (tenantRes.ok) {
+        const tenant = await tenantRes.json();
+        if (tenant.politica_cancelacion && tenant.modalidad_cobro !== 'sin_cobro') {
+            const modalidades = {
+                'por_reserva': '💳 Esta reserva requiere pago al confirmar.',
+                'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
+                'mes_vencido': '📄 Recibirás una factura al cierre del mes.'
+            };
+            document.getElementById('modal-politica-texto').textContent = tenant.politica_cancelacion;
+            document.getElementById('modal-modalidad').textContent = modalidades[tenant.modalidad_cobro] || '';
+            _reservaPendiente = { espacioId, nombre, email, fecha, horaInicio, horaFin };
+            document.getElementById('modal-politica').style.display = 'flex';
+            return;
+        }
+    }
+    await _ejecutarReserva({ espacioId, nombre, email, fecha, horaInicio, horaFin });
+}
+
+async function _ejecutarReserva({ espacioId, nombre, email, fecha, horaInicio, horaFin }) {
     try {
         // Buscar o crear usuario
         const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${email}`);
@@ -977,6 +1010,20 @@ iniciar();
     </a>
     <p style="font-size:12px; color:rgba(255,255,255,0.5); margin:0">© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
 </footer>
+
+
+<!-- Modal política de cancelación -->
+<div id="modal-politica" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div style="background:white; border-radius:12px; padding:30px; max-width:500px; width:100%">
+        <h3 style="color:#1B4F8A; margin-bottom:15px; font-size:18px">Política de cancelación</h3>
+        <div id="modal-politica-texto" style="font-size:14px; color:#4A5568; line-height:1.8; margin-bottom:20px"></div>
+        <div id="modal-modalidad" style="font-size:13px; background:#f0f4f8; padding:12px; border-radius:8px; margin-bottom:20px; color:#2C3E50"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end">
+            <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Cancelar reserva</button>
+            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#1B4F8A; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

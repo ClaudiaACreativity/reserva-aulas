@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía para organizaciones — ReservaTuEspacio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Montserrat', Arial, sans-serif; background: #F9F9FB; color: #2C3E50; }
+
+        header {
+            background: #2C3E50;
+            color: white;
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .logo { text-decoration: none; font-weight: 800; font-size: 20px; color: white; letter-spacing: -0.3px; }
+        .logo .tu { color: #C8D8D0; }
+        .logo .espacio { color: #71D997; }
+        header nav a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 13px;
+            margin-left: 20px;
+            transition: color 0.2s;
+        }
+        header nav a:hover { color: white; }
+
+        .hero {
+            background: linear-gradient(135deg, #2C3E50, #1a252f);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+        .hero p { font-size: 16px; opacity: 0.8; max-width: 560px; margin: 0 auto; }
+        .hero .badge {
+            display: inline-block;
+            background: #71D997;
+            color: #2C3E50;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+
+        .layout { display: flex; max-width: 1100px; margin: 0 auto; padding: 50px 20px; gap: 40px; align-items: flex-start; }
+
+        .sidebar {
+            width: 220px;
+            min-width: 220px;
+            position: sticky;
+            top: 20px;
+        }
+        .sidebar h3 { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .sidebar a {
+            display: block;
+            font-size: 13px;
+            color: #4A5568;
+            text-decoration: none;
+            padding: 7px 0;
+            border-left: 3px solid transparent;
+            padding-left: 12px;
+            transition: all 0.2s;
+        }
+        .sidebar a:hover { color: #2C3E50; border-left-color: #71D997; }
+
+        .contenido { flex: 1; min-width: 0; }
+
+        .seccion { margin-bottom: 50px; scroll-margin-top: 20px; }
+        .seccion h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #71D997;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .faq-pregunta {
+            padding: 18px 22px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+        .faq-pregunta:hover { background: #f5f8fa; }
+        .faq-pregunta.abierto { color: #1B4F8A; }
+        .faq-icono {
+            font-size: 18px;
+            font-weight: 300;
+            min-width: 20px;
+            text-align: center;
+            transition: transform 0.2s;
+            color: #71D997;
+        }
+        .faq-pregunta.abierto .faq-icono { transform: rotate(45deg); }
+        .faq-respuesta {
+            display: none;
+            padding: 0 22px 18px;
+            font-size: 14px;
+            color: #4A5568;
+            line-height: 1.8;
+            border-top: 1px solid #f0f4f8;
+        }
+        .faq-respuesta.visible { display: block; }
+        .faq-respuesta p { margin-bottom: 10px; }
+        .faq-respuesta p:last-child { margin-bottom: 0; }
+        .faq-respuesta ul, .faq-respuesta ol { margin: 8px 0 8px 20px; }
+        .faq-respuesta li { margin-bottom: 6px; }
+        .faq-respuesta strong { color: #2C3E50; }
+
+        .tip {
+            background: #E8F7EE;
+            border-left: 4px solid #71D997;
+            border-radius: 0 8px 8px 0;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #1a5c36;
+            margin-top: 10px;
+        }
+
+        .cta {
+            background: #2C3E50;
+            color: white;
+            border-radius: 12px;
+            padding: 36px;
+            text-align: center;
+            margin-top: 40px;
+        }
+        .cta h3 { font-size: 20px; margin-bottom: 10px; }
+        .cta p { font-size: 14px; opacity: 0.8; margin-bottom: 20px; }
+        .cta a {
+            display: inline-block;
+            background: #71D997;
+            color: #2C3E50;
+            padding: 12px 28px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        footer {
+            background: #2C3E50;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        footer a.logo-footer { text-decoration: none; font-family: 'Montserrat', Arial, sans-serif; font-weight: 800; font-size: 18px; color: white; letter-spacing: -0.3px; }
+        footer p { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; }
+
+        @media (max-width: 700px) {
+            .sidebar { display: none; }
+            .layout { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="https://reservatuespacio.com/" class="logo">Reserva<span class="tu">Tu</span><span class="espacio">Espacio</span></a>
+    <nav>
+        <a href="https://reservatuespacio.com/">Inicio</a>
+        <a href="https://reservatuespacio.com/soporte.html">Soporte</a>
+        <a href="https://reservatuespacio.com/faq-usuarios.html">Soy usuario</a>
+    </nav>
+</header>
+
+<div class="hero">
+    <div class="badge">Para organizaciones</div>
+    <h1>Guía de uso y preguntas frecuentes</h1>
+    <p>Todo lo que necesitás saber para configurar y administrar tu cuenta en ReservaTuEspacio.</p>
+</div>
+
+<div class="layout">
+
+    <div class="sidebar">
+        <h3>Contenido</h3>
+        <a href="#primeros-pasos">🚀 Primeros pasos</a>
+        <a href="#espacios">🏢 Espacios y edificios</a>
+        <a href="#usuarios">👤 Usuarios</a>
+        <a href="#horarios">🕐 Horarios</a>
+        <a href="#reservas">📋 Reservas</a>
+        <a href="#personalizacion">🎨 Personalización</a>
+        <a href="#pagos">💳 Pagos y suscripción</a>
+        <a href="#soporte">🎫 Soporte</a>
+    </div>
+
+    <div class="contenido">
+
+        <div class="seccion" id="primeros-pasos">
+            <h2>🚀 Primeros pasos</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo me registro en ReservaTuEspacio?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Desde la <a href="https://reservatuespacio.com/landing.html" style="color:#1B4F8A">página principal</a> hacé click en <strong>"Prueba gratuita"</strong> y completá el formulario con el nombre de tu organización, tu email y el nombre del subdominio (tu URL personalizada).</p>
+                    <p>En minutos vas a recibir un email de bienvenida con el acceso a tu panel de administración.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cuánto dura el período de prueba?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Tenés <strong>30 días de prueba gratuita</strong> con acceso completo a todas las funcionalidades. No necesitás tarjeta de crédito para empezar.</p>
+                    <p>Cuando el trial esté por vencer te vamos a avisar por email para que puedas suscribirte y continuar sin interrupciones.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo accedo al panel de administración?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Ingresá a <a href="https://reservatuespacio.com/admin.html" style="color:#1B4F8A">reservatuespacio.com/admin.html</a> con tu email y contraseña de administrador.</p>
+                    <div class="tip">💡 Si olvidaste tu contraseña o es la primera vez que entrás, escribinos desde el <a href="https://reservatuespacio.com/soporte.html" style="color:#1a5c36">centro de soporte</a>.</div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Qué es lo primero que debo configurar?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Te recomendamos seguir este orden:</p>
+                    <ol>
+                        <li><strong>Edificios</strong> — cargá las sedes o ubicaciones de tu organización</li>
+                        <li><strong>Espacios</strong> — agregá los espacios disponibles (aulas, canchas, consultorios, etc.)</li>
+                        <li><strong>Horarios</strong> — configurá los días y horarios de apertura</li>
+                        <li><strong>Usuarios</strong> — agregá las personas que van a poder reservar</li>
+                        <li><strong>Personalización</strong> — subí tu logo y ajustá los colores</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="espacios">
+            <h2>🏢 Espacios y edificios</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo agrego un edificio?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En el panel de administración andá a la pestaña <strong>Edificios</strong> → completá el nombre y la dirección → hacé click en <strong>"Agregar edificio"</strong>.</p>
+                    <p>Si tu organización tiene una sola sede, podés crear un edificio con el nombre de tu organización.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo agrego un espacio?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Andá a la pestaña <strong>Espacios</strong> → completá el nombre, la capacidad y el edificio al que pertenece → hacé click en <strong>"Agregar espacio"</strong>.</p>
+                    <p>Podés agregar tantos espacios como necesites.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo desactivar un espacio temporalmente?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. Desde la lista de espacios hacé click en <strong>"Desactivar"</strong> en el espacio que querés ocultar. El espacio deja de aparecer para los usuarios pero sus datos se conservan. Podés reactivarlo cuando quieras.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="usuarios">
+            <h2>👤 Usuarios</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo agrego usuarios?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Usuarios</strong> completá el nombre completo y el email → hacé click en <strong>"Agregar usuario"</strong>. Los usuarios no necesitan contraseña — se identifican con su email al momento de reservar.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo tener más de un administrador?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. Al crear un usuario podés asignarle el rol <strong>"Administrador"</strong>. Luego desde el panel podés asignarle una contraseña para que pueda ingresar al panel de administración.</p>
+                    <p>El administrador principal puede delegar la gestión a otro usuario de la organización en cualquier momento.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo cambio mis datos de administrador?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En el panel de administración andá a la pestaña <strong>"Mi perfil"</strong>. Desde ahí podés cambiar tu nombre, email y contraseña.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo desactivar un usuario?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. Desde la lista de usuarios hacé click en <strong>"Desactivar"</strong>. El usuario deja de poder hacer reservas pero su historial se conserva. Podés reactivarlo cuando quieras.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="horarios">
+            <h2>🕐 Horarios y fechas</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo configuro los horarios de apertura?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Horarios</strong> podés habilitar o deshabilitar cada día de la semana y definir el horario de apertura y cierre. Hacé click en <strong>"Guardar"</strong> en cada fila para aplicar los cambios.</p>
+                    <p>Los usuarios solo van a poder reservar dentro de los horarios que configures.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo bloqueo una fecha especial?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Fechas bloqueadas</strong> seleccioná la fecha, ingresá el motivo (ej: "Feriado nacional", "Mantenimiento") y hacé click en <strong>"Bloquear fecha"</strong>.</p>
+                    <p>Esa fecha va a aparecer como no disponible para los usuarios.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="reservas">
+            <h2>📋 Reservas</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo veo todas las reservas?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Reservas</strong> del panel de administración podés ver todas las reservas activas y el historial completo de tu organización.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo cancelar la reserva de un usuario?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. Como administrador podés cancelar cualquier reserva desde la lista de reservas. El usuario va a recibir un email notificándole la cancelación.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo exportar el historial de reservas?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. En la pestaña <strong>Reservas</strong> hacé click en <strong>"Exportar a Excel"</strong>. Se va a descargar un archivo con todas las reservas, incluyendo usuario, espacio, fecha, horario y estado.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="personalizacion">
+            <h2>🎨 Personalización</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo subo mi logo?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Personalización</strong> → sección <strong>Logo</strong>. Podés pegar la URL de tu logo o subir un archivo directamente desde tu computadora.</p>
+                    <div class="tip">💡 El logo aparece en el encabezado del sitio de reservas de tu organización.</div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo personalizar los colores?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. En la sección <strong>Colores</strong> podés elegir el color primario (encabezado) y el color secundario (botones y títulos). El texto del encabezado se ajusta automáticamente para garantizar siempre buen contraste.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo agregar mis redes sociales?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. En la sección <strong>Redes sociales</strong> podés agregar los perfiles que quieras: Instagram, Facebook, WhatsApp, LinkedIn, YouTube, TikTok y más. Los íconos van a aparecer en el encabezado del sitio de reservas.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo poner una foto de mi establecimiento?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. En la sección <strong>Foto del establecimiento</strong> podés subir una imagen que aparece como portada en el sitio de reservas. Hay un control deslizante para ajustar qué parte de la foto se muestra.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="pagos">
+            <h2>💳 Pagos y suscripción</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cuáles son los planes disponibles?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Tenemos tres planes:</p>
+                    <ul>
+                        <li><strong>Básico</strong> — $15 USD/mes</li>
+                        <li><strong>Profesional</strong> — $35 USD/mes</li>
+                        <li><strong>Enterprise</strong> — $80 USD/mes</li>
+                    </ul>
+                    <p>También podés pagar anualmente con descuento. Consultanos para más detalles.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo se realiza el pago?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Aceptamos pagos por <strong>MercadoPago</strong> y <strong>transferencia bancaria</strong>. Una vez que tu período de prueba esté por vencer te vamos a contactar para coordinar el pago.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Qué pasa cuando vence el período de prueba?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Te vamos a avisar por email antes de que venza. Si no renovás, el acceso a tu panel se va a suspender temporalmente pero tus datos se conservan.</p>
+                    <p>Podés reactivar tu cuenta en cualquier momento suscribiéndote a un plan.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Puedo cobrarle a mis usuarios por las reservas?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí, es opcional. Podés configurar tu organización para cobrar por reserva (útil para canchas, por ejemplo) o para hacer una facturación mensual (útil para consultorios). También podés ofrecer reservas gratuitas.</p>
+                    <p>Esta funcionalidad está en desarrollo. Por cualquier consulta, escribinos al soporte.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cuál es la política de reembolso para mis usuarios?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Vos definís la política desde el panel de administración → pestaña <strong>Facturación</strong>. Podés usar la plantilla sugerida y editarla. La política se muestra automáticamente a los usuarios antes de que confirmen una reserva, junto con la modalidad de cobro.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="soporte">
+            <h2>🎫 Soporte</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo contacto al soporte?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Desde la pestaña <strong>Soporte</strong> de tu panel de administración o directamente desde <a href="https://reservatuespacio.com/soporte.html" style="color:#1B4F8A">reservatuespacio.com/soporte.html</a>.</p>
+                    <p>El formulario está disponible aunque no puedas ingresar al panel.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿En cuánto tiempo me responden?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Respondemos todos los tickets a la brevedad. Los tickets de prioridad alta tienen atención prioritaria.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cta">
+            <h3>¿Todavía tenés dudas?</h3>
+            <p>Nuestro equipo está disponible para ayudarte en lo que necesites.</p>
+            <a href="https://reservatuespacio.com/soporte.html">Contactar soporte →</a>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    <a href="https://reservatuespacio.com/" class="logo-footer">Reserva<span style="color:#C8D8D0">Tu</span><span style="color:#71D997">Espacio</span></a>
+    <p>© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
+</footer>
+
+<script>
+function toggle(el) {
+    const respuesta = el.nextElementSibling;
+    const estaAbierto = respuesta.classList.contains('visible');
+    document.querySelectorAll('.faq-respuesta.visible').forEach(r => {
+        r.classList.remove('visible');
+        r.previousElementSibling.classList.remove('abierto');
+    });
+    if (!estaAbierto) {
+        respuesta.classList.add('visible');
+        el.classList.add('abierto');
+    }
+}
+</script>
+
+</body>
+</html>

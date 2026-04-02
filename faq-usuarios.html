@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preguntas frecuentes — ReservaTuEspacio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Montserrat', Arial, sans-serif; background: #F9F9FB; color: #2C3E50; }
+
+        header {
+            background: #2C3E50;
+            color: white;
+            padding: 24px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .logo { text-decoration: none; font-weight: 800; font-size: 20px; color: white; letter-spacing: -0.3px; }
+        .logo .tu { color: #C8D8D0; }
+        .logo .espacio { color: #71D997; }
+        header nav a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-size: 13px;
+            margin-left: 20px;
+            transition: color 0.2s;
+        }
+        header nav a:hover { color: white; }
+
+        .hero {
+            background: linear-gradient(135deg, #2C3E50, #1a252f);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+        .hero p { font-size: 16px; opacity: 0.8; max-width: 500px; margin: 0 auto; }
+        .hero .badge {
+            display: inline-block;
+            background: #71D997;
+            color: #2C3E50;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+
+        .container { max-width: 760px; margin: 0 auto; padding: 50px 20px; }
+
+        .seccion { margin-bottom: 50px; }
+        .seccion h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #71D997;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .faq-pregunta {
+            padding: 18px 22px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+        .faq-pregunta:hover { background: #f5f8fa; }
+        .faq-pregunta.abierto { color: #1B4F8A; }
+        .faq-icono {
+            font-size: 18px;
+            font-weight: 300;
+            min-width: 20px;
+            text-align: center;
+            transition: transform 0.2s;
+            color: #71D997;
+        }
+        .faq-pregunta.abierto .faq-icono { transform: rotate(45deg); }
+        .faq-respuesta {
+            display: none;
+            padding: 0 22px 18px;
+            font-size: 14px;
+            color: #4A5568;
+            line-height: 1.8;
+            border-top: 1px solid #f0f4f8;
+        }
+        .faq-respuesta.visible { display: block; }
+        .faq-respuesta p { margin-bottom: 10px; }
+        .faq-respuesta p:last-child { margin-bottom: 0; }
+        .faq-respuesta ul { margin: 8px 0 8px 20px; }
+        .faq-respuesta li { margin-bottom: 6px; }
+
+        .cta {
+            background: #2C3E50;
+            color: white;
+            border-radius: 12px;
+            padding: 36px;
+            text-align: center;
+            margin-top: 40px;
+        }
+        .cta h3 { font-size: 20px; margin-bottom: 10px; }
+        .cta p { font-size: 14px; opacity: 0.8; margin-bottom: 20px; }
+        .cta a {
+            display: inline-block;
+            background: #71D997;
+            color: #2C3E50;
+            padding: 12px 28px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        footer {
+            background: #2C3E50;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        footer a.logo-footer { text-decoration: none; font-family: 'Montserrat', Arial, sans-serif; font-weight: 800; font-size: 18px; color: white; letter-spacing: -0.3px; }
+        footer p { font-size: 12px; color: rgba(255,255,255,0.5); margin: 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="https://reservatuespacio.com/" class="logo">Reserva<span class="tu">Tu</span><span class="espacio">Espacio</span></a>
+    <nav>
+        <a href="https://reservatuespacio.com/">Inicio</a>
+        <a href="https://reservatuespacio.com/soporte.html">Soporte</a>
+        <a href="https://reservatuespacio.com/faq-tenants.html">Soy organización</a>
+    </nav>
+</header>
+
+<div class="hero">
+    <div class="badge">Para usuarios</div>
+    <h1>Preguntas frecuentes</h1>
+    <p>Todo lo que necesitás saber para hacer y gestionar tus reservas.</p>
+</div>
+
+<div class="container">
+
+    <div class="seccion">
+        <h2>📅 Reservas</h2>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Cómo hago una reserva?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Es muy simple. Desde la página de tu organización:</p>
+                <ul>
+                    <li>Elegí el espacio que querés reservar</li>
+                    <li>Seleccioná la fecha y el horario disponible en el calendario</li>
+                    <li>Ingresá tu nombre y email</li>
+                    <li>Confirmá la reserva</li>
+                </ul>
+                <p>En minutos vas a recibir un email de confirmación con todos los detalles.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Necesito crear una cuenta para reservar?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>No. Solo necesitás tu nombre y email. No hay contraseñas ni registros previos — el sistema te identifica automáticamente con tu email cada vez que reservás.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Qué pasa si el horario que quiero no está disponible?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Los horarios ocupados aparecen bloqueados en el calendario. Podés elegir otro horario disponible o consultar directamente con la organización si necesitás una opción especial.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Recibo confirmación de mi reserva?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Sí. Apenas confirmás la reserva te llega un email con todos los detalles: espacio, fecha, horario y nombre de la organización. Guardalo por si lo necesitás después.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Cómo consulto mis reservas?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Desde la página de tu organización podés buscar tus reservas ingresando tu email. Vas a ver todas tus reservas activas y el historial de reservas anteriores.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="seccion">
+        <h2>❌ Cancelaciones</h2>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Puedo cancelar una reserva?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Sí. Solo podés cancelar las reservas que vos mismo creaste. Desde la sección "Mis reservas" buscás tu reserva con tu email y hacés click en "Cancelar".</p>
+                <p>Vas a recibir un email confirmando la cancelación.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Puedo cancelar hasta qué momento?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Cada organización establece su propia política de cancelación. Antes de confirmar tu reserva vas a ver un mensaje con las condiciones de cancelación y reembolso que aplican. Leélo antes de confirmar.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="seccion">
+        <h2>💳 Pagos y reembolsos</h2>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Tengo que pagar para hacer una reserva?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Depende de la organización. Algunas ofrecen reservas gratuitas, otras cobran por adelantado o realizan una facturación mensual. Esta información la define cada organización y debería estar indicada en su sitio.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Obtengo reembolso si cancelo?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>La política de reembolso la define cada organización. Antes de confirmar tu reserva vas a ver exactamente las condiciones: cuántas horas de anticipación necesitás para obtener el reembolso.</p>
+                <p>Si la organización ofrece reservas gratuitas, no aplica ningún cargo ni reembolso.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="seccion">
+        <h2>❓ Otras dudas</h2>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Qué hago si tengo un problema con mi reserva?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Primero contactá directamente a la organización donde hiciste la reserva — ellos pueden ayudarte con cambios, cancelaciones o cualquier consulta específica.</p>
+                <p>Si el problema es técnico con la plataforma, podés escribirnos desde nuestro <a href="https://reservatuespacio.com/soporte.html" style="color:#1B4F8A">centro de soporte</a>.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-pregunta" onclick="toggle(this)">
+                ¿Mis datos están seguros?
+                <span class="faq-icono">+</span>
+            </div>
+            <div class="faq-respuesta">
+                <p>Sí. Solo almacenamos tu nombre y email, únicamente para gestionar tus reservas. No compartimos tus datos con terceros ni los usamos para publicidad.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="cta">
+        <h3>¿No encontraste lo que buscabas?</h3>
+        <p>Nuestro equipo de soporte está disponible para ayudarte.</p>
+        <a href="https://reservatuespacio.com/soporte.html">Contactar soporte →</a>
+    </div>
+
+</div>
+
+<footer>
+    <a href="https://reservatuespacio.com/" class="logo-footer">Reserva<span style="color:#C8D8D0">Tu</span><span style="color:#71D997">Espacio</span></a>
+    <p>© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
+</footer>
+
+<script>
+function toggle(el) {
+    const respuesta = el.nextElementSibling;
+    const estaAbierto = respuesta.classList.contains('visible');
+    document.querySelectorAll('.faq-respuesta.visible').forEach(r => {
+        r.classList.remove('visible');
+        r.previousElementSibling.classList.remove('abierto');
+    });
+    if (!estaAbierto) {
+        respuesta.classList.add('visible');
+        el.classList.add('abierto');
+    }
+}
+</script>
+
+</body>
+</html>
