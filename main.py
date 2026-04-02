@@ -17,7 +17,7 @@ import bcrypt
 
 load_dotenv()
 
-app = FastAPI(title="Sistema de Reserva de Espacios")
+app = FastAPI(title="ReservaTuEspacio")
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
@@ -90,7 +90,7 @@ async def get_tenant(request: Request, db):
 def enviar_email(destinatario: str, asunto: str, cuerpo: str):
     try:
         resend.Emails.send({
-            "from": "ReservaSpace <hola@reservatuespacio.com>",
+            "from": "ReservaTuEspacio <hola@reservatuespacio.com>",
             "to": destinatario,
             "subject": asunto,
             "html": cuerpo
@@ -387,7 +387,7 @@ async def subir_imagen_tenant(request: Request):
 
 @app.get("/")
 async def inicio():
-    return {"mensaje": "Sistema de Reserva de Espacios funcionando"}
+    return {"mensaje": "ReservaTuEspacio funcionando"}
 
 @app.get("/tenant")
 async def info_tenant(request: Request):
@@ -998,7 +998,7 @@ async def registrar_tenant(datos: RegistroCreate):
             f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
-                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">¡Bienvenido a ReservaSpace!</h1>
+                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">¡Bienvenido a ReservaTuEspacio!</h1>
                 </div>
                 <div style="background: #F9F9FB; padding: 32px; border-radius: 0 0 12px 12px;">
                     <p style="font-size: 16px; color: #2C3E50;">Hola <b>{datos.nombre_admin}</b>,</p>

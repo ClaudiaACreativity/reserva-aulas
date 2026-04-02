@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReservaSpace — Gestión de espacios para tu organización</title>
+    <title>ReservaTuEspacio — Gestión de espacios para tu organización</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -50,7 +50,7 @@
             letter-spacing: -0.5px;
         }
 
-        .logo span { color: var(--green-hover); }
+        .logo span { color: #C8D8D0; }
 
         nav ul {
             list-style: none;
@@ -842,7 +842,7 @@
 
 <!-- NAV -->
 <nav>
-    <a href="#" class="logo">Reserva<span>Space</span></a>
+    <a href="#" class="logo">Reserva<span style="color:#C8D8D0">Tu</span>Espacio</a>
     <ul>
         <li><a href="#features">Funcionalidades</a></li>
         <li><a href="#planes">Planes</a></li>
@@ -903,7 +903,7 @@
     <div class="mosaic-inner">
         <div class="section-tag">Espacios que gestionamos</div>
         <h2>Para cada espacio,<br>una solución</h2>
-        <p class="section-sub">Desde un aula hasta una cancha de pádel. Si tiene un horario, lo podés gestionar con ReservaSpace.</p>
+        <p class="section-sub">Desde un aula hasta una cancha de pádel. Si tiene un horario, lo podés gestionar con ReservaTuEspacio.</p>
         <div class="mosaic-grid">
             <div class="mosaic-item tall">
                 <img src="https://images.pexels.com/photos/32897040/pexels-photo-32897040.jpeg?w=600&auto=compress&cs=tinysrgb" alt="Cancha de pádel">
@@ -1116,7 +1116,7 @@
                 <div class="form-group">
                     <label>URL deseada *</label>
                     <input type="text" id="reg-slug" placeholder="mi-instituto">
-                    <div class="slug-preview">Tu URL: <span id="slug-display">mi-instituto</span>.reservaspace.com</div>
+                    <div class="slug-preview">Tu URL: <span id="slug-display">mi-instituto</span><div class="reservatuespacio"></div>.com</div>
                 </div>
             </div>
             <button class="btn btn-primary btn-registro" onclick="registrar()">
@@ -1135,7 +1135,7 @@
 
 <!-- FOOTER -->
 <footer>
-    <a href="#" class="logo">Reserva<span>Space</span></a>
+    <a href="#" class="logo">Reserva<span style="color:#C8D8D0">Tu</span>Espacio</a>
     <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; justify-content:center">
         <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html" 
            target="_blank"
@@ -1144,7 +1144,7 @@
             🎫 Soporte técnico
         </a>
         <span style="color:rgba(255,255,255,0.2); font-size:12px">·</span>
-        <p style="margin:0">© 2026 ReservaSpace · Todos los derechos reservados</p>
+        <p style="margin:0">© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
     </div>
 </footer>
 
@@ -1205,7 +1205,7 @@ async function registrar() {
             document.getElementById('form-container').style.display = 'none';
             document.getElementById('success-box').style.display = 'block';
             document.getElementById('success-email').textContent = email;
-            document.getElementById('success-url').textContent = `${slug}.reservaspace.com`;
+            document.getElementById('success-url').textContent = `${slug}.reservatuespacio.com`;
         } else {
             errorEl.textContent = data.detail || 'Error al registrar. Intentá de nuevo.';
             errorEl.style.display = 'block';
