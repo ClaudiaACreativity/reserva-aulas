@@ -14,7 +14,7 @@
         }
 
         header {
-            background: #1B4F8A;
+            background: #2C3E50;
             color: white;
             padding: 20px 40px;
             display: flex;
@@ -43,10 +43,10 @@
 
         .card h2 {
             font-size: 18px;
-            color: #1B4F8A;
+            color: #2C3E50;
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #e0e8f0;
+            border-bottom: 2px solid #71D997;
         }
 
         .espacios-grid {
@@ -65,16 +65,16 @@
         }
 
         .espacio-card:hover {
-            border-color: #1B4F8A;
+            border-color: #2C3E50;
             background: #f0f4f8;
         }
 
         .espacio-card.seleccionada {
-            border-color: #1B4F8A;
+            border-color: #2C3E50;
             background: #e8f0fb;
         }
 
-        .espacio-card h3 { font-size: 16px; color: #1B4F8A; }
+        .espacio-card h3 { font-size: 16px; color: #2C3E50; }
         .espacio-card p { font-size: 13px; color: #888; margin-top: 5px; }
 
         .form-grid {
@@ -105,7 +105,7 @@
         }
 
         .form-group input:focus, .form-group select:focus {
-            border-color: #1B4F8A;
+            border-color: #2C3E50;
         }
 
         .form-group.full { grid-column: 1 / -1; }
@@ -120,8 +120,8 @@
             transition: background 0.2s;
         }
 
-        .btn-primary { background: #1B4F8A; color: white; }
-        .btn-primary:hover { background: #153d6e; }
+        .btn-primary { background: #2C3E50; color: white; }
+        .btn-primary:hover { background: #1a252f; }
         .btn-danger { background: #e74c3c; color: white; font-size: 13px; padding: 7px 14px; }
         .btn-danger:hover { background: #c0392b; }
 
@@ -143,7 +143,7 @@
         }
 
         th {
-            background: #1B4F8A;
+            background: #2C3E50;
             color: white;
             padding: 12px 15px;
             text-align: left;
@@ -172,9 +172,9 @@
 
         /* CALENDARIO */
         .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 12px; }
-        .cal-tabla th { background: #1B4F8A; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
+        .cal-tabla th { background: #2C3E50; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
         .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; text-align: center; height: 45px; }
-        .cal-reserva { background: #1B4F8A; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
+        .cal-reserva { background: #2C3E50; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
         .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 5px; font-size: 11px; cursor: pointer; }
         .cal-libre:hover { background: #a8dbbe; }
         .cal-libre-cell { cursor: pointer; }
@@ -270,6 +270,8 @@
             </div>
         </div>
         <div class="mensaje" id="mensaje-reserva"></div>
+        <div id="info-pago-reserva" style="display:none; margin-top:15px; padding:14px; background:#f0f4f8; border-radius:8px; font-size:13px; color:#2C3E50; line-height:1.6">
+        </div>
     </div>
 
     <!-- SECCIÓN 3: MIS RESERVAS -->
@@ -290,27 +292,7 @@
         <div class="mensaje" id="mensaje-cancelar"></div>
     </div>
 
-    <!-- SECCIÓN 4: ADMINISTRACIÓN DE FECHAS -->
-    <div class="card card-admin">
-        <h2>🔒 Administración — Fechas bloqueadas</h2>
-        <div class="form-grid" style="margin-bottom: 15px;">
-            <div class="form-group">
-                <label>Fecha a bloquear</label>
-                <input type="date" id="fecha-bloquear">
-            </div>
-            <div class="form-group">
-                <label>Motivo</label>
-                <input type="text" id="motivo-bloquear" placeholder="Ej: Feriado nacional, Vacaciones">
-            </div>
-            <div class="form-group full">
-                <button class="btn btn-primary" onclick="agregarFechaBloqueada()">Bloquear fecha</button>
-            </div>
-        </div>
-        <div class="mensaje" id="mensaje-admin"></div>
-        <div id="tabla-fechas-bloqueadas">
-            <p class="empty">Cargando fechas bloqueadas...</p>
-        </div>
-    </div>
+
 
 </div>
 
@@ -629,7 +611,7 @@ async function crearReserva() {
     const horaInicio = document.getElementById('hora-inicio').value;
     const horaFin = document.getElementById('hora-fin').value;
 
-    if (!aulaId || !nombre || !email || !fecha || !horaInicio || !horaFin) {
+    if (!espacioId || !nombre || !email || !fecha || !horaInicio || !horaFin) {
         mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos', 'error');
         return;
     }
@@ -678,7 +660,7 @@ async function _ejecutarReserva({ espacioId, nombre, email, fecha, horaInicio, h
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                aula_id: espacioId,
+                espacio_id: espacioId,
                 usuario_id: usuarioId,
                 fecha,
                 hora_inicio: horaInicio + ':00',
@@ -980,6 +962,25 @@ async function cargarTenant() {
             ).join('');
         }
 
+        // Show payment/policy info below form
+        const infoPago = document.getElementById('info-pago-reserva');
+        if (infoPago) {
+            const modalidades = {
+                'por_reserva': '💳 Esta organización cobra por reserva.',
+                'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
+                'mes_vencido': '📄 Recibirás una factura al cierre del mes.',
+                'sin_cobro': null
+            };
+            const textoModalidad = modalidades[tenant.modalidad_cobro || 'sin_cobro'];
+            if (textoModalidad || tenant.politica_cancelacion) {
+                let html = '';
+                if (textoModalidad) html += `<p style="font-weight:bold; margin-bottom:6px">${textoModalidad}</p>`;
+                if (tenant.politica_cancelacion) html += `<p><b>Política de cancelación:</b> ${tenant.politica_cancelacion}</p>`;
+                infoPago.innerHTML = html;
+                infoPago.style.display = 'block';
+            }
+        }
+
     } catch(e) {
         console.log('Error al cargar tenant:', e);
     }
@@ -1014,13 +1015,18 @@ iniciar();
 
 <!-- Modal política de cancelación -->
 <div id="modal-politica" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
-    <div style="background:white; border-radius:12px; padding:30px; max-width:500px; width:100%">
-        <h3 style="color:#1B4F8A; margin-bottom:15px; font-size:18px">Política de cancelación</h3>
-        <div id="modal-politica-texto" style="font-size:14px; color:#4A5568; line-height:1.8; margin-bottom:20px"></div>
-        <div id="modal-modalidad" style="font-size:13px; background:#f0f4f8; padding:12px; border-radius:8px; margin-bottom:20px; color:#2C3E50"></div>
+    <div style="background:white; border-radius:12px; padding:30px; max-width:500px; width:100%; max-height:90vh; overflow-y:auto">
+        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">Confirmación de reserva</h3>
+        <p style="font-size:13px; color:#888; margin-bottom:20px">Revisá los detalles antes de confirmar</p>
+        <div id="modal-modalidad" style="font-size:14px; background:#f0f4f8; padding:14px; border-radius:8px; margin-bottom:16px; color:#2C3E50; font-weight:bold; border-left:4px solid #2C3E50"></div>
+        <div style="background:#fff8e8; border-left:4px solid #e67e22; border-radius:0 8px 8px 0; padding:14px; margin-bottom:20px">
+            <p style="font-size:13px; font-weight:bold; color:#7d5200; margin-bottom:6px">Política de cancelación y reembolso</p>
+            <p id="modal-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
+        </div>
+        <p style="font-size:13px; color:#888; margin-bottom:20px">Al confirmar aceptás estas condiciones.</p>
         <div style="display:flex; gap:10px; justify-content:flex-end">
-            <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Cancelar reserva</button>
-            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#1B4F8A; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
+            <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
+            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#2C3E50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
         </div>
     </div>
 </div>

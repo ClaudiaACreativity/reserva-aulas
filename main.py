@@ -548,18 +548,45 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
             reserva.espacio_id, tid
         )
         if usuario:
+            # Build politica section if exists
+            politica_html = ""
+            if tenant.get("politica_cancelacion"):
+                modalidades = {
+                    "por_reserva": "Pago por reserva",
+                    "mes_adelantado": "Pago mensual adelantado",
+                    "mes_vencido": "Facturación a mes vencido",
+                    "sin_cobro": "Sin cobro"
+                }
+                modalidad_texto = modalidades.get(tenant.get("modalidad_cobro", "sin_cobro"), "")
+                politica_html = f"""
+                <div style="margin-top:20px; background:#f9f9fb; border-left:4px solid #71D997; padding:14px 16px; border-radius:0 8px 8px 0">
+                    <p style="font-weight:bold; color:#2C3E50; margin:0 0 6px">Política de cancelación y reembolso</p>
+                    {f'<p style="font-size:13px; color:#4A5568; margin:0 0 6px"><b>Modalidad de cobro:</b> {modalidad_texto}</p>' if modalidad_texto and modalidad_texto != "Sin cobro" else ""}
+                    <p style="font-size:13px; color:#4A5568; margin:0; line-height:1.6">{tenant["politica_cancelacion"]}</p>
+                </div>"""
+
             enviar_email(
                 usuario["email"],
-                "✅ Reserva confirmada",
+                "✅ Reserva confirmada — " + tenant["nombre"],
                 f"""
-                <h2>¡Reserva confirmada!</h2>
-                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
-                <table style="border-collapse:collapse; margin-top:15px;">
-                    <tr><td style="padding:8px; font-weight:bold">Espacio:</td><td style="padding:8px">{espacio['nombre']}</td></tr>
-                    <tr><td style="padding:8px; font-weight:bold">Fecha:</td><td style="padding:8px">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
-                    <tr><td style="padding:8px; font-weight:bold">Horario:</td><td style="padding:8px">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
-                </table>
-                <p style="margin-top:15px; color:#888">{tenant['nombre']}</p>
+                <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                    <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                        <h2 style="color:#71D997; margin:0">¡Reserva confirmada!</h2>
+                    </div>
+                    <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                        <p style="color:#2C3E50; margin-bottom:16px">Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
+                        <table style="border-collapse:collapse; width:100%; background:white; border-radius:8px; overflow:hidden">
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50; width:120px">Espacio</td><td style="padding:10px 14px; color:#4A5568">{espacio['nombre']}</td></tr>
+                            <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Fecha</td><td style="padding:10px 14px; color:#4A5568">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Horario</td><td style="padding:10px 14px; color:#4A5568">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
+                            <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Organización</td><td style="padding:10px 14px; color:#4A5568">{tenant['nombre']}</td></tr>
+                        </table>
+                        {politica_html}
+                        <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
+                            <a href="https://reservatuespacio.com/soporte.html" style="color:#888">¿Necesitás ayuda? Centro de soporte →</a>
+                        </p>
+                    </div>
+                </div>
                 """
             )
         return {"mensaje": "Reserva creada", "id": str(result["id"])}
