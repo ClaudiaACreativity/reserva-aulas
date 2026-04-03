@@ -191,7 +191,7 @@
             <div class="stat-card naranja"><div class="numero" id="stat-trial">—</div><div class="label">En período de prueba</div></div>
             <div class="stat-card rojo"><div class="numero" id="stat-vencidos">—</div><div class="label">Trial vencido</div></div>
             <div class="stat-card"><div class="numero" id="stat-usuarios">—</div><div class="label">Usuarios totales</div></div>
-            <div class="stat-card"><div class="numero" id="stat-reservas">—</div><div class="label">Reservas activas</div></div>
+            <div class="stat-card"><div class="numero" id="stat-tickets-abiertos">—</div><div class="label">Tickets abiertos</div></div>
         </div>
 
         <!-- Crear tenant -->
@@ -504,7 +504,7 @@ async function cargarStats() {
         document.getElementById('stat-trial').textContent = s.tenants_trial;
         document.getElementById('stat-vencidos').textContent = s.tenants_vencidos;
         document.getElementById('stat-usuarios').textContent = s.total_usuarios;
-        document.getElementById('stat-reservas').textContent = s.total_reservas;
+        document.getElementById('stat-tickets-abiertos').textContent = s.tickets_abiertos !== undefined ? s.tickets_abiertos : '—';
     } catch(e) {
         console.log('Error al cargar stats', e);
     }

@@ -1282,7 +1282,7 @@ async def superadmin_stats(request: Request):
                 (SELECT COUNT(*) FROM tenants WHERE activo = TRUE AND suscripcion_activa = FALSE AND trial_hasta >= CURRENT_DATE) as tenants_trial,
                 (SELECT COUNT(*) FROM tenants WHERE activo = TRUE AND suscripcion_activa = FALSE AND trial_hasta < CURRENT_DATE) as tenants_vencidos,
                 (SELECT COUNT(*) FROM usuarios) as total_usuarios,
-                (SELECT COUNT(*) FROM reservas WHERE estado = 'activa') as total_reservas
+                (SELECT COUNT(*) FROM tickets WHERE estado = 'abierto') as tickets_abiertos
         """)
         return dict(stats)
     finally:

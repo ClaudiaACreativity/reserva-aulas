@@ -193,6 +193,26 @@
 
 <div class="container">
 
+    <!-- STATS BAR -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:15px; margin-bottom:25px">
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); text-align:center">
+            <div style="font-size:28px; font-weight:bold; color:#2C3E50" id="admin-stat-activas">—</div>
+            <div style="font-size:12px; color:#888; margin-top:4px">Reservas activas</div>
+        </div>
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); text-align:center">
+            <div style="font-size:28px; font-weight:bold; color:#27ae60" id="admin-stat-hoy">—</div>
+            <div style="font-size:12px; color:#888; margin-top:4px">Reservas hoy</div>
+        </div>
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); text-align:center">
+            <div style="font-size:28px; font-weight:bold; color:#1B4F8A" id="admin-stat-usuarios">—</div>
+            <div style="font-size:12px; color:#888; margin-top:4px">Usuarios activos</div>
+        </div>
+        <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); text-align:center">
+            <div style="font-size:28px; font-weight:bold; color:#e67e22" id="admin-stat-espacios">—</div>
+            <div style="font-size:12px; color:#888; margin-top:4px">Espacios activos</div>
+        </div>
+    </div>
+
     <!-- PANEL RESERVAS -->
     <div class="panel activo" id="panel-reservas">
         <div class="card">
@@ -678,6 +698,7 @@ function cambiarTab(panel, el) {
 // ===== CARGAR TODO =====
 function cargarTodo() {
     cargarTenant();
+    cargarAdminStats();
     cargarEdificios();
     cargarReservas();
     cargarEspacios();
@@ -1641,6 +1662,34 @@ async function guardarPolitica() {
         if (res.ok) mostrarMensaje('mensaje-politica', '✅ Política guardada correctamente', 'exito');
         else mostrarMensaje('mensaje-politica', `❌ ${data.detail}`, 'error');
     } catch(e) { mostrarMensaje('mensaje-politica', 'Error al conectar', 'error'); }
+}
+
+
+// ===== STATS =====
+async function cargarAdminStats() {
+    try {
+        const [resReservas, resUsuarios, resEspacios] = await Promise.all([
+            apiFetch(`${API}/reservas`),
+            apiFetch(`${API}/usuarios`),
+            apiFetch(`${API}/espacios`)
+        ]);
+        const reservas = await resReservas.json();
+        const usuarios = await resUsuarios.json();
+        const espacios = await resEspacios.json();
+
+        const hoy = new Date().toISOString().split('T')[0];
+        const activas = reservas.filter(r => r.estado === 'activa').length;
+        const hoyCount = reservas.filter(r => r.estado === 'activa' && r.fecha && r.fecha.startsWith(hoy)).length;
+        const usuariosActivos = usuarios.filter(u => u.activo).length;
+        const espaciosActivos = espacios.filter(e => e.activa).length;
+
+        document.getElementById('admin-stat-activas').textContent = activas;
+        document.getElementById('admin-stat-hoy').textContent = hoyCount;
+        document.getElementById('admin-stat-usuarios').textContent = usuariosActivos;
+        document.getElementById('admin-stat-espacios').textContent = espaciosActivos;
+    } catch(e) {
+        console.log('Error al cargar stats admin', e);
+    }
 }
 
 // ===== UTILIDAD =====
