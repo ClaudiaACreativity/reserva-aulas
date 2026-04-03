@@ -239,6 +239,16 @@
     <!-- SECCIÓN 2: NUEVA RESERVA -->
     <div class="card">
         <h2>Nueva reserva</h2>
+
+        <!-- Info pago y política -->
+        <div id="info-pago-reserva" style="display:none; margin-bottom:20px; border-radius:8px; overflow:hidden; border:1px solid #e0e8f0">
+            <div id="info-modalidad" style="display:none; padding:12px 16px; background:#2C3E50; color:white; font-size:14px; font-weight:bold"></div>
+            <div id="info-politica" style="display:none; padding:14px 16px; background:#fff8e8; border-top:none">
+                <p style="font-size:12px; font-weight:bold; color:#7d5200; margin:0 0 6px; text-transform:uppercase; letter-spacing:0.5px">Política de cancelación y reembolso</p>
+                <p id="info-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
+            </div>
+        </div>
+
         <div class="form-grid">
             <div class="form-group">
                 <label>Espacio seleccionado</label>
@@ -270,8 +280,6 @@
             </div>
         </div>
         <div class="mensaje" id="mensaje-reserva"></div>
-        <div id="info-pago-reserva" style="display:none; margin-top:15px; padding:14px; background:#f0f4f8; border-radius:8px; font-size:13px; color:#2C3E50; line-height:1.6">
-        </div>
     </div>
 
     <!-- SECCIÓN 3: MIS RESERVAS -->
@@ -962,22 +970,29 @@ async function cargarTenant() {
             ).join('');
         }
 
-        // Show payment/policy info below form
+        // Show payment/policy info panel
         const infoPago = document.getElementById('info-pago-reserva');
-        if (infoPago) {
-            const modalidades = {
-                'por_reserva': '💳 Esta organización cobra por reserva.',
-                'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
-                'mes_vencido': '📄 Recibirás una factura al cierre del mes.',
-                'sin_cobro': null
-            };
-            const textoModalidad = modalidades[tenant.modalidad_cobro || 'sin_cobro'];
-            if (textoModalidad || tenant.politica_cancelacion) {
-                let html = '';
-                if (textoModalidad) html += `<p style="font-weight:bold; margin-bottom:6px">${textoModalidad}</p>`;
-                if (tenant.politica_cancelacion) html += `<p><b>Política de cancelación:</b> ${tenant.politica_cancelacion}</p>`;
-                infoPago.innerHTML = html;
-                infoPago.style.display = 'block';
+        const infoModalidad = document.getElementById('info-modalidad');
+        const infoPolitica = document.getElementById('info-politica');
+        const infoPoliticaTexto = document.getElementById('info-politica-texto');
+
+        const modalidades = {
+            'por_reserva': '💳 Esta organización cobra por reserva al confirmar',
+            'mes_adelantado': '📅 El cobro se realiza por mes adelantado',
+            'mes_vencido': '📄 Recibirás una factura al cierre del mes'
+        };
+        const textoModalidad = modalidades[tenant.modalidad_cobro];
+        const tienePolitica = tenant.politica_cancelacion;
+
+        if (textoModalidad || tienePolitica) {
+            infoPago.style.display = 'block';
+            if (textoModalidad && infoModalidad) {
+                infoModalidad.textContent = textoModalidad;
+                infoModalidad.style.display = 'block';
+            }
+            if (tienePolitica && infoPolitica && infoPoliticaTexto) {
+                infoPoliticaTexto.textContent = tenant.politica_cancelacion;
+                infoPolitica.style.display = 'block';
             }
         }
 
