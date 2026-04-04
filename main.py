@@ -19,6 +19,13 @@ load_dotenv()
 
 app = FastAPI(title="ReservaTuEspacio")
 
+# Precios de planes en ARS (actualizables desde variables de entorno)
+PLANES_PRECIOS = {
+    "basico":       {"nombre": "Básico",       "monto": float(os.getenv("PRECIO_BASICO",       "15000"))},
+    "profesional":  {"nombre": "Profesional",  "monto": float(os.getenv("PRECIO_PROFESIONAL",  "35000"))},
+    "enterprise":   {"nombre": "Enterprise",   "monto": float(os.getenv("PRECIO_ENTERPRISE",   "80000"))},
+}
+
 resend.api_key = os.getenv("RESEND_API_KEY")
 
 # Rate limiting
@@ -1627,6 +1634,243 @@ async def superadmin_responder_ticket(request: Request, ticket_id: str, datos: T
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+# ===== MERCADOPAGO =====
+
+class MPPreferenciaCreate(BaseModel):
+    plan_id: str
+    tenant_id: str
+    email_admin: str
+    nombre_tenant: str
+
+@app.post("/pagos/crear-preferencia")
+async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
+    """Crea una preferencia de pago en MercadoPago y devuelve la URL de pago."""
+    plan = PLANES_PRECIOS.get(datos.plan_id.lower())
+    if not plan:
+        raise HTTPException(status_code=400, detail="Plan no válido")
+
+    db = await get_db()
+    try:
+        # Verificar que el tenant existe
+        tenant = await db.fetchrow("SELECT id, nombre FROM tenants WHERE id = $1", datos.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+        access_token = os.getenv("MP_ACCESS_TOKEN")
+        if not access_token:
+            raise HTTPException(status_code=500, detail="MercadoPago no configurado")
+
+        preferencia_body = {
+            "items": [
+                {
+                    "title": f"ReservaTuEspacio — Plan {plan['nombre']}",
+                    "description": f"Suscripción mensual plan {plan['nombre']} para {datos.nombre_tenant}",
+                    "quantity": 1,
+                    "currency_id": "ARS",
+                    "unit_price": plan["monto"]
+                }
+            ],
+            "payer": {
+                "email": datos.email_admin
+            },
+            "back_urls": {
+                "success": f"https://reservatuespacio.com/pago-exitoso.html?tenant={datos.tenant_id}&plan={datos.plan_id}",
+                "failure": f"https://reservatuespacio.com/landing.html?pago=fallido",
+                "pending": f"https://reservatuespacio.com/pago-pendiente.html?tenant={datos.tenant_id}"
+            },
+            "auto_return": "approved",
+            "notification_url": "https://reserva-aulas.onrender.com/pagos/webhook",
+            "external_reference": f"{datos.tenant_id}|{datos.plan_id}",
+            "statement_descriptor": "RESERVATUESPACIO"
+        }
+
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.mercadopago.com/checkout/preferences",
+                json=preferencia_body,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+            )
+
+        if res.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail=f"Error al crear preferencia MP: {res.text}")
+
+        mp_data = res.json()
+        preference_id = mp_data["id"]
+
+        # Guardar la preferencia en la base de datos
+        await db.execute(
+            """INSERT INTO mp_preferencias (tenant_id, preference_id, plan_id, monto)
+               VALUES ($1, $2, $3, $4)""",
+            datos.tenant_id, preference_id, datos.plan_id, plan["monto"]
+        )
+
+        return {
+            "preference_id": preference_id,
+            "init_point": mp_data["init_point"],         # URL producción
+            "sandbox_init_point": mp_data["sandbox_init_point"]  # URL prueba
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await release_db(db)
+
+
+@app.post("/pagos/webhook")
+async def mp_webhook(request: Request):
+    """MercadoPago llama a este endpoint cuando hay una novedad de pago."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    # MP envía distintos tipos de notificaciones
+    tipo = body.get("type") or request.query_params.get("type", "")
+    topic = request.query_params.get("topic", "")
+
+    # Solo procesamos pagos aprobados
+    if tipo != "payment" and topic != "payment":
+        return {"status": "ignorado"}
+
+    payment_id = body.get("data", {}).get("id") or request.query_params.get("id")
+    if not payment_id:
+        return {"status": "sin payment_id"}
+
+    access_token = os.getenv("MP_ACCESS_TOKEN")
+    if not access_token:
+        return {"status": "error_config"}
+
+    try:
+        # Consultar el pago a la API de MP para verificarlo
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                f"https://api.mercadopago.com/v1/payments/{payment_id}",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+
+        if res.status_code != 200:
+            return {"status": "error_consulta_mp"}
+
+        pago = res.json()
+        estado = pago.get("status")
+        external_ref = pago.get("external_reference", "")
+        monto = float(pago.get("transaction_amount", 0))
+
+        if not external_ref or "|" not in external_ref:
+            return {"status": "referencia_invalida"}
+
+        tenant_id, plan_id = external_ref.split("|", 1)
+
+        db = await get_db()
+        try:
+            # Actualizar el registro de la preferencia
+            await db.execute(
+                """UPDATE mp_preferencias
+                   SET estado = $1, mp_payment_id = $2, updated_at = NOW()
+                   WHERE tenant_id = $3 AND plan_id = $4
+                   AND estado = 'pendiente'""",
+                estado, str(payment_id), tenant_id, plan_id
+            )
+
+            if estado == "approved":
+                # Activar suscripción del tenant
+                await db.execute(
+                    "UPDATE tenants SET suscripcion_activa = TRUE, plan_id = $1 WHERE id = $2",
+                    plan_id, tenant_id
+                )
+
+                # Registrar el pago en la tabla de pagos existente
+                plan = PLANES_PRECIOS.get(plan_id.lower(), {})
+                tenant = await db.fetchrow(
+                    "SELECT nombre, email_admin FROM tenants WHERE id = $1", tenant_id
+                )
+
+                if tenant:
+                    await db.execute(
+                        """INSERT INTO pagos (tenant_id, monto, moneda, metodo, referencia, notas, fecha, registrado_por)
+                           VALUES ($1, $2, 'ARS', 'mercadopago', $3, $4, CURRENT_DATE, 'sistema')""",
+                        tenant_id, monto, str(payment_id),
+                        f"Pago automático plan {plan.get('nombre', plan_id)} vía MercadoPago"
+                    )
+
+                    # Email de confirmación al tenant
+                    enviar_email(
+                        tenant["email_admin"],
+                        "✅ Pago confirmado — ReservaTuEspacio",
+                        f"""
+                        <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                            <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                                <h2 style="color:#71D997; margin:0">¡Pago confirmado!</h2>
+                            </div>
+                            <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                                <p>Hola <b>{tenant['nombre']}</b>,</p>
+                                <p>Tu suscripción al plan <b>{plan.get('nombre', plan_id)}</b> fue activada correctamente.</p>
+                                <table style="border-collapse:collapse; width:100%; background:white; border-radius:8px; overflow:hidden; margin:16px 0">
+                                    <tr style="background:#f0f4f8">
+                                        <td style="padding:10px 14px; font-weight:bold; color:#2C3E50; width:140px">Plan</td>
+                                        <td style="padding:10px 14px; color:#4A5568">{plan.get('nombre', plan_id)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Monto</td>
+                                        <td style="padding:10px 14px; color:#4A5568">ARS {monto:,.0f}</td>
+                                    </tr>
+                                    <tr style="background:#f0f4f8">
+                                        <td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Referencia</td>
+                                        <td style="padding:10px 14px; color:#4A5568">{payment_id}</td>
+                                    </tr>
+                                </table>
+                                <p style="color:#4A5568">Tu acceso sigue activo en <b>reservatuespacio.com</b>.</p>
+                                <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
+                                    <a href="https://reservatuespacio.com/soporte.html" style="color:#888">¿Necesitás ayuda? Centro de soporte →</a>
+                                </p>
+                            </div>
+                        </div>
+                        """
+                    )
+
+        finally:
+            await release_db(db)
+
+        return {"status": "ok", "pago": estado}
+
+    except Exception as e:
+        print(f"Error en webhook MP: {e}")
+        return {"status": "error", "detalle": str(e)}
+
+
+@app.get("/pagos/estado")
+async def estado_pago(tenant_id: str, plan_id: str):
+    """Consulta el estado del último pago de un tenant para un plan."""
+    db = await get_db()
+    try:
+        pref = await db.fetchrow(
+            """SELECT estado, mp_payment_id, monto, created_at
+               FROM mp_preferencias
+               WHERE tenant_id = $1 AND plan_id = $2
+               ORDER BY created_at DESC LIMIT 1""",
+            tenant_id, plan_id
+        )
+        if not pref:
+            return {"estado": "sin_pago"}
+        return dict(pref)
+    finally:
+        await release_db(db)
+
+
+@app.get("/pagos/planes")
+async def listar_planes_precios():
+    """Devuelve los planes disponibles con sus precios actuales."""
+    return [
+        {"id": plan_id, "nombre": info["nombre"], "monto": info["monto"]}
+        for plan_id, info in PLANES_PRECIOS.items()
+    ]
+
 
 # ===== COMUNICACIONES =====
 
