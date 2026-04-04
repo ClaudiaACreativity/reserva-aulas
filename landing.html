@@ -1024,7 +1024,7 @@
                     <li>Soporte técnico 24/7 ✓</li>
                 </ul>
                 <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
-                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('basico')">Suscribirse ahora →</button>
+                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('basic')">Suscribirse ahora →</button>
             </div>
             <div class="plan-card featured">
                 <div class="plan-badge">Más popular</div>
@@ -1045,7 +1045,7 @@
                     <li>Soporte técnico 24/7 ✓</li>
                 </ul>
                 <a href="#registro" class="btn btn-plan">Comenzar gratis →</a>
-                <button class="btn btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center; background:#71D997; color:#2C3E50" onclick="suscribirse('profesional')">Suscribirse ahora →</button>
+                <button class="btn btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center; background:#71D997; color:#2C3E50" onclick="suscribirse('professional')">Suscribirse ahora →</button>
             </div>
             <div class="plan-card">
                 <div class="plan-nombre">Enterprise</div>
@@ -1232,7 +1232,7 @@ async function registrar() {
 // ===== SUSCRIPCIÓN CON MERCADOPAGO =====
 
 async function suscribirse(planId) {
-    const nombres = { basico: 'Básico', profesional: 'Profesional', enterprise: 'Enterprise' };
+    const nombres = { basic: 'Básico', professional: 'Profesional', enterprise: 'Enterprise' };
 
     // Pedir email y tenant_id al usuario
     const email = prompt(`Para suscribirte al plan ${nombres[planId]}, ingresá el email con el que te registraste:`);
