@@ -20,12 +20,19 @@ load_dotenv()
 
 app = FastAPI(title="ReservaTuEspacio")
 
-# Precios de planes en ARS (actualizables desde variables de entorno)
-PLANES_PRECIOS = {
-    "basico":       {"nombre": "Básico",       "monto": float(os.getenv("PRECIO_BASICO",       "15000"))},
-    "profesional":  {"nombre": "Profesional",  "monto": float(os.getenv("PRECIO_PROFESIONAL",  "35000"))},
-    "enterprise":   {"nombre": "Enterprise",   "monto": float(os.getenv("PRECIO_ENTERPRISE",   "80000"))},
-}
+async def obtener_tipo_cambio_oficial() -> float:
+    """Obtiene el tipo de cambio USD/ARS oficial del Banco Central de Argentina."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("https://api.bcra.gob.ar/estadisticas/v3.0/monetarias/1/1")
+            if res.status_code == 200:
+                data = res.json()
+                resultados = data.get("results", [])
+                if resultados:
+                    return float(resultados[-1].get("valor", 1000))
+    except Exception as e:
+        print(f"Error al obtener tipo de cambio BCRA: {e}")
+    return float(os.getenv("TC_FALLBACK_USD_ARS", "1000"))
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
@@ -1664,13 +1671,14 @@ class MPPreferenciaCreate(BaseModel):
 
 @app.post("/pagos/crear-preferencia")
 async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
-    """Crea una preferencia de pago en MercadoPago y devuelve la URL de pago."""
-    plan = PLANES_PRECIOS.get(datos.plan_id.lower())
-    if not plan:
-        raise HTTPException(status_code=400, detail="Plan no válido")
-
+    """Crea una preferencia de pago en MercadoPago. Precio en USD convertido a ARS via BCRA."""
     db = await get_db()
     try:
+        # Leer precio USD desde la tabla planes
+        plan_db = await db.fetchrow("SELECT id, nombre, precio_mensual FROM planes WHERE id = $1", datos.plan_id.lower())
+        if not plan_db:
+            raise HTTPException(status_code=400, detail="Plan no válido")
+
         # Verificar que el tenant existe
         tenant = await db.fetchrow("SELECT id, nombre FROM tenants WHERE id = $1", datos.tenant_id)
         if not tenant:
@@ -1680,14 +1688,19 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
         if not access_token:
             raise HTTPException(status_code=500, detail="MercadoPago no configurado")
 
+        # Obtener tipo de cambio oficial y convertir a ARS
+        tipo_cambio = await obtener_tipo_cambio_oficial()
+        monto_ars = round(float(plan_db["precio_mensual"]) * tipo_cambio, 2)
+        plan_nombre = plan_db["nombre"]
+
         preferencia_body = {
             "items": [
                 {
-                    "title": f"ReservaTuEspacio — Plan {plan['nombre']}",
-                    "description": f"Suscripción mensual plan {plan['nombre']} para {datos.nombre_tenant}",
+                    "title": f"ReservaTuEspacio — Plan {plan_nombre}",
+                    "description": f"Suscripción mensual plan {plan_nombre} para {datos.nombre_tenant} (USD {plan_db['precio_mensual']} al TC oficial)",
                     "quantity": 1,
                     "currency_id": "ARS",
-                    "unit_price": plan["monto"]
+                    "unit_price": monto_ars
                 }
             ],
             "payer": {
@@ -1724,7 +1737,7 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
         await db.execute(
             """INSERT INTO mp_preferencias (tenant_id, preference_id, plan_id, monto)
                VALUES ($1, $2, $3, $4)""",
-            datos.tenant_id, preference_id, datos.plan_id, plan["monto"]
+            datos.tenant_id, preference_id, datos.plan_id, monto_ars
         )
 
         return {
@@ -1805,7 +1818,7 @@ async def mp_webhook(request: Request):
                 )
 
                 # Registrar el pago en la tabla de pagos existente
-                plan = PLANES_PRECIOS.get(plan_id.lower(), {})
+                plan = {"nombre": plan_id}  # nombre de fallback
                 tenant = await db.fetchrow(
                     "SELECT nombre, email_admin FROM tenants WHERE id = $1", tenant_id
                 )
@@ -1884,11 +1897,23 @@ async def estado_pago(tenant_id: str, plan_id: str):
 
 @app.get("/pagos/planes")
 async def listar_planes_precios():
-    """Devuelve los planes disponibles con sus precios actuales."""
-    return [
-        {"id": plan_id, "nombre": info["nombre"], "monto": info["monto"]}
-        for plan_id, info in PLANES_PRECIOS.items()
-    ]
+    """Devuelve los planes con precio en USD y equivalente ARS al tipo de cambio oficial."""
+    db = await get_db()
+    try:
+        planes = await db.fetch("SELECT id, nombre, precio_mensual FROM planes ORDER BY precio_mensual")
+        tipo_cambio = await obtener_tipo_cambio_oficial()
+        return [
+            {
+                "id": str(p["id"]),
+                "nombre": p["nombre"],
+                "precio_usd": float(p["precio_mensual"]),
+                "precio_ars": round(float(p["precio_mensual"]) * tipo_cambio, 2),
+                "tipo_cambio": tipo_cambio
+            }
+            for p in planes
+        ]
+    finally:
+        await release_db(db)
 
 
 # ===== COMUNICACIONES =====
