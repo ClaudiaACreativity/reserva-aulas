@@ -1024,6 +1024,7 @@
                     <li>Soporte técnico 24/7 ✓</li>
                 </ul>
                 <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('basico')">Suscribirse ahora →</button>
             </div>
             <div class="plan-card featured">
                 <div class="plan-badge">Más popular</div>
@@ -1044,6 +1045,7 @@
                     <li>Soporte técnico 24/7 ✓</li>
                 </ul>
                 <a href="#registro" class="btn btn-plan">Comenzar gratis →</a>
+                <button class="btn btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center; background:#71D997; color:#2C3E50" onclick="suscribirse('profesional')">Suscribirse ahora →</button>
             </div>
             <div class="plan-card">
                 <div class="plan-nombre">Enterprise</div>
@@ -1064,6 +1066,7 @@
                     <li>Atención personalizada dedicada</li>
                 </ul>
                 <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('enterprise')">Suscribirse ahora →</button>
             </div>
         </div>
     </div>
@@ -1225,7 +1228,124 @@ async function registrar() {
         btn.disabled = false;
     }
 }
+
+// ===== SUSCRIPCIÓN CON MERCADOPAGO =====
+
+async function suscribirse(planId) {
+    const nombres = { basico: 'Básico', profesional: 'Profesional', enterprise: 'Enterprise' };
+
+    // Pedir email y tenant_id al usuario
+    const email = prompt(`Para suscribirte al plan ${nombres[planId]}, ingresá el email con el que te registraste:`);
+    if (!email || !email.includes('@')) {
+        alert('Email inválido. Intentá de nuevo.');
+        return;
+    }
+
+    // Buscar el tenant por email en el backend
+    let tenantData;
+    try {
+        const res = await fetch(`${API}/superadmin/tenant-por-email?email=${encodeURIComponent(email)}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+            // Si no existe, ofrecer registrarse primero
+            alert('No encontramos una cuenta con ese email. Registrate primero con el formulario de arriba y luego suscribite.');
+            document.getElementById('registro').scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        tenantData = await res.json();
+    } catch(e) {
+        alert('Error de conexión. Intentá de nuevo.');
+        return;
+    }
+
+    // Mostrar modal de confirmación
+    const modal = document.getElementById('modal-suscripcion');
+    document.getElementById('modal-plan-nombre').textContent = nombres[planId];
+    document.getElementById('modal-tenant-nombre').textContent = tenantData.nombre;
+    document.getElementById('modal-email').textContent = email;
+    modal.style.display = 'flex';
+
+    // Guardar datos para cuando confirme
+    modal.dataset.planId = planId;
+    modal.dataset.tenantId = tenantData.id;
+    modal.dataset.email = email;
+    modal.dataset.nombre = tenantData.nombre;
+}
+
+async function confirmarSuscripcion() {
+    const modal = document.getElementById('modal-suscripcion');
+    const { planId, tenantId, email, nombre } = modal.dataset;
+    const btn = document.getElementById('btn-confirmar-pago');
+
+    btn.textContent = 'Redirigiendo a MercadoPago...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/pagos/crear-preferencia`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plan_id: planId,
+                tenant_id: tenantId,
+                email_admin: email,
+                nombre_tenant: nombre
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.detail || 'Error al generar el pago. Intentá de nuevo.');
+            btn.textContent = 'Ir a pagar →';
+            btn.disabled = false;
+            return;
+        }
+
+        // Redirigir a MercadoPago
+        window.location.href = data.init_point;
+
+    } catch(e) {
+        alert('Error de conexión. Intentá de nuevo.');
+        btn.textContent = 'Ir a pagar →';
+        btn.disabled = false;
+    }
+}
+
+function cerrarModal() {
+    document.getElementById('modal-suscripcion').style.display = 'none';
+}
 </script>
+
+<!-- MODAL SUSCRIPCIÓN -->
+<div id="modal-suscripcion" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div style="background:white; border-radius:20px; padding:40px; max-width:460px; width:100%; position:relative; box-shadow:0 24px 80px rgba(0,0,0,0.2)">
+        <button onclick="cerrarModal()" style="position:absolute; top:16px; right:20px; background:none; border:none; font-size:22px; cursor:pointer; color:#888">✕</button>
+        <div style="text-align:center; margin-bottom:28px">
+            <div style="width:56px; height:56px; background:#E8F7EE; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:26px">💳</div>
+            <h3 style="font-size:22px; font-weight:800; color:#2C3E50; margin-bottom:8px">Confirmar suscripción</h3>
+            <p style="color:#4A5568; font-size:14px">Vas a ser redirigido a MercadoPago para completar el pago.</p>
+        </div>
+        <div style="background:#F9F9FB; border-radius:12px; padding:20px; margin-bottom:24px">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                <span style="color:#888; font-size:13px">Plan</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-plan-nombre"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                <span style="color:#888; font-size:13px">Organización</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-tenant-nombre"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between">
+                <span style="color:#888; font-size:13px">Email</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-email"></span>
+            </div>
+        </div>
+        <button id="btn-confirmar-pago" onclick="confirmarSuscripcion()" style="width:100%; background:#71D997; color:#2C3E50; border:none; border-radius:50px; padding:15px; font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s">
+            Ir a pagar →
+        </button>
+        <p style="text-align:center; font-size:11px; color:#aaa; margin-top:14px">Pago seguro procesado por MercadoPago</p>
+    </div>
+</div>
 
 </body>
 </html>

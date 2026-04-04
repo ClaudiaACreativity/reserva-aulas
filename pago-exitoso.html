@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago confirmado — ReservaTuEspacio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: #F9F9FB;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #2C3E50;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 52px 48px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(44,62,80,0.08);
+        }
+
+        .icon-circle {
+            width: 88px;
+            height: 88px;
+            background: #E8F7EE;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 28px;
+            font-size: 40px;
+            animation: bounceIn 0.6s ease;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        h1 {
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+            color: #2C3E50;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #4A5568;
+            line-height: 1.7;
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+
+        .info-box {
+            background: #F9F9FB;
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-row .label { color: #888; font-weight: 500; }
+        .info-row .value { font-weight: 700; color: #2C3E50; }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #E8F7EE;
+            color: #2d8a55;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 5px 14px;
+            border-radius: 50px;
+            margin-bottom: 28px;
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 7px; height: 7px;
+            background: #71D997;
+            border-radius: 50%;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.25s;
+        }
+
+        .btn-primary {
+            background: #71D997;
+            color: #2C3E50;
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary:hover {
+            background: #5bc583;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(113,217,151,0.35);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #4A5568;
+            border: 2px solid #e8ecef;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-secondary:hover {
+            border-color: #2C3E50;
+            color: #2C3E50;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 18px;
+            color: #2C3E50;
+            text-decoration: none;
+            margin-top: 32px;
+            display: block;
+        }
+
+        .logo .tu { color: #C8D8D0; }
+        .logo .espacio { color: #71D997; }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 40px 0;
+        }
+
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #e8ecef;
+            border-top-color: #71D997;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-state { display: none; }
+        .success-state { display: none; }
+        .pending-state { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <!-- Loading -->
+    <div class="loading" id="loading-state">
+        <div class="spinner"></div>
+        <p style="color:#888; font-size:14px; font-weight:500">Verificando tu pago...</p>
+    </div>
+
+    <!-- Éxito -->
+    <div class="success-state" id="success-state">
+        <div class="icon-circle">✅</div>
+        <div class="status-badge">Pago aprobado</div>
+        <h1>¡Suscripción activada!</h1>
+        <p class="subtitle">Tu pago fue procesado correctamente. Tu suscripción está activa y podés seguir usando ReservaTuEspacio sin interrupciones.</p>
+
+        <div class="info-box" id="info-box">
+            <div class="info-row">
+                <span class="label">Plan</span>
+                <span class="value" id="info-plan">—</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Estado</span>
+                <span class="value" style="color:#2d8a55">✓ Activo</span>
+            </div>
+            <div class="info-row">
+                <span class="label">Referencia</span>
+                <span class="value" id="info-referencia" style="font-size:11px">—</span>
+            </div>
+        </div>
+
+        <a href="https://reservatuespacio.com/admin.html" class="btn btn-primary">
+            Ir a mi panel de administración →
+        </a>
+        <a href="https://reservatuespacio.com/soporte.html" class="btn btn-secondary">
+            ¿Necesitás ayuda?
+        </a>
+    </div>
+
+    <!-- Pendiente -->
+    <div class="pending-state" id="pending-state">
+        <div class="icon-circle">⏳</div>
+        <div class="status-badge" style="background:#FEF3C7; color:#92400E">Pago pendiente</div>
+        <h1>Pago en proceso</h1>
+        <p class="subtitle">Tu pago está siendo procesado. Esto puede demorar unos minutos. Cuando se confirme, recibirás un email y tu suscripción se activará automáticamente.</p>
+        <a href="https://reservatuespacio.com/admin.html" class="btn btn-primary">
+            Ir a mi panel →
+        </a>
+    </div>
+
+    <!-- Error -->
+    <div class="error-state" id="error-state">
+        <div class="icon-circle">❌</div>
+        <h1>Algo salió mal</h1>
+        <p class="subtitle" id="error-msg">Hubo un problema al procesar tu pago. Podés intentarlo de nuevo o contactarnos si el problema persiste.</p>
+        <a href="https://reservatuespacio.com/landing.html#planes" class="btn btn-primary">
+            Intentar de nuevo →
+        </a>
+        <a href="https://reservatuespacio.com/soporte.html" class="btn btn-secondary">
+            Contactar soporte
+        </a>
+    </div>
+
+    <a href="https://reservatuespacio.com/landing.html" class="logo">
+        Reserva<span class="tu">Tu</span><span class="espacio">Espacio</span>
+    </a>
+</div>
+
+<script>
+const API = 'https://reserva-aulas.onrender.com';
+
+const planes = {
+    basico: 'Básico',
+    profesional: 'Profesional',
+    enterprise: 'Enterprise'
+};
+
+function mostrar(estado) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('success-state').style.display = 'none';
+    document.getElementById('pending-state').style.display = 'none';
+    document.getElementById('error-state').style.display = 'none';
+    document.getElementById(estado + '-state').style.display = 'block';
+}
+
+async function verificarPago() {
+    const params = new URLSearchParams(window.location.search);
+    const tenantId = params.get('tenant');
+    const planId = params.get('plan');
+    const status = params.get('status'); // MP envía esto en la URL de retorno
+
+    // Si MP dice que fue rechazado, mostramos error de inmediato
+    if (status === 'failure' || status === 'rejected') {
+        mostrar('error');
+        document.getElementById('error-msg').textContent = 'Tu pago fue rechazado. Podés intentar con otro medio de pago.';
+        return;
+    }
+
+    if (!tenantId || !planId) {
+        mostrar('error');
+        return;
+    }
+
+    // Si MP dice aprobado o pendiente, consultamos al backend para confirmarlo
+    try {
+        const res = await fetch(`${API}/pagos/estado?tenant_id=${tenantId}&plan_id=${planId}`);
+        const data = await res.json();
+
+        if (data.estado === 'approved') {
+            mostrar('success');
+            document.getElementById('info-plan').textContent = planes[planId] || planId;
+            document.getElementById('info-referencia').textContent = data.mp_payment_id || '—';
+        } else if (data.estado === 'pending' || status === 'pending') {
+            mostrar('pending');
+        } else if (status === 'approved') {
+            // MP aprobó pero el webhook todavía no llegó — esperar un poco y reintentar
+            setTimeout(async () => {
+                const res2 = await fetch(`${API}/pagos/estado?tenant_id=${tenantId}&plan_id=${planId}`);
+                const data2 = await res2.json();
+                if (data2.estado === 'approved') {
+                    mostrar('success');
+                    document.getElementById('info-plan').textContent = planes[planId] || planId;
+                    document.getElementById('info-referencia').textContent = data2.mp_payment_id || '—';
+                } else {
+                    mostrar('pending');
+                }
+            }, 3000);
+        } else {
+            mostrar('pending');
+        }
+    } catch(e) {
+        // Si hay error de red pero MP dijo aprobado, mostrar pendiente (no error)
+        if (status === 'approved') {
+            mostrar('pending');
+        } else {
+            mostrar('error');
+        }
+    }
+}
+
+verificarPago();
+</script>
+
+</body>
+</html>

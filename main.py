@@ -1635,6 +1635,24 @@ async def superadmin_responder_ticket(request: Request, ticket_id: str, datos: T
     finally:
         await release_db(db)
 
+@app.get("/superadmin/tenant-por-email")
+async def tenant_por_email(email: str):
+    """Busca un tenant por el email del admin. Usado en el flujo de suscripción."""
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Email inválido")
+    db = await get_db()
+    try:
+        tenant = await db.fetchrow(
+            "SELECT id, nombre, slug, plan_id, suscripcion_activa, trial_hasta FROM tenants WHERE email_admin = $1 AND activo = TRUE",
+            email
+        )
+        if not tenant:
+            raise HTTPException(status_code=404, detail="No se encontró una cuenta con ese email")
+        return dict(tenant)
+    finally:
+        await release_db(db)
+
+
 # ===== MERCADOPAGO =====
 
 class MPPreferenciaCreate(BaseModel):
