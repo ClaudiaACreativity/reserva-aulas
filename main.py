@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 import openpyxl
 from io import BytesIO
 import bcrypt
+import httpx
 
 load_dotenv()
 
