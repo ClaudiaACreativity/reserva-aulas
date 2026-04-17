@@ -114,10 +114,16 @@ def enviar_email(destinatario: str, asunto: str, cuerpo: str):
 # Modelos
 class ReservaCreate(BaseModel):
     espacio_id: str
-    usuario_id: str
+    usuario_id: Optional[str] = None        # None si es invitado
     fecha: date
     hora_inicio: time
     hora_fin: time
+    # Datos de invitado (cuando usuario_id es None)
+    invitado_nombre: Optional[str] = None
+    invitado_email: Optional[str] = None
+    invitado_whatsapp: Optional[str] = None
+    # Recursos solicitados
+    recursos: Optional[list] = None         # [{"recurso_id": "...", "cantidad": 2}]
 
 class CancelarReserva(BaseModel):
     reserva_id: str
@@ -129,7 +135,7 @@ class FechaBloqueada(BaseModel):
 
 class EspacioCreate(BaseModel):
     nombre: str
-    capacidad: int
+    capacidad: Optional[int] = None
     edificio_id: int
 
 class HorarioUpdate(BaseModel):
@@ -545,22 +551,97 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                 detail=f"El horario de cierre es a las {config['hora_cierre'].strftime('%H:%M')}"
             )
 
+        # Validar: usuario registrado o invitado con datos completos
+        if not reserva.usuario_id:
+            if not reserva.invitado_nombre or not reserva.invitado_email or not reserva.invitado_whatsapp:
+                raise HTTPException(status_code=400, detail="Para reservar sin cuenta debés ingresar nombre, email y WhatsApp")
+
+        # Validar disponibilidad de recursos si se solicitaron
+        recursos_a_reservar = []
+        if reserva.recursos:
+            for item in reserva.recursos:
+                recurso_id = item.get("recurso_id")
+                cantidad_solicitada = int(item.get("cantidad", 1))
+                recurso = await db.fetchrow(
+                    "SELECT id, nombre, cantidad_total FROM recursos WHERE id = $1 AND tenant_id = $2 AND activo = TRUE",
+                    recurso_id, tid
+                )
+                if not recurso:
+                    raise HTTPException(status_code=404, detail=f"Recurso no encontrado")
+                # Calcular cantidad ya reservada en el mismo horario
+                en_uso = await db.fetchval(
+                    """SELECT COALESCE(SUM(rr.cantidad), 0)
+                       FROM recursos_reservas rr
+                       JOIN reservas r ON rr.reserva_id = r.id
+                       WHERE rr.recurso_id = $1
+                       AND r.fecha = $2
+                       AND r.estado = 'activa'
+                       AND r.tenant_id = $3
+                       AND r.hora_inicio < $4 AND r.hora_fin > $5""",
+                    recurso_id, reserva.fecha, tid, reserva.hora_fin, reserva.hora_inicio
+                )
+                disponibles = recurso["cantidad_total"] - int(en_uso)
+                if disponibles <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"No hay {recurso['nombre']} disponibles en ese horario"
+                    )
+                cantidad_final = min(cantidad_solicitada, disponibles)
+                recursos_a_reservar.append({
+                    "recurso_id": recurso_id,
+                    "cantidad": cantidad_final,
+                    "solicitada": cantidad_solicitada,
+                    "disponibles": disponibles,
+                    "nombre": recurso["nombre"]
+                })
+
         result = await db.fetchrow(
-            """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id)
-               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
+            """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id,
+                                     invitado_nombre, invitado_email, invitado_whatsapp)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id""",
             reserva.espacio_id, reserva.usuario_id, reserva.fecha,
-            reserva.hora_inicio, reserva.hora_fin, tid
+            reserva.hora_inicio, reserva.hora_fin, tid,
+            reserva.invitado_nombre, reserva.invitado_email, reserva.invitado_whatsapp
         )
+        reserva_id = result["id"]
+
+        # Guardar recursos reservados
+        for item in recursos_a_reservar:
+            await db.execute(
+                "INSERT INTO recursos_reservas (reserva_id, recurso_id, cantidad) VALUES ($1, $2, $3)",
+                reserva_id, item["recurso_id"], item["cantidad"]
+            )
 
         usuario = await db.fetchrow(
             "SELECT email, nombre FROM usuarios WHERE id = $1 AND tenant_id = $2",
             reserva.usuario_id, tid
-        )
+        ) if reserva.usuario_id else None
+        email_destino = usuario["email"] if usuario else reserva.invitado_email
+        nombre_destino = usuario["nombre"] if usuario else reserva.invitado_nombre
         espacio = await db.fetchrow(
             "SELECT nombre FROM aulas WHERE id = $1 AND tenant_id = $2",
             reserva.espacio_id, tid
         )
-        if usuario:
+        # Armar recursos HTML para el email
+        recursos_html = ""
+        if recursos_a_reservar:
+            items_html = "".join([
+                f'<tr><td style="padding:10px 14px; color:#4A5568">{r["nombre"]}</td><td style="padding:10px 14px; color:#4A5568">{r["cantidad"]}</td></tr>'
+                for r in recursos_a_reservar
+            ])
+            recursos_html = f"""
+            <div style="margin-top:16px">
+                <p style="font-weight:bold; color:#2C3E50; margin-bottom:8px">Recursos reservados:</p>
+                <table style="border-collapse:collapse; width:100%; background:white; border-radius:8px; overflow:hidden">
+                    <tr style="background:#f0f4f8">
+                        <td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Recurso</td>
+                        <td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Cantidad</td>
+                    </tr>
+                    {items_html}
+                </table>
+            </div>"""
+
+        if email_destino:
             # Build politica section if exists
             politica_html = ""
             if tenant.get("politica_cancelacion"):
@@ -579,7 +660,7 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                 </div>"""
 
             enviar_email(
-                usuario["email"],
+                email_destino,
                 "✅ Reserva confirmada — " + tenant["nombre"],
                 f"""
                 <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
@@ -587,13 +668,14 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                         <h2 style="color:#71D997; margin:0">¡Reserva confirmada!</h2>
                     </div>
                     <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
-                        <p style="color:#2C3E50; margin-bottom:16px">Hola <b>{usuario['nombre']}</b>, tu reserva fue registrada correctamente.</p>
+                        <p style="color:#2C3E50; margin-bottom:16px">Hola <b>{nombre_destino}</b>, tu reserva fue registrada correctamente.</p>
                         <table style="border-collapse:collapse; width:100%; background:white; border-radius:8px; overflow:hidden">
                             <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50; width:120px">Espacio</td><td style="padding:10px 14px; color:#4A5568">{espacio['nombre']}</td></tr>
                             <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Fecha</td><td style="padding:10px 14px; color:#4A5568">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
                             <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Horario</td><td style="padding:10px 14px; color:#4A5568">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
                             <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Organización</td><td style="padding:10px 14px; color:#4A5568">{tenant['nombre']}</td></tr>
                         </table>
+                        {recursos_html}
                         {politica_html}
                         <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
                             <a href="https://reservatuespacio.com/soporte.html" style="color:#888">¿Necesitás ayuda? Centro de soporte →</a>
@@ -602,7 +684,12 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                 </div>
                 """
             )
-        return {"mensaje": "Reserva creada", "id": str(result["id"])}
+        # Advertencia si no se pudo satisfacer toda la cantidad de recursos
+        avisos = [
+            f"Solo quedaban {r['disponibles']} {r['nombre']} disponibles (pediste {r['solicitada']})"
+            for r in recursos_a_reservar if r["cantidad"] < r["solicitada"]
+        ]
+        return {"mensaje": "Reserva creada", "id": str(reserva_id), "avisos": avisos}
     except HTTPException:
         raise
     except Exception as e:
@@ -686,9 +773,10 @@ async def crear_usuario(request: Request, usuario: dict):
     try:
         tenant = await get_tenant(request, db)
         result = await db.fetchrow(
-            """INSERT INTO usuarios (email, nombre, rol, tenant_id)
-               VALUES ($1, $2, $3, $4) RETURNING id""",
-            usuario["email"], usuario["nombre"], usuario.get("rol", "usuario"), tenant["id"]
+            """INSERT INTO usuarios (email, nombre, rol, tenant_id, whatsapp)
+               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
+            usuario["email"], usuario["nombre"], usuario.get("rol", "usuario"), tenant["id"],
+            usuario.get("whatsapp")
         )
         return {"id": str(result["id"])}
     finally:
@@ -976,6 +1064,168 @@ async def exportar_reservas(request: Request):
     finally:
         await release_db(db)
 
+
+
+# ===== RECURSOS =====
+
+class RecursoCreate(BaseModel):
+    nombre: str
+    cantidad_total: int
+
+class RecursoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    cantidad_total: Optional[int] = None
+    activo: Optional[bool] = None
+
+@app.get("/recursos")
+async def listar_recursos(request: Request):
+    """Lista los recursos activos del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        recursos = await db.fetch(
+            "SELECT * FROM recursos WHERE tenant_id = $1 AND activo = TRUE ORDER BY nombre",
+            tenant["id"]
+        )
+        return [dict(r) for r in recursos]
+    finally:
+        await release_db(db)
+
+@app.get("/recursos/disponibilidad")
+async def disponibilidad_recursos(request: Request, fecha: date, hora_inicio: time, hora_fin: time):
+    """Devuelve los recursos con su disponibilidad para un horario dado."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        recursos = await db.fetch(
+            "SELECT * FROM recursos WHERE tenant_id = $1 AND activo = TRUE ORDER BY nombre",
+            tenant["id"]
+        )
+        resultado = []
+        for r in recursos:
+            en_uso = await db.fetchval(
+                """SELECT COALESCE(SUM(rr.cantidad), 0)
+                   FROM recursos_reservas rr
+                   JOIN reservas res ON rr.reserva_id = res.id
+                   WHERE rr.recurso_id = $1
+                   AND res.fecha = $2
+                   AND res.estado = 'activa'
+                   AND res.tenant_id = $3
+                   AND res.hora_inicio < $4 AND res.hora_fin > $5""",
+                r["id"], fecha, tenant["id"], hora_fin, hora_inicio
+            )
+            disponibles = r["cantidad_total"] - int(en_uso)
+            resultado.append({
+                **dict(r),
+                "disponibles": disponibles
+            })
+        return resultado
+    finally:
+        await release_db(db)
+
+@app.post("/admin/recursos")
+async def crear_recurso(request: Request, datos: RecursoCreate):
+    """Crea un nuevo recurso para el tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        result = await db.fetchrow(
+            """INSERT INTO recursos (tenant_id, nombre, cantidad_total)
+               VALUES ($1, $2, $3) RETURNING *""",
+            tenant["id"], datos.nombre, datos.cantidad_total
+        )
+        return dict(result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.get("/admin/recursos")
+async def listar_recursos_admin(request: Request):
+    """Lista todos los recursos del tenant (admin)."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        recursos = await db.fetch(
+            "SELECT * FROM recursos WHERE tenant_id = $1 ORDER BY nombre",
+            tenant["id"]
+        )
+        return [dict(r) for r in recursos]
+    finally:
+        await release_db(db)
+
+@app.patch("/admin/recursos/{recurso_id}")
+async def actualizar_recurso(request: Request, recurso_id: str, datos: RecursoUpdate):
+    """Actualiza un recurso del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        recurso = await db.fetchrow(
+            "SELECT id FROM recursos WHERE id = $1 AND tenant_id = $2",
+            recurso_id, tenant["id"]
+        )
+        if not recurso:
+            raise HTTPException(status_code=404, detail="Recurso no encontrado")
+        if datos.nombre is not None:
+            await db.execute("UPDATE recursos SET nombre = $1 WHERE id = $2", datos.nombre, recurso_id)
+        if datos.cantidad_total is not None:
+            await db.execute("UPDATE recursos SET cantidad_total = $1 WHERE id = $2", datos.cantidad_total, recurso_id)
+        if datos.activo is not None:
+            await db.execute("UPDATE recursos SET activo = $1 WHERE id = $2", datos.activo, recurso_id)
+        return {"mensaje": "Recurso actualizado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.delete("/admin/recursos/{recurso_id}")
+async def eliminar_recurso(request: Request, recurso_id: str):
+    """Elimina un recurso del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        result = await db.execute(
+            "DELETE FROM recursos WHERE id = $1 AND tenant_id = $2",
+            recurso_id, tenant["id"]
+        )
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Recurso no encontrado")
+        return {"mensaje": "Recurso eliminado correctamente"}
+    finally:
+        await release_db(db)
+
+# ===== OBSERVACIONES EN RESERVAS =====
+
+class ObservacionUpdate(BaseModel):
+    observaciones: str
+
+@app.patch("/reservas/{reserva_id}/observaciones")
+async def agregar_observacion(request: Request, reserva_id: str, datos: ObservacionUpdate):
+    """El admin del tenant agrega observaciones a una reserva."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        reserva = await db.fetchrow(
+            "SELECT id FROM reservas WHERE id = $1 AND tenant_id = $2",
+            reserva_id, tenant["id"]
+        )
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        await db.execute(
+            "UPDATE reservas SET observaciones = $1 WHERE id = $2",
+            datos.observaciones, reserva_id
+        )
+        return {"mensaje": "Observación guardada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
 
 # ===== REGISTRO DE NUEVO TENANT =====
 
