@@ -672,14 +672,6 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
         if (usuarioRes.ok) {
             const usuario = await usuarioRes.json();
             usuarioId = usuario.id;
-            // Actualizar whatsapp si cambió
-            if (!usuario.whatsapp && whatsapp) {
-                await apiFetch(`${API}/usuarios/${usuarioId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ whatsapp })
-                });
-            }
         }
         // Si no existe, crear como usuario nuevo con whatsapp
         else {
@@ -798,7 +790,7 @@ async function buscarReservas() {
                 <tbody>
                     ${reservas.map(r => `
                         <tr>
-                            <td>${r.aula_nombre}</td>
+                            <td>${r.espacio_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
                             <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
