@@ -189,6 +189,7 @@
     <div class="tab" onclick="cambiarTab('personalizacion', this)">🎨 Personalización</div>
     <div class="tab" onclick="cambiarTab('soporte', this)">🎫 Soporte</div>
     <div class="tab" onclick="cambiarTab('facturacion-config', this)">💳 Facturación</div>
+    <div class="tab" onclick="cambiarTab('recursos', this)">📦 Recursos</div>
 </div>
 
 <div class="container">
@@ -619,6 +620,35 @@
 
     </div>
 
+    <!-- PANEL RECURSOS -->
+    <div class="panel" id="panel-recursos">
+        <div class="card">
+            <h2>Gestión de recursos</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
+                Agregá recursos que los usuarios pueden reservar junto con un espacio (sillas, proyector, paletas, etc.). Son opcionales y el sistema valida disponibilidad automáticamente.
+            </p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre del recurso</label>
+                    <input type="text" id="nuevo-recurso-nombre" placeholder="Ej: Proyector, Sillas, Paletas">
+                </div>
+                <div class="form-group">
+                    <label>Cantidad total disponible</label>
+                    <input type="number" id="nuevo-recurso-cantidad" min="1" placeholder="Ej: 10">
+                </div>
+                <div class="form-group full">
+                    <button class="btn btn-primary" onclick="crearRecurso()">+ Agregar recurso</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-recursos"></div>
+        </div>
+
+        <div class="card">
+            <h2>Recursos cargados</h2>
+            <div id="tabla-recursos"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -701,6 +731,7 @@ function cargarTodo() {
     cargarAdminStats();
     cargarEdificios();
     cargarReservas();
+    cargarRecursos();
     cargarEspacios();
     cargarUsuarios();
     cargarHorarios();
@@ -744,17 +775,35 @@ async function cargarReservas() {
                         <th>Fecha</th>
                         <th>Horario</th>
                         <th>Estado</th>
+                        <th>Observaciones</th>
                         <th>Acción</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${reservas.map(r => `
                         <tr>
-                            <td>${r.usuario_nombre}<br><small style="color:#888">${r.usuario_email}</small></td>
+                            <td>
+                                ${r.usuario_nombre || r.invitado_nombre || '—'}
+                                <br><small style="color:#888">${r.usuario_email || r.invitado_email || ''}</small>
+                                ${r.invitado_whatsapp ? `<br><small style="color:#27ae60">📱 ${r.invitado_whatsapp}</small>` : ''}
+                                ${!r.usuario_id ? '<br><span style="font-size:10px; background:#fff3cd; color:#856404; padding:2px 6px; border-radius:10px">Invitado</span>' : ''}
+                            </td>
                             <td>${r.espacio_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
                             <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+                            <td style="min-width:180px">
+                                <div style="display:flex; gap:6px; align-items:flex-start">
+                                    <textarea
+                                        id="obs-${r.id}"
+                                        rows="2"
+                                        placeholder="Agregar observación..."
+                                        style="flex:1; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:12px; resize:vertical; font-family:Arial,sans-serif"
+                                    >${r.observaciones || ''}</textarea>
+                                    <button class="btn" style="background:#f0f4f8; color:#2C3E50; font-size:11px; padding:4px 8px; white-space:nowrap"
+                                        onclick="guardarObservacion('${r.id}')">💾</button>
+                                </div>
+                            </td>
                             <td>
                                 ${r.estado === 'activa' ? `
                                     <button class="btn btn-danger" onclick="cancelarReservaAdmin('${r.id}')">
@@ -782,6 +831,128 @@ async function cancelarReservaAdmin(reservaId) {
     } catch (e) {
         alert('Error al cancelar');
     }
+}
+
+
+async function guardarObservacion(reservaId) {
+    const texto = document.getElementById(`obs-${reservaId}`).value.trim();
+    try {
+        const res = await apiFetch(`${API}/reservas/${reservaId}/observaciones`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ observaciones: texto })
+        });
+        if (res.ok) {
+            const btn = document.querySelector(`button[onclick="guardarObservacion('${reservaId}')"]`);
+            if (btn) { btn.textContent = '✅'; setTimeout(() => btn.textContent = '💾', 2000); }
+        }
+    } catch(e) { alert('Error al guardar observación'); }
+}
+
+// ===== RECURSOS =====
+async function cargarRecursos() {
+    try {
+        const res = await apiFetch(`${API}/admin/recursos`);
+        const recursos = await res.json();
+        const contenedor = document.getElementById('tabla-recursos');
+
+        if (!recursos.length) {
+            contenedor.innerHTML = '<p class="empty">No hay recursos cargados todavía</p>';
+            return;
+        }
+
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Cantidad total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${recursos.map(r => `
+                        <tr>
+                            <td><input type="text" value="${r.nombre}" id="rec-nombre-${r.id}"
+                                style="padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; width:180px"></td>
+                            <td><input type="number" value="${r.cantidad_total}" id="rec-cantidad-${r.id}"
+                                min="1" style="padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px; width:80px"></td>
+                            <td><span class="badge ${r.activo ? 'badge-activa' : 'badge-cancelada'}">${r.activo ? 'Activo' : 'Inactivo'}</span></td>
+                            <td style="display:flex; gap:6px; flex-wrap:wrap">
+                                <button class="btn btn-primary" style="font-size:12px; padding:5px 10px"
+                                    onclick="actualizarRecurso('${r.id}')">Guardar</button>
+                                <button class="btn" style="font-size:12px; padding:5px 10px; background:${r.activo ? '#fdecea' : '#e8f5e9'}; color:${r.activo ? '#c0392b' : '#27ae60'}"
+                                    onclick="toggleRecurso('${r.id}', ${!r.activo})">${r.activo ? 'Desactivar' : 'Activar'}</button>
+                                <button class="btn btn-danger" style="font-size:12px; padding:5px 10px"
+                                    onclick="eliminarRecurso('${r.id}')">Eliminar</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch(e) {
+        document.getElementById('tabla-recursos').innerHTML = '<p class="empty">Error al cargar recursos</p>';
+    }
+}
+
+async function crearRecurso() {
+    const nombre = document.getElementById('nuevo-recurso-nombre').value.trim();
+    const cantidad = parseInt(document.getElementById('nuevo-recurso-cantidad').value);
+    if (!nombre || !cantidad || cantidad < 1) {
+        mostrarMensaje('mensaje-recursos', 'Completá el nombre y la cantidad', 'error');
+        return;
+    }
+    try {
+        const res = await apiFetch(`${API}/admin/recursos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, cantidad_total: cantidad })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            mostrarMensaje('mensaje-recursos', '✅ Recurso creado correctamente', 'exito');
+            document.getElementById('nuevo-recurso-nombre').value = '';
+            document.getElementById('nuevo-recurso-cantidad').value = '';
+            cargarRecursos();
+        } else {
+            mostrarMensaje('mensaje-recursos', `❌ ${data.detail}`, 'error');
+        }
+    } catch(e) { mostrarMensaje('mensaje-recursos', 'Error al crear recurso', 'error'); }
+}
+
+async function actualizarRecurso(id) {
+    const nombre = document.getElementById(`rec-nombre-${id}`).value.trim();
+    const cantidad = parseInt(document.getElementById(`rec-cantidad-${id}`).value);
+    if (!nombre || !cantidad) return;
+    try {
+        const res = await apiFetch(`${API}/admin/recursos/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, cantidad_total: cantidad })
+        });
+        if (res.ok) { mostrarMensaje('mensaje-recursos', '✅ Recurso actualizado', 'exito'); cargarRecursos(); }
+    } catch(e) { alert('Error al actualizar'); }
+}
+
+async function toggleRecurso(id, activo) {
+    try {
+        await apiFetch(`${API}/admin/recursos/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activo })
+        });
+        cargarRecursos();
+    } catch(e) { alert('Error al cambiar estado'); }
+}
+
+async function eliminarRecurso(id) {
+    if (!confirm('¿Eliminar este recurso? Esta acción no se puede deshacer.')) return;
+    try {
+        const res = await apiFetch(`${API}/admin/recursos/${id}`, { method: 'DELETE' });
+        if (res.ok) { mostrarMensaje('mensaje-recursos', '✅ Recurso eliminado', 'exito'); cargarRecursos(); }
+    } catch(e) { alert('Error al eliminar'); }
 }
 
 // ===== EDIFICIOS =====

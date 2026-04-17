@@ -264,19 +264,28 @@
                 <input type="email" id="usuario-email" placeholder="tu@email.com">
             </div>
             <div class="form-group">
+                <label>Tu WhatsApp <span style="color:#888; font-weight:400; font-size:12px">(con código de área, sin 0 ni 15)</span></label>
+                <input type="tel" id="usuario-whatsapp" placeholder="Ej: 3492123456">
+            </div>
+            <div class="form-group">
                 <label>Fecha</label>
-                <input type="date" id="fecha">
+                <input type="date" id="fecha" onchange="cargarRecursosDisponibles()">
             </div>
             <div class="form-group">
                 <label>Hora de inicio</label>
-                <input type="time" id="hora-inicio" onblur="document.getElementById('hora-fin').focus()">
+                <input type="time" id="hora-inicio" onblur="cargarRecursosDisponibles()">
             </div>
             <div class="form-group">
                 <label>Hora de fin</label>
-                <input type="time" id="hora-fin" onchange="document.getElementById('fecha').blur()">
+                <input type="time" id="hora-fin" onchange="cargarRecursosDisponibles()">
+            </div>
+            <!-- RECURSOS -->
+            <div class="form-group full" id="recursos-container" style="display:none">
+                <label>Recursos adicionales <span style="color:#888; font-weight:400; font-size:12px">(opcional)</span></label>
+                <div id="recursos-lista" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px"></div>
             </div>
             <div class="form-group full">
-                <button class="btn btn-primary" onclick="crearReserva()">Reservar aula</button>
+                <button class="btn btn-primary" onclick="crearReserva()">Reservar</button>
             </div>
         </div>
         <div class="mensaje" id="mensaje-reserva"></div>
@@ -582,7 +591,7 @@ async function cargarEspacios() {
         grid.innerHTML = aulas.map(a => `
             <div class="espacio-card" onclick="seleccionarEspacio('${a.id}', '${a.nombre}', this)">
                 <h3>${a.nombre}</h3>
-                <p>Capacidad: ${a.capacidad}</p>
+                ${a.capacidad ? `<p>Capacidad: ${a.capacidad}</p>` : ''}
                 <p>${a.nombre_edificio || ''}</p>
             </div>
         `).join('');
@@ -615,14 +624,24 @@ async function crearReserva() {
     const espacioId = document.getElementById('espacio-id').value;
     const nombre = document.getElementById('usuario-nombre').value.trim();
     const email = document.getElementById('usuario-email').value.trim();
+    const whatsapp = document.getElementById('usuario-whatsapp').value.trim();
     const fecha = document.getElementById('fecha').value;
     const horaInicio = document.getElementById('hora-inicio').value;
     const horaFin = document.getElementById('hora-fin').value;
 
-    if (!espacioId || !nombre || !email || !fecha || !horaInicio || !horaFin) {
-        mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos', 'error');
+    if (!espacioId || !nombre || !email || !whatsapp || !fecha || !horaInicio || !horaFin) {
+        mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos incluyendo WhatsApp', 'error');
         return;
     }
+
+    // Recolectar recursos seleccionados
+    const recursosSeleccionados = [];
+    document.querySelectorAll('.recurso-input').forEach(input => {
+        const cantidad = parseInt(input.value);
+        if (cantidad > 0) {
+            recursosSeleccionados.push({ recurso_id: input.dataset.id, cantidad });
+        }
+    });
 
     // Mostrar política si existe
     const tenantRes = await apiFetch(`${API}/tenant`);
@@ -636,59 +655,117 @@ async function crearReserva() {
             };
             document.getElementById('modal-politica-texto').textContent = tenant.politica_cancelacion;
             document.getElementById('modal-modalidad').textContent = modalidades[tenant.modalidad_cobro] || '';
-            _reservaPendiente = { espacioId, nombre, email, fecha, horaInicio, horaFin };
+            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
             document.getElementById('modal-politica').style.display = 'flex';
             return;
         }
     }
-    await _ejecutarReserva({ espacioId, nombre, email, fecha, horaInicio, horaFin });
+    await _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados });
 }
 
-async function _ejecutarReserva({ espacioId, nombre, email, fecha, horaInicio, horaFin }) {
+async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [] }) {
     try {
-        // Buscar o crear usuario
+        // Buscar usuario registrado
         const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${email}`);
-        let usuarioId;
+        let usuarioId = null;
 
         if (usuarioRes.ok) {
             const usuario = await usuarioRes.json();
             usuarioId = usuario.id;
-        } else {
+            // Actualizar whatsapp si cambió
+            if (!usuario.whatsapp && whatsapp) {
+                await apiFetch(`${API}/usuarios/${usuarioId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ whatsapp })
+                });
+            }
+        }
+        // Si no existe, crear como usuario nuevo con whatsapp
+        else {
             const nuevoUsuario = await apiFetch(`${API}/usuarios`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, nombre, rol: 'usuario' })
+                body: JSON.stringify({ email, nombre, rol: 'usuario', whatsapp })
             });
             const u = await nuevoUsuario.json();
             usuarioId = u.id;
         }
 
         // Crear reserva
+        const body = {
+            espacio_id: espacioId,
+            usuario_id: usuarioId,
+            fecha,
+            hora_inicio: horaInicio + ':00',
+            hora_fin: horaFin + ':00',
+            recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null
+        };
+
         const res = await apiFetch(`${API}/reservas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                espacio_id: espacioId,
-                usuario_id: usuarioId,
-                fecha,
-                hora_inicio: horaInicio + ':00',
-                hora_fin: horaFin + ':00'
-            })
+            body: JSON.stringify(body)
         });
 
         const data = await res.json();
 
         if (res.ok) {
-            mostrarMensaje('mensaje-reserva', `✅ Reserva creada correctamente`, 'exito');
+            let msg = '✅ Reserva creada correctamente';
+            if (data.avisos && data.avisos.length > 0) {
+                msg += '<br><small style="color:#e67e22">⚠️ ' + data.avisos.join(' | ') + '</small>';
+            }
+            mostrarMensaje('mensaje-reserva', msg, 'exito');
             document.getElementById('fecha').value = '';
             document.getElementById('hora-inicio').value = '';
             document.getElementById('hora-fin').value = '';
+            document.getElementById('usuario-whatsapp').value = '';
+            document.getElementById('recursos-lista').innerHTML = '';
+            document.getElementById('recursos-container').style.display = 'none';
             renderCalendario();
         } else {
             mostrarMensaje('mensaje-reserva', `❌ ${data.detail}`, 'error');
         }
     } catch (e) {
         mostrarMensaje('mensaje-reserva', 'Error al conectar con el servidor', 'error');
+    }
+}
+
+// ===== RECURSOS DISPONIBLES =====
+async function cargarRecursosDisponibles() {
+    const fecha = document.getElementById('fecha').value;
+    const horaInicio = document.getElementById('hora-inicio').value;
+    const horaFin = document.getElementById('hora-fin').value;
+
+    if (!fecha || !horaInicio || !horaFin) return;
+
+    try {
+        const res = await apiFetch(`${API}/recursos/disponibilidad?fecha=${fecha}&hora_inicio=${horaInicio}:00&hora_fin=${horaFin}:00`);
+        if (!res.ok) return;
+        const recursos = await res.json();
+
+        if (recursos.length === 0) {
+            document.getElementById('recursos-container').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('recursos-container').style.display = 'block';
+        document.getElementById('recursos-lista').innerHTML = recursos.map(r => `
+            <div style="background:#f8fafc; border:1px solid #e0e8f0; border-radius:8px; padding:12px 16px; min-width:160px">
+                <div style="font-weight:bold; color:#2C3E50; font-size:14px; margin-bottom:6px">${r.nombre}</div>
+                <div style="font-size:12px; color:#888; margin-bottom:8px">Disponibles: ${r.disponibles} de ${r.cantidad_total}</div>
+                ${r.disponibles > 0 ? `
+                <div style="display:flex; align-items:center; gap:8px">
+                    <label style="font-size:12px; color:#555">Cantidad:</label>
+                    <input type="number" class="recurso-input" data-id="${r.id}"
+                        min="0" max="${r.disponibles}" value="0"
+                        style="width:60px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px">
+                </div>` : `<div style="font-size:12px; color:#e74c3c; font-weight:bold">No disponible</div>`}
+            </div>
+        `).join('');
+    } catch(e) {
+        // Si falla, simplemente no mostramos recursos
+        document.getElementById('recursos-container').style.display = 'none';
     }
 }
 
