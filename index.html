@@ -694,7 +694,6 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
             recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null
         };
 
-        console.log('Recursos:', JSON.stringify(recursosSeleccionados));
         const res = await apiFetch(`${API}/reservas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -873,8 +872,8 @@ async function cargarFechasBloqueadas() {
             </table>
         `;
     } catch (e) {
-        document.getElementById('tabla-fechas-bloqueadas').innerHTML =
-            '<p class="empty">Error al cargar fechas</p>';
+        const el = document.getElementById('tabla-fechas-bloqueadas');
+        if (el) el.innerHTML = '<p class="empty">Error al cargar fechas</p>';
     }
 }
 
