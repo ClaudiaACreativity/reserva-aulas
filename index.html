@@ -694,6 +694,7 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
             recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null
         };
 
+        console.log('Recursos:', JSON.stringify(recursosSeleccionados));
         const res = await apiFetch(`${API}/reservas`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
