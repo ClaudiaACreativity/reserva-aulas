@@ -203,6 +203,7 @@
         <a href="#usuarios">👤 Usuarios</a>
         <a href="#horarios">🕐 Horarios</a>
         <a href="#reservas">📋 Reservas</a>
+        <a href="#recursos">📦 Recursos</a>
         <a href="#personalizacion">🎨 Personalización</a>
         <a href="#pagos">💳 Pagos y suscripción</a>
         <a href="#soporte">🎫 Soporte</a>
@@ -310,6 +311,18 @@
                 </div>
                 <div class="faq-respuesta">
                     <p>En la pestaña <strong>Usuarios</strong> completá el nombre completo y el email → hacé click en <strong>"Agregar usuario"</strong>. Los usuarios no necesitan contraseña — se identifican con su email al momento de reservar.</p>
+                    <p>También podés habilitar la opción de reservas sin registro, para que cualquier persona pueda reservar ingresando solo su nombre, email y WhatsApp, sin necesidad de estar en la lista de usuarios.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Los usuarios necesitan WhatsApp para reservar?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Sí. Todos los usuarios — tanto los registrados como los invitados — deben ingresar su número de WhatsApp al hacer una reserva. Esto te permite contactarlos rápidamente si necesitás comunicarte con ellos.</p>
+                    <p>El número queda guardado en el sistema y se muestra en la lista de reservas de tu panel.</p>
                 </div>
             </div>
 
@@ -380,7 +393,18 @@
                     <span class="faq-icono">+</span>
                 </div>
                 <div class="faq-respuesta">
-                    <p>En la pestaña <strong>Reservas</strong> del panel de administración podés ver todas las reservas activas y el historial completo de tu organización.</p>
+                    <p>En la pestaña <strong>Reservas</strong> del panel de administración podés ver todas las reservas activas y el historial completo de tu organización. Las reservas hechas por invitados (sin registro) aparecen con una etiqueta "Invitado" y muestran su WhatsApp.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo registro observaciones sobre una reserva?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la lista de reservas, cada fila tiene un campo de <strong>Observaciones</strong>. Podés escribir notas internas — por ejemplo si el espacio quedó sucio, si hubo algún problema con el equipamiento, etc. — y guardarlas con el botón 💾.</p>
+                    <p>Estas observaciones son solo visibles para los administradores, no para los usuarios.</p>
                 </div>
             </div>
 
@@ -401,6 +425,43 @@
                 </div>
                 <div class="faq-respuesta">
                     <p>Sí. En la pestaña <strong>Reservas</strong> hacé click en <strong>"Exportar a Excel"</strong>. Se va a descargar un archivo con todas las reservas, incluyendo usuario, espacio, fecha, horario y estado.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="seccion" id="recursos">
+            <h2>📦 Recursos</h2>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Qué son los recursos?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Los recursos son elementos adicionales que los usuarios pueden solicitar junto con su reserva: proyector, sillas, paletas de pádel, computadoras, etc. Cada recurso tiene una cantidad total disponible y el sistema valida automáticamente que haya stock para el horario solicitado.</p>
+                    <p>Los recursos son completamente opcionales — si no los configurás, los usuarios simplemente no los ven.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo agrego recursos?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>En la pestaña <strong>Recursos</strong> del panel de administración ingresá el nombre del recurso y la cantidad total disponible → hacé click en <strong>"Agregar recurso"</strong>.</p>
+                    <p>Podés activar, desactivar o eliminar recursos en cualquier momento desde la misma pestaña.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="toggle(this)">
+                    ¿Cómo funciona la disponibilidad de recursos?
+                    <span class="faq-icono">+</span>
+                </div>
+                <div class="faq-respuesta">
+                    <p>Cuando un usuario elige fecha y horario, el sistema calcula automáticamente cuántas unidades de cada recurso están disponibles en ese momento. Si quedan menos unidades que las solicitadas, el sistema informa al usuario y le permite reservar la cantidad disponible.</p>
+                    <p>Al cancelar una reserva o cuando vence el horario, los recursos se liberan automáticamente.</p>
                 </div>
             </div>
         </div>
