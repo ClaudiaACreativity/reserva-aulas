@@ -1909,7 +1909,260 @@ async def tenant_por_email(email: str):
         await release_db(db)
 
 
-# ===== MERCADOPAGO =====
+
+# ===== MERCADOPAGO OAUTH (cobro por reserva) =====
+
+MP_CLIENT_ID = "2324809191253560"  # Client ID de tu app ReservaTuEspacio
+
+@app.get("/mp/oauth/autorizar")
+async def mp_oauth_autorizar(request: Request):
+    """Genera la URL para que el tenant autorice su cuenta de MP."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        redirect_uri = "https://reserva-aulas.onrender.com/mp/oauth/callback"
+        url = (
+            f"https://auth.mercadopago.com.ar/authorization"
+            f"?client_id={MP_CLIENT_ID}"
+            f"&response_type=code"
+            f"&platform_id=mp"
+            f"&redirect_uri={redirect_uri}"
+            f"&state={tenant['id']}"
+        )
+        return {"url": url}
+    finally:
+        await release_db(db)
+
+@app.get("/mp/oauth/callback")
+async def mp_oauth_callback(code: str = None, state: str = None, error: str = None):
+    """Recibe el código de autorización de MP y obtiene el access_token del tenant."""
+    if error or not code or not state:
+        return {"error": "Autorización cancelada o fallida"}
+
+    client_secret = os.getenv("MP_CLIENT_SECRET", "")
+    redirect_uri = "https://reserva-aulas.onrender.com/mp/oauth/callback"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.mercadopago.com/oauth/token",
+                json={
+                    "client_id": MP_CLIENT_ID,
+                    "client_secret": client_secret,
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": redirect_uri
+                },
+                headers={"Content-Type": "application/json"}
+            )
+
+        if res.status_code != 200:
+            return {"error": f"Error al obtener token: {res.text}"}
+
+        data = res.json()
+        access_token = data.get("access_token")
+        refresh_token = data.get("refresh_token")
+        mp_user_id = str(data.get("user_id", ""))
+
+        db = await get_db()
+        try:
+            await db.execute(
+                """UPDATE tenants SET mp_access_token = $1, mp_refresh_token = $2, mp_user_id = $3
+                   WHERE id = $4""",
+                access_token, refresh_token, mp_user_id, state
+            )
+        finally:
+            await release_db(db)
+
+        # Redirigir al panel admin con mensaje de éxito
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url="https://reservatuespacio.com/admin.html?mp_conectado=1"
+        )
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.delete("/mp/oauth/desconectar")
+async def mp_oauth_desconectar(request: Request):
+    """Desconecta la cuenta de MP del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        await db.execute(
+            """UPDATE tenants SET mp_access_token = NULL, mp_refresh_token = NULL, mp_user_id = NULL
+               WHERE id = $1""",
+            tenant["id"]
+        )
+        return {"mensaje": "Cuenta de MercadoPago desconectada"}
+    finally:
+        await release_db(db)
+
+@app.get("/mp/estado")
+async def mp_estado(request: Request):
+    """Devuelve si el tenant tiene MP conectado y su configuración de cobro."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        return {
+            "conectado": bool(tenant.get("mp_access_token")),
+            "cobro_por_reserva": bool(tenant.get("mp_cobro_por_reserva")),
+            "precio_reserva": float(tenant.get("mp_precio_reserva") or 0)
+        }
+    finally:
+        await release_db(db)
+
+class MPCobroConfig(BaseModel):
+    cobro_por_reserva: bool
+    precio_reserva: Optional[float] = None
+
+@app.patch("/mp/cobro-config")
+async def mp_cobro_config(request: Request, datos: MPCobroConfig):
+    """Configura el cobro por reserva del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        if datos.cobro_por_reserva and not tenant.get("mp_access_token"):
+            raise HTTPException(
+                status_code=400,
+                detail="Primero debés conectar tu cuenta de MercadoPago"
+            )
+        if datos.cobro_por_reserva and (not datos.precio_reserva or datos.precio_reserva <= 0):
+            raise HTTPException(
+                status_code=400,
+                detail="Ingresá un precio por reserva válido"
+            )
+        await db.execute(
+            """UPDATE tenants SET mp_cobro_por_reserva = $1, mp_precio_reserva = $2
+               WHERE id = $3""",
+            datos.cobro_por_reserva, datos.precio_reserva, tenant["id"]
+        )
+        return {"mensaje": "Configuración guardada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.post("/pagos/reserva/crear-preferencia")
+async def crear_preferencia_reserva(request: Request):
+    """Crea una preferencia de pago para una reserva específica usando el token del tenant."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+
+        if not tenant.get("mp_cobro_por_reserva"):
+            raise HTTPException(status_code=400, detail="Este tenant no tiene cobro por reserva activado")
+
+        if not tenant.get("mp_access_token"):
+            raise HTTPException(status_code=400, detail="El tenant no tiene MercadoPago conectado")
+
+        body = await request.json()
+        espacio_nombre = body.get("espacio_nombre", "Espacio")
+        fecha = body.get("fecha", "")
+        hora_inicio = body.get("hora_inicio", "")
+        hora_fin = body.get("hora_fin", "")
+        email_usuario = body.get("email_usuario", "")
+        nombre_usuario = body.get("nombre_usuario", "")
+        temp_reserva_id = body.get("temp_reserva_id", "")  # ID temporal para tracking
+
+        precio = float(tenant["mp_precio_reserva"])
+        tc = await obtener_tipo_cambio(db)
+        precio_ars = round(precio * tc, 2)
+
+        preferencia_body = {
+            "items": [{
+                "title": f"Reserva {espacio_nombre} — {fecha} {hora_inicio}-{hora_fin}",
+                "quantity": 1,
+                "currency_id": "ARS",
+                "unit_price": precio_ars
+            }],
+            "payer": {"email": email_usuario, "name": nombre_usuario},
+            "back_urls": {
+                "success": f"https://reservatuespacio.com/?reserva_pagada=1&ref={temp_reserva_id}",
+                "failure": f"https://reservatuespacio.com/?pago_fallido=1",
+                "pending": f"https://reservatuespacio.com/?pago_pendiente=1"
+            },
+            "auto_return": "approved",
+            "notification_url": f"https://reserva-aulas.onrender.com/pagos/webhook-reserva",
+            "external_reference": temp_reserva_id,
+            "statement_descriptor": tenant["nombre"][:22]
+        }
+
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://api.mercadopago.com/checkout/preferences",
+                json=preferencia_body,
+                headers={
+                    "Authorization": f"Bearer {tenant['mp_access_token']}",
+                    "Content-Type": "application/json"
+                }
+            )
+
+        if res.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail=f"Error MP: {res.text}")
+
+        mp_data = res.json()
+        return {
+            "init_point": mp_data["init_point"],
+            "preference_id": mp_data["id"],
+            "precio_ars": precio_ars,
+            "precio_usd": precio
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await release_db(db)
+
+@app.post("/pagos/webhook-reserva")
+async def webhook_reserva(request: Request):
+    """Webhook para pagos de reservas (cobro del tenant a sus usuarios)."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    tipo = body.get("type") or request.query_params.get("type", "")
+    topic = request.query_params.get("topic", "")
+
+    if tipo != "payment" and topic != "payment":
+        return {"status": "ignorado"}
+
+    payment_id = body.get("data", {}).get("id") or request.query_params.get("id")
+    if not payment_id:
+        return {"status": "sin_payment_id"}
+
+    # Este webhook no requiere acción automática en la DB
+    # La confirmación del pago se verifica desde el frontend vía /pagos/estado-reserva
+    return {"status": "ok"}
+
+@app.get("/pagos/estado-reserva")
+async def estado_reserva_pago(request: Request, preference_id: str):
+    """Verifica si el pago de una reserva fue aprobado."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        if not tenant.get("mp_access_token"):
+            raise HTTPException(status_code=400, detail="MP no conectado")
+
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                f"https://api.mercadopago.com/checkout/preferences/{preference_id}",
+                headers={"Authorization": f"Bearer {tenant['mp_access_token']}"}
+            )
+
+        if res.status_code != 200:
+            return {"estado": "desconocido"}
+
+        return {"estado": "ok", "preference": res.json()}
+    finally:
+        await release_db(db)
+
+# ===== MERCADOPAGO (suscripciones GestionaTeIA) =====
 
 class MPPreferenciaCreate(BaseModel):
     plan_id: str
