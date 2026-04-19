@@ -591,6 +591,54 @@
             <div class="mensaje" id="mensaje-modalidad"></div>
         </div>
 
+        <!-- MERCADOPAGO CONEXIÓN -->
+        <div class="card" id="card-mp-conexion">
+            <h2>💳 Cobro por reserva con MercadoPago</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
+                Conectá tu cuenta de MercadoPago para cobrarle a tus usuarios al momento de confirmar una reserva. El dinero va directo a tu cuenta — GestionaTeIA no interviene en los pagos.
+            </p>
+
+            <!-- Estado: no conectado -->
+            <div id="mp-no-conectado">
+                <div style="background:#fff8e8; border:1px solid #f0c040; border-radius:8px; padding:16px; margin-bottom:20px; font-size:13px; color:#856404">
+                    ⚠️ Tu cuenta de MercadoPago no está conectada. Conectala para habilitar el cobro por reserva.
+                </div>
+                <button class="btn btn-primary" onclick="conectarMP()">🔗 Conectar con MercadoPago</button>
+            </div>
+
+            <!-- Estado: conectado -->
+            <div id="mp-conectado" style="display:none">
+                <div style="background:#d5f0e0; border:1px solid #a8dbbe; border-radius:8px; padding:16px; margin-bottom:20px; font-size:13px; color:#1a5c36">
+                    ✅ Tu cuenta de MercadoPago está conectada correctamente.
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer">
+                            <input type="checkbox" id="cobro-por-reserva" onchange="toggleCobroReserva()"
+                                style="width:18px; height:18px; cursor:pointer">
+                            <span>Habilitar cobro por reserva</span>
+                        </label>
+                    </div>
+                    <div class="form-group" id="precio-reserva-group" style="display:none">
+                        <label>Precio por reserva (ARS)</label>
+                        <input type="number" id="precio-reserva" min="1" placeholder="Ej: 5000"
+                            style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
+                    </div>
+                    <div class="form-group full" id="btn-guardar-cobro-group" style="display:none">
+                        <button class="btn btn-primary" onclick="guardarCobroConfig()">Guardar configuración</button>
+                    </div>
+                </div>
+                <div class="mensaje" id="mensaje-cobro-mp"></div>
+
+                <div style="margin-top:20px; padding-top:16px; border-top:1px solid #eee">
+                    <button class="btn" style="background:#fdedec; color:#c0392b; border:1px solid #f5b7b1; font-size:13px"
+                        onclick="desconectarMP()">🔌 Desconectar MercadoPago</button>
+                </div>
+            </div>
+            <div class="mensaje" id="mensaje-mp-conexion"></div>
+        </div>
+
         <div class="card">
             <h2>Política de cancelación y reembolso</h2>
             <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
@@ -732,6 +780,7 @@ function cargarTodo() {
     cargarEdificios();
     cargarReservas();
     cargarRecursos();
+    cargarEstadoMP();
     cargarEspacios();
     cargarUsuarios();
     cargarHorarios();
@@ -1800,6 +1849,90 @@ function usarPlantilla() {
     const horas = document.getElementById('horas-cancelacion').value || 'X';
     document.getElementById('politica-cancelacion').value =
         `Las cancelaciones realizadas con más de ${horas} horas de anticipación recibirán un reembolso del 100% del importe abonado. Las cancelaciones con menos de ${horas} horas de anticipación no tendrán derecho a reembolso. Para cancelar, ingresá a "Mis reservas" desde el sitio de tu organización.`;
+}
+
+
+// ===== MERCADOPAGO OAUTH =====
+async function cargarEstadoMP() {
+    try {
+        const res = await apiFetch(`${API}/mp/estado`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.conectado) {
+            document.getElementById('mp-no-conectado').style.display = 'none';
+            document.getElementById('mp-conectado').style.display = 'block';
+            document.getElementById('cobro-por-reserva').checked = data.cobro_por_reserva;
+            if (data.cobro_por_reserva) {
+                document.getElementById('precio-reserva-group').style.display = 'block';
+                document.getElementById('btn-guardar-cobro-group').style.display = 'block';
+                document.getElementById('precio-reserva').value = data.precio_reserva || '';
+            }
+        } else {
+            document.getElementById('mp-no-conectado').style.display = 'block';
+            document.getElementById('mp-conectado').style.display = 'none';
+        }
+
+        // Si viene de un callback exitoso de MP
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('mp_conectado') === '1') {
+            mostrarMensaje('mensaje-mp-conexion', '✅ MercadoPago conectado correctamente', 'exito');
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    } catch(e) {}
+}
+
+async function conectarMP() {
+    try {
+        const res = await apiFetch(`${API}/mp/oauth/autorizar`);
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else mostrarMensaje('mensaje-mp-conexion', '❌ Error al conectar', 'error');
+    } catch(e) {
+        mostrarMensaje('mensaje-mp-conexion', 'Error al conectar con el servidor', 'error');
+    }
+}
+
+async function desconectarMP() {
+    if (!confirm('¿Desconectar tu cuenta de MercadoPago? Se desactivará el cobro por reserva.')) return;
+    try {
+        const res = await apiFetch(`${API}/mp/oauth/desconectar`, { method: 'DELETE' });
+        if (res.ok) {
+            mostrarMensaje('mensaje-mp-conexion', '✅ Cuenta desconectada', 'exito');
+            cargarEstadoMP();
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-mp-conexion', 'Error al desconectar', 'error');
+    }
+}
+
+function toggleCobroReserva() {
+    const activo = document.getElementById('cobro-por-reserva').checked;
+    document.getElementById('precio-reserva-group').style.display = activo ? 'block' : 'none';
+    document.getElementById('btn-guardar-cobro-group').style.display = activo ? 'block' : 'none';
+}
+
+async function guardarCobroConfig() {
+    const activo = document.getElementById('cobro-por-reserva').checked;
+    const precio = parseFloat(document.getElementById('precio-reserva').value);
+
+    if (activo && (!precio || precio <= 0)) {
+        mostrarMensaje('mensaje-cobro-mp', '❌ Ingresá un precio válido', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`${API}/mp/cobro-config`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cobro_por_reserva: activo, precio_reserva: activo ? precio : null })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-cobro-mp', '✅ Configuración guardada', 'exito');
+        else mostrarMensaje('mensaje-cobro-mp', `❌ ${data.detail}`, 'error');
+    } catch(e) {
+        mostrarMensaje('mensaje-cobro-mp', 'Error al guardar', 'error');
+    }
 }
 
 async function guardarModalidad() {
