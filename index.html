@@ -611,11 +611,18 @@ function precargarReserva(espacioId, aulaNombre, fecha, hora) {
 // ===== CARGAR AULAS =====
 async function poblarSelectsHora(horarios) {
     // Calcular rango de horas habilitadas
-    let horaMin = 7, horaMax = 22;
+    let horaMin = 7, horaMax = 20;
+    let minSet = false, maxSet = false;
     if (horarios && horarios.length) {
         horarios.forEach(h => {
-            if (h.habilitado && h.hora_apertura) horaMin = Math.min(horaMin, parseInt(h.hora_apertura.slice(0,2)));
-            if (h.habilitado && h.hora_cierre) horaMax = Math.max(horaMax, parseInt(h.hora_cierre.slice(0,2)));
+            if (h.habilitado && h.hora_apertura) {
+                const v = parseInt(h.hora_apertura.slice(0,2));
+                if (!minSet || v < horaMin) { horaMin = v; minSet = true; }
+            }
+            if (h.habilitado && h.hora_cierre) {
+                const v = parseInt(h.hora_cierre.slice(0,2));
+                if (!maxSet || v > horaMax) { horaMax = v; maxSet = true; }
+            }
         });
     }
     const opciones = ['<option value="">-- Seleccioná --</option>'];

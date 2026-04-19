@@ -153,6 +153,24 @@
         .horario-row { display: grid; grid-template-columns: 150px 100px 120px 120px 120px; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid #e0e8f0; }
         .horario-row:last-child { border-bottom: none; }
         .horario-row label { font-weight: bold; font-size: 14px; }
+
+        /* RESPONSIVE MOBILE */
+        @media (max-width: 700px) {
+            header { padding: 14px 16px; }
+            header h1 { font-size: 16px; }
+            .tabs { overflow-x: auto; white-space: nowrap; padding: 0 8px; gap: 0; display: flex; }
+            .tab { padding: 12px 14px; font-size: 12px; flex-shrink: 0; }
+            .card { padding: 16px; margin-bottom: 16px; }
+            .card h2 { font-size: 15px; }
+            .form-grid { grid-template-columns: 1fr !important; }
+            .form-group { grid-column: 1 !important; }
+            table { font-size: 12px; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            th, td { padding: 8px 10px; }
+            .btn { padding: 8px 14px; font-size: 12px; }
+            .horario-row { grid-template-columns: 110px 80px 100px 100px 90px; gap: 6px; font-size: 13px; }
+            footer { padding: 14px 16px; flex-direction: column; text-align: center; gap: 8px; }
+            #panel-reservas .card, #panel-edificios .card { padding: 12px; }
+        }
     </style>
 </head>
 <body>
