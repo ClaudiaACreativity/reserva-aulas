@@ -39,12 +39,21 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Orígenes permitidos — agregar cualquier dominio nuevo que necesite acceso
+ALLOWED_ORIGINS = [
+    "https://reservatuespacio.com",
+    "https://www.reservatuespacio.com",
+    "https://claudiaacreativity.github.io",
+    "https://gestionateia.com",
+    "https://www.gestionateia.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Tenant-Slug", "X-Admin-Token", "Authorization"],
 )
 
 pool = None
