@@ -4,7 +4,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
-from datetime import date, time, datetime
+from datetime import date, time, datetime, timedelta
 from typing import Optional
 import asyncpg
 import os
@@ -119,6 +119,86 @@ def enviar_email(destinatario: str, asunto: str, cuerpo: str):
         })
     except Exception as e:
         print(f"Error al enviar email: {e}")
+
+
+async def enviar_email_aviso_vencimiento(email: str, nombre_tenant: str, dias: int, fecha_vence: date):
+    """Avisa al tenant que su suscripción vence en X días."""
+    fecha_str = fecha_vence.strftime("%d/%m/%Y")
+    asunto = f"Tu suscripción vence en {dias} día{'s' if dias > 1 else ''} — ReservaTuEspacio"
+    cuerpo = f"""
+    <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+        <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+            <h2 style="color:#71D997; margin:0">Recordatorio de renovación</h2>
+        </div>
+        <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+            <p>Hola <b>{nombre_tenant}</b>,</p>
+            <p>Te recordamos que tu suscripción a <b>ReservaTuEspacio</b> vence el
+               <b>{fecha_str}</b> (en {dias} día{'s' if dias > 1 else ''}).</p>
+            <p>Para renovar, ingresá a la landing y realizá el pago de tu plan.</p>
+            <div style="margin:24px 0; text-align:center">
+                <a href="https://reservatuespacio.com/landing.html"
+                   style="background:#71D997; color:#2C3E50; padding:12px 28px;
+                          border-radius:50px; text-decoration:none; font-weight:bold">
+                    Renovar ahora →
+                </a>
+            </div>
+            <p style="color:#888; font-size:13px">
+                Si ya realizaste el pago, podés ignorar este mensaje.<br>
+                ¿Tenés dudas?
+                <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+            </p>
+        </div>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": "ReservaTuEspacio <hola@reservatuespacio.com>",
+            "to": email,
+            "subject": asunto,
+            "html": cuerpo
+        })
+    except Exception as e:
+        print(f"[EMAIL AVISO VENCIMIENTO] Error enviando a {email}: {e}")
+
+
+async def enviar_email_cuenta_bloqueada(email: str, nombre_tenant: str, fecha_vence: date):
+    """Notifica al tenant que su cuenta fue bloqueada por vencimiento."""
+    fecha_str = fecha_vence.strftime("%d/%m/%Y")
+    asunto = "Tu suscripción venció — cuenta suspendida temporalmente"
+    cuerpo = f"""
+    <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+        <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+            <h2 style="color:#E74C3C; margin:0">Cuenta suspendida</h2>
+        </div>
+        <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+            <p>Hola <b>{nombre_tenant}</b>,</p>
+            <p>Tu suscripción a <b>ReservaTuEspacio</b> venció el <b>{fecha_str}</b>
+               y tu cuenta fue suspendida temporalmente.</p>
+            <p><b>Tus datos están seguros.</b> Para reactivar tu cuenta, realizá el pago de renovación:</p>
+            <div style="margin:24px 0; text-align:center">
+                <a href="https://reservatuespacio.com/landing.html"
+                   style="background:#71D997; color:#2C3E50; padding:12px 28px;
+                          border-radius:50px; text-decoration:none; font-weight:bold">
+                    Reactivar cuenta →
+                </a>
+            </div>
+            <p style="color:#888; font-size:13px">
+                ¿Necesitás ayuda?
+                <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+            </p>
+        </div>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": "ReservaTuEspacio <hola@reservatuespacio.com>",
+            "to": email,
+            "subject": asunto,
+            "html": cuerpo
+        })
+    except Exception as e:
+        print(f"[EMAIL CUENTA BLOQUEADA] Error enviando a {email}: {e}")
+
 
 # Modelos
 class ReservaCreate(BaseModel):
@@ -1417,7 +1497,20 @@ async def superadmin_actualizar_tenant(request: Request, tenant_id: str, datos: 
         if datos.activo is not None:
             await db.execute("UPDATE tenants SET activo = $1 WHERE id = $2", datos.activo, tenant_id)
         if datos.suscripcion_activa is not None:
-            await db.execute("UPDATE tenants SET suscripcion_activa = $1 WHERE id = $2", datos.suscripcion_activa, tenant_id)
+            if datos.suscripcion_activa:
+                # Al activar manualmente: calcular fecha de vencimiento y resetear flags de avisos
+                await db.execute(
+                    """UPDATE tenants
+                       SET suscripcion_activa = TRUE,
+                           suscripcion_vence = CURRENT_DATE + INTERVAL '30 days',
+                           aviso_7_enviado = FALSE,
+                           aviso_3_enviado = FALSE,
+                           aviso_1_enviado = FALSE
+                       WHERE id = $1""",
+                    tenant_id
+                )
+            else:
+                await db.execute("UPDATE tenants SET suscripcion_activa = FALSE WHERE id = $1", tenant_id)
         if datos.plan_id is not None:
             await db.execute("UPDATE tenants SET plan_id = $1 WHERE id = $2", datos.plan_id, tenant_id)
         if datos.trial_hasta is not None:
@@ -2321,9 +2414,16 @@ async def mp_webhook(request: Request):
             )
 
             if estado == "approved":
-                # Activar suscripción del tenant
+                # Activar suscripción, calcular fecha de vencimiento (30 días) y resetear flags de avisos
                 await db.execute(
-                    "UPDATE tenants SET suscripcion_activa = TRUE, plan_id = $1 WHERE id = $2",
+                    """UPDATE tenants
+                       SET suscripcion_activa = TRUE,
+                           plan_id = $1,
+                           suscripcion_vence = CURRENT_DATE + INTERVAL '30 days',
+                           aviso_7_enviado = FALSE,
+                           aviso_3_enviado = FALSE,
+                           aviso_1_enviado = FALSE
+                       WHERE id = $2""",
                     plan_id, tenant_id
                 )
 
@@ -2558,3 +2658,87 @@ async def superadmin_historial_comunicaciones(request: Request):
     finally:
         await release_db(db)
 
+
+# ===== RENOVACIÓN AUTOMÁTICA — PROCESAMIENTO DE VENCIMIENTOS =====
+
+from fastapi import Header as FastAPIHeader
+
+@app.post("/superadmin/procesar-vencimientos")
+async def procesar_vencimientos(x_admin_password: Optional[str] = FastAPIHeader(None)):
+    """
+    Procesa vencimientos de suscripciones. Llamar diariamente vía cron job.
+    Envía avisos 7, 3 y 1 día antes. Bloquea la cuenta el día del vencimiento.
+    """
+    password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
+    if x_admin_password != password_correcta:
+        raise HTTPException(status_code=401, detail="No autorizado")
+
+    db = await get_db()
+    try:
+        hoy = date.today()
+        resumen = {
+            "fecha": str(hoy),
+            "avisos_7": [],
+            "avisos_3": [],
+            "avisos_1": [],
+            "bloqueados": [],
+            "errores": []
+        }
+
+        # Traer tenants con suscripción activa o vencida que tienen fecha de vencimiento
+        tenants = await db.fetch("""
+            SELECT id, nombre, email_admin, suscripcion_activa,
+                   suscripcion_vence, aviso_7_enviado, aviso_3_enviado, aviso_1_enviado
+            FROM tenants
+            WHERE activo = TRUE
+              AND suscripcion_vence IS NOT NULL
+        """)
+
+        for t in tenants:
+            tid = t["id"]
+            nombre = t["nombre"]
+            email = t["email_admin"]
+            vence = t["suscripcion_vence"]
+            dias_restantes = (vence - hoy).days
+
+            try:
+                # ── BLOQUEO: ya venció ──────────────────────────────────────
+                if dias_restantes < 0 and t["suscripcion_activa"]:
+                    await db.execute(
+                        "UPDATE tenants SET suscripcion_activa = FALSE WHERE id = $1",
+                        tid
+                    )
+                    resumen["bloqueados"].append(nombre)
+                    await enviar_email_cuenta_bloqueada(email, nombre, vence)
+
+                # ── AVISO 1 día ─────────────────────────────────────────────
+                elif dias_restantes == 1 and not t["aviso_1_enviado"]:
+                    await db.execute(
+                        "UPDATE tenants SET aviso_1_enviado = TRUE WHERE id = $1", tid
+                    )
+                    resumen["avisos_1"].append(nombre)
+                    await enviar_email_aviso_vencimiento(email, nombre, 1, vence)
+
+                # ── AVISO 3 días ────────────────────────────────────────────
+                elif dias_restantes == 3 and not t["aviso_3_enviado"]:
+                    await db.execute(
+                        "UPDATE tenants SET aviso_3_enviado = TRUE WHERE id = $1", tid
+                    )
+                    resumen["avisos_3"].append(nombre)
+                    await enviar_email_aviso_vencimiento(email, nombre, 3, vence)
+
+                # ── AVISO 7 días ────────────────────────────────────────────
+                elif dias_restantes == 7 and not t["aviso_7_enviado"]:
+                    await db.execute(
+                        "UPDATE tenants SET aviso_7_enviado = TRUE WHERE id = $1", tid
+                    )
+                    resumen["avisos_7"].append(nombre)
+                    await enviar_email_aviso_vencimiento(email, nombre, 7, vence)
+
+            except Exception as e:
+                resumen["errores"].append(f"{nombre}: {str(e)}")
+
+        return {"ok": True, "resumen": resumen}
+
+    finally:
+        await release_db(db)
