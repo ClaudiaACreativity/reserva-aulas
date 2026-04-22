@@ -53,7 +53,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Tenant-Slug", "X-Admin-Token", "Authorization"],
+    allow_headers=["Content-Type", "X-Tenant-Slug", "X-Admin-Token", "X-Superadmin-Token", "Authorization"],
 )
 
 pool = None
