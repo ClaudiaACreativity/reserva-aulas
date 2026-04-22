@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -2661,10 +2661,8 @@ async def superadmin_historial_comunicaciones(request: Request):
 
 # ===== RENOVACIÓN AUTOMÁTICA — PROCESAMIENTO DE VENCIMIENTOS =====
 
-from fastapi import Header as FastAPIHeader
-
 @app.post("/superadmin/procesar-vencimientos")
-async def procesar_vencimientos(x_admin_password: Optional[str] = FastAPIHeader(None)):
+async def procesar_vencimientos(x_admin_password: Optional[str] = Header(None)):
     """
     Procesa vencimientos de suscripciones. Llamar diariamente vía cron job.
     Envía avisos 7, 3 y 1 día antes. Bloquea la cuenta el día del vencimiento.
