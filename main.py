@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -2662,13 +2662,15 @@ async def superadmin_historial_comunicaciones(request: Request):
 # ===== RENOVACIÓN AUTOMÁTICA — PROCESAMIENTO DE VENCIMIENTOS =====
 
 @app.post("/superadmin/procesar-vencimientos")
-async def procesar_vencimientos(x_admin_password: Optional[str] = Header(None)):
+async def procesar_vencimientos(request: Request, token: Optional[str] = None):
     """
     Procesa vencimientos de suscripciones. Llamar diariamente vía cron job.
     Envía avisos 7, 3 y 1 día antes. Bloquea la cuenta el día del vencimiento.
     """
     password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
-    if x_admin_password != password_correcta:
+    # Acepta token por query param o por header X-Superadmin-Token
+    token_recibido = token or request.headers.get("X-Superadmin-Token", "")
+    if token_recibido != password_correcta:
         raise HTTPException(status_code=401, detail="No autorizado")
 
     db = await get_db()
