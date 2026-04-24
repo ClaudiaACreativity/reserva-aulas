@@ -1465,8 +1465,7 @@ async def registrar_tenant(datos: RegistroCreate):
         password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
         await db.execute(
             """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
-               VALUES ($1, $2, $3, 'admin', TRUE, $4)
-               ON CONFLICT (tenant_id, email) DO UPDATE SET password_hash = $4, rol = 'admin', activo = TRUE""",
+               VALUES ($1, $2, $3, 'admin', TRUE, $4)""",
             tenant_id, datos.email_admin, datos.nombre_admin, password_hash
         )
 
@@ -1620,8 +1619,7 @@ async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
         password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
         await db.execute(
             """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
-               VALUES ($1, $2, $3, 'admin', TRUE, $4)
-               ON CONFLICT (tenant_id, email) DO UPDATE SET password_hash = $4, rol = 'admin', activo = TRUE""",
+               VALUES ($1, $2, $3, 'admin', TRUE, $4)""",
             tenant_id, datos.email_admin, datos.nombre_admin, password_hash
         )
 
