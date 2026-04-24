@@ -199,6 +199,84 @@ async def enviar_email_cuenta_bloqueada(email: str, nombre_tenant: str, fecha_ve
     except Exception as e:
         print(f"[EMAIL CUENTA BLOQUEADA] Error enviando a {email}: {e}")
 
+import secrets
+import string
+
+def generar_password_temporal(largo=12):
+    """Genera una contraseña aleatoria segura."""
+    chars = string.ascii_letters + string.digits + "!@#$%"
+    while True:
+        pwd = "".join(secrets.choice(chars) for _ in range(largo))
+        if (any(c.isupper() for c in pwd) and
+            any(c.islower() for c in pwd) and
+            any(c.isdigit() for c in pwd)):
+            return pwd
+
+
+def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_temp, trial_hasta):
+    """Genera el HTML del email de bienvenida con credenciales de acceso."""
+    return f"""
+    <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+        <div style="background:#2C3E50; padding:28px 32px; border-radius:12px 12px 0 0; text-align:center">
+            <h1 style="color:#71D997; margin:0; font-size:26px">\u00a1Bienvenido a ReservaTuEspacio!</h1>
+        </div>
+        <div style="background:#F9F9FB; padding:28px 32px; border-radius:0 0 12px 12px">
+            <p style="font-size:15px; color:#2C3E50">Hola <b>{nombre_admin}</b>,</p>
+            <p style="color:#4A5568; line-height:1.7">
+                Tu cuenta para <b>{nombre_tenant}</b> fue creada exitosamente.
+                Ten\u00e9s <b>30 d\u00edas de prueba gratuita</b> hasta el <b>{trial_hasta}</b>.
+            </p>
+            <div style="background:white; border:2px solid #71D997; border-radius:10px; padding:20px; margin:24px 0">
+                <p style="margin:0 0 12px; font-weight:bold; color:#2C3E50; font-size:15px">\U0001f511 Tus datos de acceso</p>
+                <table style="width:100%; border-collapse:collapse">
+                    <tr>
+                        <td style="padding:8px 0; color:#7f8c8d; font-size:13px; width:120px">Panel admin:</td>
+                        <td style="padding:8px 0">
+                            <a href="https://reservatuespacio.com/admin.html"
+                               style="color:#71D997; font-weight:bold; font-size:14px">
+                                reservatuespacio.com/admin.html
+                            </a>
+                        </td>
+                    </tr>
+                    <tr style="background:#f9f9fb">
+                        <td style="padding:8px 0; color:#7f8c8d; font-size:13px">Email:</td>
+                        <td style="padding:8px 0; color:#2C3E50; font-weight:bold; font-size:14px">{email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 0; color:#7f8c8d; font-size:13px">Contrase\u00f1a:</td>
+                        <td style="padding:8px 0; color:#2C3E50; font-weight:bold; font-size:14px; font-family:monospace">{password_temp}</td>
+                    </tr>
+                    <tr style="background:#f9f9fb">
+                        <td style="padding:8px 0; color:#7f8c8d; font-size:13px">Tu URL p\u00fablica:</td>
+                        <td style="padding:8px 0">
+                            <a href="https://reservatuespacio.com?tenant={slug}"
+                               style="color:#71D997; font-weight:bold; font-size:14px">
+                                reservatuespacio.com?tenant={slug}
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <p style="color:#E74C3C; font-size:13px; font-weight:bold">
+                \u26a0\ufe0f Por seguridad, te recomendamos cambiar tu contrase\u00f1a despu\u00e9s del primer ingreso
+                desde el panel \u2192 Mi perfil.
+            </p>
+            <div style="text-align:center; margin-top:24px">
+                <a href="https://reservatuespacio.com/admin.html"
+                   style="background:#71D997; color:#2C3E50; padding:14px 32px;
+                          border-radius:50px; text-decoration:none; font-weight:bold; font-size:15px">
+                    Ir al panel de administraci\u00f3n \u2192
+                </a>
+            </div>
+            <p style="text-align:center; margin-top:16px; font-size:13px; color:#888">
+                \u00bfTen\u00e9s dudas?
+                <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte \u2192</a>
+            </p>
+        </div>
+    </div>
+    """
+
+
 
 # Modelos
 class ReservaCreate(BaseModel):
@@ -1381,47 +1459,25 @@ async def registrar_tenant(datos: RegistroCreate):
                 dia_semana, nombre_dia, habilitado, apertura, cierre, tenant_id
             )
 
-        # Enviar email de bienvenida
+        # Generar contraseña temporal y crear usuario admin
         trial_hasta = tenant["trial_hasta"].strftime("%d/%m/%Y")
+        password_temp = generar_password_temporal()
+        password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
+        await db.execute(
+            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
+               VALUES ($1, $2, $3, 'admin', TRUE, $4)
+               ON CONFLICT (tenant_id, email) DO UPDATE SET password_hash = $4, rol = 'admin', activo = TRUE""",
+            tenant_id, datos.email_admin, datos.nombre_admin, password_hash
+        )
+
+        # Enviar email de bienvenida con credenciales
         enviar_email(
             datos.email_admin,
-            "🎉 ¡Bienvenido a reservatuespacio.com!",
-            f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
-                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">¡Bienvenido a ReservaTuEspacio!</h1>
-                </div>
-                <div style="background: #F9F9FB; padding: 32px; border-radius: 0 0 12px 12px;">
-                    <p style="font-size: 16px; color: #2C3E50;">Hola <b>{datos.nombre_admin}</b>,</p>
-                    <p style="color: #4A5568; line-height: 1.7;">
-                        Tu cuenta para <b>{datos.nombre}</b> fue creada exitosamente.
-                        Tenés <b>30 días de prueba gratuita</b> hasta el <b>{trial_hasta}</b>.
-                    </p>
-                    <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 24px 0;">
-                        <p style="margin: 0 0 8px; color: #4A5568;"><b>Tu URL de acceso:</b></p>
-                        <p style="margin: 0; font-size: 18px; color: #2C3E50; font-weight: bold;">
-                            {datos.slug}.reservatuespacio.com
-                        </p>
-                    </div>
-                    <p style="color: #4A5568; line-height: 1.7;">
-                        Para empezar, entrá a tu panel de administración y configurá tus espacios y horarios.
-                    </p>
-                    <div style="text-align: center; margin-top: 28px;">
-                        <a href="https://claudiaacreativity.github.io/reserva-aulas/admin.html"
-                           style="background: #71D997; color: #2C3E50; padding: 14px 32px;
-                                  border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 15px;">
-                            Ir al panel de administración →
-                        </a>
-                    </div>
-                    <div style="text-align:center; margin-top:20px">
-                        <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html"
-                           style="color:#888; font-size:13px; text-decoration:none">
-                            ¿Tenés dudas? Visitá nuestro centro de soporte →
-                        </a>
-                    </div>
-                </div>
-            </div>
-            """
+            "¡Bienvenido a ReservaTuEspacio! — Tus datos de acceso",
+            email_bienvenida_tenant(
+                datos.nombre_admin, datos.nombre, datos.slug,
+                datos.email_admin, password_temp, trial_hasta
+            )
         )
 
         return {
@@ -1558,36 +1614,25 @@ async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
                 dia_semana, nombre_dia, habilitado, apertura, cierre, tenant_id
             )
         trial_hasta = tenant["trial_hasta"].strftime("%d/%m/%Y")
+
+        # Generar contraseña temporal y crear usuario admin
+        password_temp = generar_password_temporal()
+        password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
+        await db.execute(
+            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
+               VALUES ($1, $2, $3, 'admin', TRUE, $4)
+               ON CONFLICT (tenant_id, email) DO UPDATE SET password_hash = $4, rol = 'admin', activo = TRUE""",
+            tenant_id, datos.email_admin, datos.nombre_admin, password_hash
+        )
+
+        # Enviar email de bienvenida con credenciales
         enviar_email(
             datos.email_admin,
-            "Bienvenido a reservatuespacio.com!",
-            f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: #2C3E50; padding: 32px; text-align: center; border-radius: 12px 12px 0 0;">
-                    <h1 style="color: #71D997; margin: 0; font-size: 28px;">Bienvenido a reservatuespacio.com!</h1>
-                </div>
-                <div style="background: #F9F9FB; padding: 32px; border-radius: 0 0 12px 12px;">
-                    <p style="font-size: 16px; color: #2C3E50;">Hola <b>{datos.nombre_admin}</b>,</p>
-                    <p style="color: #4A5568; line-height: 1.7;">
-                        Tu cuenta para <b>{datos.nombre}</b> fue creada exitosamente.
-                        Tenes <b>{datos.trial_dias} dias de prueba gratuita</b> hasta el <b>{trial_hasta}</b>.
-                    </p>
-                    <div style="background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; margin: 24px 0;">
-                        <p style="margin: 0 0 8px; color: #4A5568;"><b>Tu URL de acceso:</b></p>
-                        <p style="margin: 0; font-size: 18px; color: #2C3E50; font-weight: bold;">
-                            {datos.slug}.reservatuespacio.com
-                        </p>
-                    </div>
-                    <div style="text-align: center; margin-top: 28px;">
-                        <a href="https://claudiaacreativity.github.io/reserva-aulas/admin.html"
-                           style="background: #71D997; color: #2C3E50; padding: 14px 32px;
-                                  border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 15px;">
-                            Ir al panel de administracion
-                        </a>
-                    </div>
-                </div>
-            </div>
-            """
+            "¡Bienvenido a ReservaTuEspacio! — Tus datos de acceso",
+            email_bienvenida_tenant(
+                datos.nombre_admin, datos.nombre, datos.slug,
+                datos.email_admin, password_temp, trial_hasta
+            )
         )
         return {
             "mensaje": "Tenant creado correctamente",
