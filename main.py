@@ -1510,7 +1510,7 @@ class TenantUpdate(BaseModel):
 
 class PlanUpdate(BaseModel):
     nombre: Optional[str] = None
-    precio: Optional[float] = None
+    precio_mensual: Optional[float] = None
     descripcion: Optional[str] = None
 
 class TenantCreate(BaseModel):
