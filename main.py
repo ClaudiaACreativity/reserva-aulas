@@ -1645,6 +1645,33 @@ async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
     finally:
         await release_db(db)
 
+@app.delete("/superadmin/tenants/{tenant_id}")
+async def superadmin_eliminar_tenant(request: Request, tenant_id: str):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        tenant = await db.fetchrow("SELECT id, nombre FROM tenants WHERE id = $1", tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+        await db.execute("DELETE FROM reservas WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM usuarios WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM aulas WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM edificios WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM configuracion_horarios WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM fechas_bloqueadas WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM pagos WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM tickets WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM recursos WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM mp_preferencias WHERE tenant_id = $1", tenant_id)
+        await db.execute("DELETE FROM tenants WHERE id = $1", tenant_id)
+        return {"mensaje": f"Tenant '{tenant['nombre']}' eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
 @app.get("/superadmin/planes")
 async def superadmin_listar_planes(request: Request):
     verificar_superadmin(request)

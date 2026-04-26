@@ -253,6 +253,9 @@
         <!-- Lista tenants -->
         <div class="card">
             <h2>Todos los tenants</h2>
+            <input type="text" id="buscador-tenants" placeholder="🔍 Buscar por nombre, slug o email..."
+                oninput="filtrarTenants()"
+                style="width:100%; padding:10px; margin-bottom:16px; border:1px solid #ddd; border-radius:8px; font-size:14px; box-sizing:border-box;">
             <div id="tabla-tenants"><p class="empty">Cargando...</p></div>
         </div>
     </div>
@@ -544,70 +547,89 @@ async function cargarStats() {
 }
 
 // ===== TENANTS =====
+let todosLosTenants = [];
+
 async function cargarTenants() {
     try {
         const res = await apiFetch(`${API}/superadmin/tenants`);
-        const tenants = await res.json();
-        const contenedor = document.getElementById('tabla-tenants');
-
-        if (!tenants.length) {
-            contenedor.innerHTML = '<p class="empty">No hay tenants registrados</p>';
-            return;
-        }
-
-        contenedor.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Organización</th>
-                        <th>Slug</th>
-                        <th>Email admin</th>
-                        <th>Plan</th>
-                        <th>Estado</th>
-                        <th>Trial hasta</th>
-                        <th>Usuarios</th>
-                        <th>Reservas</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tenants.map(t => {
-                        const estado = estadoTenant(t);
-                        return `
-                        <tr>
-                            <td><b>${t.nombre}</b></td>
-                            <td><code style="font-size:12px; color:#2C3E50">${t.slug}</code></td>
-                            <td style="font-size:13px">${t.email_admin}</td>
-                            <td>${t.plan_nombre || '—'}<br><small style="color:#888">$${t.plan_precio || 0}/mes</small></td>
-                            <td><span class="badge badge-${estado.clase}">${estado.texto}</span></td>
-                            <td style="font-size:13px">${t.trial_hasta ? t.trial_hasta.split('T')[0] : '—'}</td>
-                            <td style="text-align:center">${t.total_usuarios}</td>
-                            <td style="text-align:center">${t.total_reservas}</td>
-                            <td>
-                                <div class="acciones-tenant">
-                                    <button class="btn btn-warning btn-sm"
-                                        onclick="extenderTrial('${t.id}', '${t.nombre}')">
-                                        +30 días
-                                    </button>
-                                    ${t.suscripcion_activa
-                                        ? `<button class="btn btn-danger btn-sm" onclick="toggleSuscripcion('${t.id}', true)">Desactivar suscripción</button>`
-                                        : `<button class="btn btn-success btn-sm" onclick="toggleSuscripcion('${t.id}', false)">Activar suscripción</button>`
-                                    }
-                                    ${t.activo
-                                        ? `<button class="btn btn-danger btn-sm" onclick="toggleTenant('${t.id}', true)">Desactivar</button>`
-                                        : `<button class="btn btn-success btn-sm" onclick="toggleTenant('${t.id}', false)">Activar</button>`
-                                    }
-                                </div>
-                            </td>
-                        </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        `;
+        todosLosTenants = await res.json();
+        renderizarTenants(todosLosTenants);
     } catch(e) {
         document.getElementById('tabla-tenants').innerHTML = '<p class="empty">Error al cargar tenants</p>';
     }
+}
+
+function filtrarTenants() {
+    const q = document.getElementById('buscador-tenants').value.toLowerCase();
+    const filtrados = todosLosTenants.filter(t =>
+        t.nombre.toLowerCase().includes(q) ||
+        t.slug.toLowerCase().includes(q) ||
+        t.email_admin.toLowerCase().includes(q)
+    );
+    renderizarTenants(filtrados);
+}
+
+function renderizarTenants(tenants) {
+    const contenedor = document.getElementById('tabla-tenants');
+    if (!tenants.length) {
+        contenedor.innerHTML = '<p class="empty">No hay tenants que coincidan</p>';
+        return;
+    }
+    contenedor.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Organización</th>
+                    <th>Slug</th>
+                    <th>Email admin</th>
+                    <th>Plan</th>
+                    <th>Estado</th>
+                    <th>Trial hasta</th>
+                    <th>Usuarios</th>
+                    <th>Reservas</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tenants.map(t => {
+                    const estado = estadoTenant(t);
+                    return `
+                    <tr>
+                        <td><b>${t.nombre}</b></td>
+                        <td><code style="font-size:12px; color:#2C3E50">${t.slug}</code></td>
+                        <td style="font-size:13px">${t.email_admin}</td>
+                        <td>${t.plan_nombre || '—'}<br><small style="color:#888">$${t.plan_precio || 0}/mes</small></td>
+                        <td><span class="badge badge-${estado.clase}">${estado.texto}</span></td>
+                        <td style="font-size:13px">${t.trial_hasta ? t.trial_hasta.split('T')[0] : '—'}</td>
+                        <td style="text-align:center">${t.total_usuarios}</td>
+                        <td style="text-align:center">${t.total_reservas}</td>
+                        <td>
+                            <div class="acciones-tenant">
+                                <button class="btn btn-warning btn-sm"
+                                    onclick="extenderTrial('${t.id}', '${t.nombre}')">
+                                    +30 días
+                                </button>
+                                ${t.suscripcion_activa
+                                    ? `<button class="btn btn-danger btn-sm" onclick="toggleSuscripcion('${t.id}', true)">Desactivar suscripción</button>`
+                                    : `<button class="btn btn-success btn-sm" onclick="toggleSuscripcion('${t.id}', false)">Activar suscripción</button>`
+                                }
+                                ${t.activo
+                                    ? `<button class="btn btn-danger btn-sm" onclick="toggleTenant('${t.id}', true)">Desactivar</button>`
+                                    : `<button class="btn btn-success btn-sm" onclick="toggleTenant('${t.id}', false)">Activar</button>`
+                                }
+                                <button class="btn btn-sm"
+                                    style="background:#c0392b; color:white;"
+                                    onclick="eliminarTenant('${t.id}', '${t.nombre.replace(/'/g, "\\'")}')">
+                                    🗑️ Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 function estadoTenant(t) {
@@ -617,6 +639,23 @@ function estadoTenant(t) {
     const trial = t.trial_hasta ? t.trial_hasta.split('T')[0] : '';
     if (trial >= hoy) return { clase: 'trial', texto: 'En trial' };
     return { clase: 'vencido', texto: 'Trial vencido' };
+}
+
+async function eliminarTenant(id, nombre) {
+    if (!confirm(`⚠️ ATENCIÓN: Vas a eliminar el tenant "${nombre}" y TODOS sus datos.\n\nEsto incluye: usuarios, reservas, espacios, edificios, pagos y tickets.\n\nEsta acción NO se puede deshacer.\n\n¿Confirmás la eliminación?`)) return;
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert(`✅ Tenant "${nombre}" eliminado correctamente.`);
+            cargarTenants();
+            cargarStats();
+        } else {
+            const err = await res.json();
+            alert('Error: ' + (err.detail || 'No se pudo eliminar'));
+        }
+    } catch(e) {
+        alert('Error al eliminar tenant');
+    }
 }
 
 async function toggleTenant(id, activo) {
