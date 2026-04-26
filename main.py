@@ -580,7 +580,7 @@ async def subir_imagen_tenant(request: Request):
 
 # ===== ENDPOINTS =====
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def inicio():
     return {"mensaje": "ReservaTuEspacio funcionando"}
 
