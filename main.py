@@ -2429,6 +2429,10 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
                 "excluded_payment_types": [],
                 "installments": 1
             }
+            "payment_methods": {
+                "excluded_payment_types": [],
+                "installments": 1
+            }
         }
 
         async with httpx.AsyncClient() as client:
