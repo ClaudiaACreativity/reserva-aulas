@@ -755,6 +755,7 @@ async function crearReserva() {
         const mpEstado = await mpEstadoRes.json();
         const tieneMP = mpEstado.cobro_por_reserva && mpEstado.conectado;
         const tieneTransferencia = tenant.transferencia_habilitada && tenant.transferencia_alias;
+        _tenantInfo = tenant;
 
         if (tieneMP && tieneTransferencia) {
             // Mostrar modal para elegir método de pago
@@ -867,23 +868,20 @@ async function verificarReservaPendiente() {
 
 async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [] }) {
     try {
-        // Buscar usuario registrado
-        const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${email}`);
         let usuarioId = null;
 
-        if (usuarioRes.ok) {
-            const usuario = await usuarioRes.json();
-            usuarioId = usuario.id;
-        }
-        // Si no existe, crear como usuario nuevo con whatsapp
-        else {
-            const nuevoUsuario = await apiFetch(`${API}/usuarios`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, nombre, rol: 'usuario', whatsapp })
-            });
-            const u = await nuevoUsuario.json();
-            usuarioId = u.id;
+        // Solo buscar/crear usuario si el tenant requiere registro
+        const registroRequerido = _tenantInfo && _tenantInfo.registro_requerido;
+
+        if (registroRequerido) {
+            const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${encodeURIComponent(email)}`);
+            if (usuarioRes.ok) {
+                const usuario = await usuarioRes.json();
+                usuarioId = usuario.id;
+            } else {
+                mostrarMensaje('mensaje-reserva', '❌ Tu usuario no está registrado. Contactá al administrador.', 'error');
+                return;
+            }
         }
 
         // Crear reserva
