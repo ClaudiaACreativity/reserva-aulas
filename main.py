@@ -478,6 +478,7 @@ class TenantPerfilUpdate(BaseModel):
     modalidad_cobro: Optional[str] = None
     politica_cancelacion: Optional[str] = None
     horas_cancelacion: Optional[int] = None
+    registro_requerido: Optional[bool] = None
 
 @app.patch("/tenant/perfil")
 async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
@@ -512,6 +513,8 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             campos.append(f"politica_cancelacion = ${i}"); valores.append(datos.politica_cancelacion); i += 1
         if datos.horas_cancelacion is not None:
             campos.append(f"horas_cancelacion = ${i}"); valores.append(datos.horas_cancelacion); i += 1
+        if datos.registro_requerido is not None:
+            campos.append(f"registro_requerido = ${i}"); valores.append(datos.registro_requerido); i += 1
         if not campos:
             return {"mensaje": "No hay cambios para guardar"}
         valores.append(tenant["id"])
@@ -605,6 +608,7 @@ async def info_tenant(request: Request):
             "modalidad_cobro": tenant["modalidad_cobro"],
             "politica_cancelacion": tenant["politica_cancelacion"],
             "horas_cancelacion": tenant["horas_cancelacion"],
+            "registro_requerido": bool(tenant.get("registro_requerido", False)),
         }
     finally:
         await release_db(db)
@@ -675,6 +679,23 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
     try:
         tenant = await get_tenant(request, db)
         tid = tenant["id"]
+
+        # Validar registro requerido
+        if tenant.get("registro_requerido"):
+            if not reserva.usuario_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Este espacio requiere que estés registrado para hacer una reserva. Contactá al administrador."
+                )
+            usuario = await db.fetchrow(
+                "SELECT id FROM usuarios WHERE id = $1 AND tenant_id = $2 AND activo = TRUE",
+                reserva.usuario_id, tid
+            )
+            if not usuario:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Tu usuario no está registrado o no está activo. Contactá al administrador."
+                )
 
         ahora = datetime.now()
         fecha_hora_inicio = datetime.combine(reserva.fecha, reserva.hora_inicio)
@@ -2259,7 +2280,11 @@ async def crear_preferencia_reserva(request: Request):
             "auto_return": "approved",
             "notification_url": f"https://reserva-aulas.onrender.com/pagos/webhook-reserva",
             "external_reference": temp_reserva_id,
-            "statement_descriptor": tenant["nombre"][:22]
+            "statement_descriptor": tenant["nombre"][:22],
+            "payment_methods": {
+                "excluded_payment_types": [],
+                "installments": 1
+            }
         }
 
         async with httpx.AsyncClient() as client:
@@ -2387,7 +2412,11 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
             "auto_return": "approved",
             "notification_url": "https://reserva-aulas.onrender.com/pagos/webhook",
             "external_reference": f"{datos.tenant_id}|{datos.plan_id}",
-            "statement_descriptor": "RESERVATUESPACIO"
+            "statement_descriptor": "RESERVATUESPACIO",
+            "payment_methods": {
+                "excluded_payment_types": [],
+                "installments": 1
+            }
         }
 
         async with httpx.AsyncClient() as client:
