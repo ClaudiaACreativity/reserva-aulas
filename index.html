@@ -672,6 +672,8 @@ function seleccionarEspacio(id, nombre, el) {
 
 // ===== CREAR RESERVA =====
 let _reservaPendiente = null;
+let _mpEstado = null;
+let _tenantInfo = null;
 
 function cerrarModalPolitica() {
     document.getElementById('modal-politica').style.display = 'none';
@@ -681,6 +683,44 @@ function cerrarModalPolitica() {
 async function confirmarReservaConPolitica() {
     document.getElementById('modal-politica').style.display = 'none';
     if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
+}
+
+function mostrarModalTransferencia(tenant) {
+    document.getElementById('modal-transferencia-alias').textContent = tenant.transferencia_alias;
+    const msgEl = document.getElementById('modal-transferencia-mensaje');
+    msgEl.textContent = tenant.transferencia_mensaje || '';
+    msgEl.style.display = tenant.transferencia_mensaje ? 'block' : 'none';
+    document.getElementById('modal-transferencia').style.display = 'flex';
+}
+
+function cerrarModalTransferencia() {
+    document.getElementById('modal-transferencia').style.display = 'none';
+    _reservaPendiente = null;
+}
+
+async function confirmarReservaTransferencia() {
+    document.getElementById('modal-transferencia').style.display = 'none';
+    if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
+}
+
+function mostrarModalMetodoPago(mpEstado, tenant) {
+    document.getElementById('modal-metodo-pago').style.display = 'flex';
+}
+
+function cerrarModalMetodoPago() {
+    document.getElementById('modal-metodo-pago').style.display = 'none';
+    _reservaPendiente = null;
+}
+
+async function elegirMetodoPago(metodo) {
+    document.getElementById('modal-metodo-pago').style.display = 'none';
+    if (!_reservaPendiente) return;
+    const r = _reservaPendiente;
+    if (metodo === 'mp') {
+        await _iniciarPagoReserva(r);
+    } else {
+        mostrarModalTransferencia(_tenantInfo);
+    }
 }
 
 async function crearReserva() {
@@ -706,33 +746,45 @@ async function crearReserva() {
         }
     });
 
-    // Verificar si hay cobro por reserva activo
+    // Verificar métodos de pago habilitados
     const mpEstadoRes = await apiFetch(`${API}/mp/estado`);
+    const tenantRes = await apiFetch(`${API}/tenant`);
+    const tenant = tenantRes.ok ? await tenantRes.json() : {};
+
     if (mpEstadoRes.ok) {
         const mpEstado = await mpEstadoRes.json();
-        if (mpEstado.cobro_por_reserva && mpEstado.conectado) {
-            // Hay cobro por MP — redirigir a pago antes de confirmar
+        const tieneMP = mpEstado.cobro_por_reserva && mpEstado.conectado;
+        const tieneTransferencia = tenant.transferencia_habilitada && tenant.transferencia_alias;
+
+        if (tieneMP && tieneTransferencia) {
+            // Mostrar modal para elegir método de pago
+            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
+            _mpEstado = mpEstado;
+            _tenantInfo = tenant;
+            mostrarModalMetodoPago(mpEstado, tenant);
+            return;
+        } else if (tieneMP) {
             await _iniciarPagoReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados });
+            return;
+        } else if (tieneTransferencia) {
+            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
+            mostrarModalTransferencia(tenant);
             return;
         }
     }
 
-    // Mostrar política si existe
-    const tenantRes = await apiFetch(`${API}/tenant`);
-    if (tenantRes.ok) {
-        const tenant = await tenantRes.json();
-        if (tenant.politica_cancelacion && tenant.modalidad_cobro !== 'sin_cobro') {
-            const modalidades = {
-                'por_reserva': '💳 Esta reserva requiere pago al confirmar.',
-                'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
-                'mes_vencido': '📄 Recibirás una factura al cierre del mes.'
-            };
-            document.getElementById('modal-politica-texto').textContent = tenant.politica_cancelacion;
-            document.getElementById('modal-modalidad').textContent = modalidades[tenant.modalidad_cobro] || '';
-            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
-            document.getElementById('modal-politica').style.display = 'flex';
-            return;
-        }
+    // Sin cobro — mostrar política si existe
+    if (tenant.politica_cancelacion && tenant.modalidad_cobro !== 'sin_cobro') {
+        const modalidades = {
+            'por_reserva': '💳 Esta reserva requiere pago al confirmar.',
+            'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
+            'mes_vencido': '📄 Recibirás una factura al cierre del mes.'
+        };
+        document.getElementById('modal-politica-texto').textContent = tenant.politica_cancelacion;
+        document.getElementById('modal-modalidad').textContent = modalidades[tenant.modalidad_cobro] || '';
+        _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
+        document.getElementById('modal-politica').style.display = 'flex';
+        return;
     }
     await _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados });
 }
@@ -1283,6 +1335,43 @@ iniciar();
         <div style="display:flex; gap:10px; justify-content:flex-end">
             <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
             <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#2C3E50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
+        </div>
+    </div>
+</div><!-- Modal transferencia -->
+<div id="modal-transferencia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
+        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">💸 Pago por transferencia</h3>
+        <p style="font-size:13px; color:#888; margin-bottom:20px">Realizá el pago y luego confirmá tu reserva</p>
+        <div style="background:#e8f8f0; border-left:4px solid #71D997; border-radius:0 8px 8px 0; padding:16px; margin-bottom:16px">
+            <p style="font-size:13px; font-weight:bold; color:#1a5c36; margin-bottom:4px">Alias / CBU</p>
+            <p id="modal-transferencia-alias" style="font-size:18px; font-weight:bold; color:#2C3E50; margin:0; letter-spacing:1px"></p>
+        </div>
+        <p id="modal-transferencia-mensaje" style="font-size:13px; color:#555; margin-bottom:20px; line-height:1.6"></p>
+        <p style="font-size:12px; color:#aaa; margin-bottom:20px">Al confirmar, tu reserva queda registrada. El administrador verificará el pago.</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end">
+            <button onclick="cerrarModalTransferencia()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
+            <button onclick="confirmarReservaTransferencia()" style="padding:10px 20px; background:#71D997; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Confirmar reserva →</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal elegir método de pago -->
+<div id="modal-metodo-pago" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
+        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">¿Cómo querés pagar?</h3>
+        <p style="font-size:13px; color:#888; margin-bottom:24px">Elegí el método de pago para confirmar tu reserva</p>
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px">
+            <button onclick="elegirMetodoPago('mp')"
+                style="padding:16px; background:#009ee3; color:white; border:none; border-radius:10px; cursor:pointer; font-size:15px; font-weight:bold; display:flex; align-items:center; gap:10px; justify-content:center">
+                💳 Pagar con MercadoPago
+            </button>
+            <button onclick="elegirMetodoPago('transferencia')"
+                style="padding:16px; background:#e8f8f0; color:#1a5c36; border:2px solid #71D997; border-radius:10px; cursor:pointer; font-size:15px; font-weight:bold; display:flex; align-items:center; gap:10px; justify-content:center">
+                🏦 Pagar por transferencia
+            </button>
+        </div>
+        <div style="text-align:center">
+            <button onclick="cerrarModalMetodoPago()" style="padding:8px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:13px; color:#888">Volver</button>
         </div>
     </div>
 </div>

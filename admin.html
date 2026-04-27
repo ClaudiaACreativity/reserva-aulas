@@ -634,13 +634,52 @@
 
         <!-- MERCADOPAGO CONEXIÓN -->
         <div class="card" id="card-mp-conexion">
-            <h2>💳 Cobro por reserva con MercadoPago</h2>
+            <h2>💳 Cobro por reserva</h2>
             <p style="font-size:13px; color:#888; margin-bottom:20px; line-height:1.6">
-                Conectá tu cuenta de MercadoPago para cobrarle a tus usuarios al momento de confirmar una reserva. El dinero va directo a tu cuenta — GestionaTeIA no interviene en los pagos.
+                Configurá cómo querés cobrarle a tus usuarios al momento de confirmar una reserva. Podés habilitar uno o ambos métodos.
             </p>
 
-            <!-- Estado: no conectado -->
-            <div id="mp-no-conectado">
+            <!-- TRANSFERENCIA / PAGO MANUAL -->
+            <div style="border:1px solid #e0e0e0; border-radius:10px; padding:20px; margin-bottom:20px;">
+                <h3 style="font-size:15px; margin:0 0 12px 0; color:#2C3E50">🏦 Transferencia / Pago manual</h3>
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer">
+                            <input type="checkbox" id="transferencia-habilitada" onchange="toggleTransferencia()"
+                                style="width:18px; height:18px; cursor:pointer">
+                            <span>Habilitar pago por transferencia</span>
+                        </label>
+                    </div>
+                    <div id="transferencia-config" style="display:none; width:100%">
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label>Alias o CBU</label>
+                                <input type="text" id="transferencia-alias" placeholder="Ej: miempresa.mp"
+                                    style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%; box-sizing:border-box">
+                            </div>
+                            <div class="form-group full">
+                                <label>Mensaje para el usuario <small style="color:#aaa">(opcional)</small></label>
+                                <input type="text" id="transferencia-mensaje"
+                                    placeholder="Ej: Enviá el comprobante por WhatsApp al 351-XXXXXXX"
+                                    style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%; box-sizing:border-box">
+                            </div>
+                            <div class="form-group full">
+                                <button class="btn btn-primary" onclick="guardarTransferencia()">Guardar datos de transferencia</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mensaje" id="mensaje-transferencia"></div>
+            </div>
+
+            <!-- MERCADOPAGO CHECKOUT -->
+            <div style="border:1px solid #e0e0e0; border-radius:10px; padding:20px;">
+                <h3 style="font-size:15px; margin:0 0 12px 0; color:#2C3E50">💳 MercadoPago Checkout</h3>
+                <p style="font-size:13px; color:#888; margin-bottom:16px; line-height:1.5">
+                    Conectá tu cuenta de MercadoPago para cobrar automáticamente al confirmar la reserva. El dinero va directo a tu cuenta.
+                </p>
+
+            <!-- Estado: no conectado -->\n            <div id="mp-no-conectado">
                 <div style="background:#fff8e8; border:1px solid #f0c040; border-radius:8px; padding:16px; margin-bottom:20px; font-size:13px; color:#856404">
                     ⚠️ Tu cuenta de MercadoPago no está conectada. Conectala para habilitar el cobro por reserva.
                 </div>
@@ -678,6 +717,8 @@
                 </div>
             </div>
             <div class="mensaje" id="mensaje-mp-conexion"></div>
+            </div><!-- fin card MP Checkout -->
+
         </div>
 
         <div class="card">
@@ -1886,6 +1927,13 @@ async function cargarFacturacionConfig() {
         if (tenant.horas_cancelacion) document.getElementById('horas-cancelacion').value = tenant.horas_cancelacion;
         if (tenant.politica_cancelacion) document.getElementById('politica-cancelacion').value = tenant.politica_cancelacion;
         document.getElementById('registro-requerido').checked = !!tenant.registro_requerido;
+        // Transferencia
+        document.getElementById('transferencia-habilitada').checked = !!tenant.transferencia_habilitada;
+        if (tenant.transferencia_habilitada) {
+            document.getElementById('transferencia-config').style.display = 'block';
+        }
+        if (tenant.transferencia_alias) document.getElementById('transferencia-alias').value = tenant.transferencia_alias;
+        if (tenant.transferencia_mensaje) document.getElementById('transferencia-mensaje').value = tenant.transferencia_mensaje;
     } catch(e) { console.log('Error al cargar config facturación', e); }
 }
 
@@ -1977,6 +2025,36 @@ async function guardarCobroConfig() {
     } catch(e) {
         mostrarMensaje('mensaje-cobro-mp', 'Error al guardar', 'error');
     }
+}
+
+function toggleTransferencia() {
+    const activo = document.getElementById('transferencia-habilitada').checked;
+    document.getElementById('transferencia-config').style.display = activo ? 'block' : 'none';
+    if (!activo) guardarTransferencia(); // guardar desactivado inmediatamente
+}
+
+async function guardarTransferencia() {
+    const habilitada = document.getElementById('transferencia-habilitada').checked;
+    const alias = document.getElementById('transferencia-alias').value.trim();
+    const mensaje = document.getElementById('transferencia-mensaje').value.trim();
+    if (habilitada && !alias) {
+        mostrarMensaje('mensaje-transferencia', '❌ Ingresá el alias o CBU', 'error');
+        return;
+    }
+    try {
+        const res = await apiFetch(`${API}/tenant/perfil`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transferencia_habilitada: habilitada,
+                transferencia_alias: alias,
+                transferencia_mensaje: mensaje
+            })
+        });
+        const data = await res.json();
+        if (res.ok) mostrarMensaje('mensaje-transferencia', '✅ Datos de transferencia guardados', 'exito');
+        else mostrarMensaje('mensaje-transferencia', `❌ ${data.detail}`, 'error');
+    } catch(e) { mostrarMensaje('mensaje-transferencia', 'Error al conectar', 'error'); }
 }
 
 async function guardarRegistroRequerido() {

@@ -479,6 +479,9 @@ class TenantPerfilUpdate(BaseModel):
     politica_cancelacion: Optional[str] = None
     horas_cancelacion: Optional[int] = None
     registro_requerido: Optional[bool] = None
+    transferencia_habilitada: Optional[bool] = None
+    transferencia_alias: Optional[str] = None
+    transferencia_mensaje: Optional[str] = None
 
 @app.patch("/tenant/perfil")
 async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
@@ -515,6 +518,12 @@ async def actualizar_perfil_tenant(request: Request, datos: TenantPerfilUpdate):
             campos.append(f"horas_cancelacion = ${i}"); valores.append(datos.horas_cancelacion); i += 1
         if datos.registro_requerido is not None:
             campos.append(f"registro_requerido = ${i}"); valores.append(datos.registro_requerido); i += 1
+        if datos.transferencia_habilitada is not None:
+            campos.append(f"transferencia_habilitada = ${i}"); valores.append(datos.transferencia_habilitada); i += 1
+        if datos.transferencia_alias is not None:
+            campos.append(f"transferencia_alias = ${i}"); valores.append(datos.transferencia_alias); i += 1
+        if datos.transferencia_mensaje is not None:
+            campos.append(f"transferencia_mensaje = ${i}"); valores.append(datos.transferencia_mensaje); i += 1
         if not campos:
             return {"mensaje": "No hay cambios para guardar"}
         valores.append(tenant["id"])
@@ -609,6 +618,9 @@ async def info_tenant(request: Request):
             "politica_cancelacion": tenant["politica_cancelacion"],
             "horas_cancelacion": tenant["horas_cancelacion"],
             "registro_requerido": bool(tenant.get("registro_requerido", False)),
+            "transferencia_habilitada": bool(tenant.get("transferencia_habilitada", False)),
+            "transferencia_alias": tenant.get("transferencia_alias") or "",
+            "transferencia_mensaje": tenant.get("transferencia_mensaje") or "",
         }
     finally:
         await release_db(db)
