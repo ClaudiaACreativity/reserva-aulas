@@ -891,7 +891,10 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
             fecha,
             hora_inicio: horaInicio + ':00',
             hora_fin: horaFin + ':00',
-            recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null
+            recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null,
+            invitado_nombre: usuarioId ? null : nombre,
+            invitado_email: usuarioId ? null : email,
+            invitado_whatsapp: usuarioId ? null : whatsapp
         };
 
         const res = await apiFetch(`${API}/reservas`, {
