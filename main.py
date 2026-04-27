@@ -269,7 +269,7 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                 </a>
             </div>
             <p style="text-align:center; margin-top:16px; font-size:13px; color:#888">
-                <a href="https://reservatuespacio.com/faq-tenants.html" style="color:#2C3E50; font-weight:bold">Manual de uso →</a>
+                <a href="https://reservatuespacio.com/manual_reservatuespacio.pdf" style="color:#2C3E50; font-weight:bold">Manual de uso →</a>
                 &nbsp;&nbsp;|&nbsp;&nbsp;
                 ¿Tenés dudas?
                 <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
