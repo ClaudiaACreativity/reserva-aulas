@@ -232,9 +232,9 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                     <tr>
                         <td style="padding:8px 0; color:#7f8c8d; font-size:13px; width:120px">Panel admin:</td>
                         <td style="padding:8px 0">
-                            <a href="https://reservatuespacio.com/admin.html"
+                            <a href="https://reservatuespacio.com/admin.html?tenant={slug}"
                                style="color:#71D997; font-weight:bold; font-size:14px">
-                                reservatuespacio.com/admin.html
+                                reservatuespacio.com/admin.html?tenant={slug}
                             </a>
                         </td>
                     </tr>
@@ -262,15 +262,17 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                 desde el panel \u2192 Mi perfil.
             </p>
             <div style="text-align:center; margin-top:24px">
-                <a href="https://reservatuespacio.com/admin.html"
+                <a href="https://reservatuespacio.com/admin.html?tenant={slug}"
                    style="background:#71D997; color:#2C3E50; padding:14px 32px;
                           border-radius:50px; text-decoration:none; font-weight:bold; font-size:15px">
                     Ir al panel de administraci\u00f3n \u2192
                 </a>
             </div>
             <p style="text-align:center; margin-top:16px; font-size:13px; color:#888">
-                \u00bfTen\u00e9s dudas?
-                <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte \u2192</a>
+                <a href="https://reservatuespacio.com/faq-tenants.html" style="color:#2C3E50; font-weight:bold">Manual de uso →</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                ¿Tenés dudas?
+                <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
             </p>
         </div>
     </div>
@@ -878,6 +880,8 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                         {recursos_html}
                         {politica_html}
                         <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
+                            <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50; font-weight:bold">Preguntas frecuentes →</a>
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
                             <a href="https://reservatuespacio.com/soporte.html" style="color:#888">¿Necesitás ayuda? Centro de soporte →</a>
                         </p>
                     </div>
@@ -927,6 +931,11 @@ async def cancelar_reserva(request: Request, reserva_id: str, datos: CancelarRes
                 <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue cancelada.</p>
                 <p style="margin-top:15px; color:#888">Si no realizaste esta cancelación, contactá al administrador.</p>
                 <p style="color:#888">{tenant['nombre']}</p>
+                <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
+                    <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50; font-weight:bold">Preguntas frecuentes →</a>
+                    &nbsp;&nbsp;|&nbsp;&nbsp;
+                    <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+                </p>
                 """
             )
         return {"mensaje": "Reserva cancelada correctamente"}
