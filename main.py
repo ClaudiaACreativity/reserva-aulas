@@ -1024,11 +1024,13 @@ async def reservas_por_usuario(request: Request, email: str):
         tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
-                      r.usuario_id, a.nombre as espacio_nombre
+                      r.usuario_id, a.nombre as espacio_nombre,
+                      r.invitado_nombre, r.invitado_email
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
-               WHERE u.email = $1 AND r.tenant_id = $2
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
+               WHERE (u.email = $1 OR r.invitado_email = $1)
+               AND r.tenant_id = $2
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
             email, tenant["id"]
         )
@@ -1044,10 +1046,12 @@ async def listar_todas_reservas(request: Request):
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       r.usuario_id, a.nombre as espacio_nombre,
-                      u.nombre as usuario_nombre, u.email as usuario_email
+                      COALESCE(u.nombre, r.invitado_nombre) as usuario_nombre,
+                      COALESCE(u.email, r.invitado_email) as usuario_email,
+                      r.invitado_whatsapp, r.observaciones
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
                WHERE r.tenant_id = $1
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
             tenant["id"]
@@ -1064,10 +1068,10 @@ async def reservas_calendario(request: Request, fecha_inicio: date, fecha_fin: d
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin,
                       a.id as espacio_id, a.nombre as espacio_nombre,
-                      u.nombre as usuario_nombre
+                      COALESCE(u.nombre, r.invitado_nombre) as usuario_nombre
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
                WHERE r.fecha BETWEEN $1 AND $2
                AND r.estado = 'activa'
                AND r.tenant_id = $3
