@@ -786,7 +786,8 @@
 
 <script>
 const API = 'https://reserva-aulas.onrender.com';
-const TENANT_SLUG = new URLSearchParams(window.location.search).get('tenant') || 'prueba';
+const TENANT_SLUG = new URLSearchParams(window.location.search).get('tenant');
+if (!TENANT_SLUG) { window.location.href = 'landing.html'; }
 let adminToken = null;
 
 async function apiFetch(url, options = {}) {
