@@ -319,7 +319,8 @@ class AdminLogin(BaseModel):
     password: str
 
 @app.post("/admin/login")
-async def admin_login(datos: AdminLogin):
+@limiter.limit("5/minute")
+async def admin_login(request: Request, datos: AdminLogin):
     import secrets
     password_correcta = os.getenv("ADMIN_PASSWORD", "sL2#di!KBw")
     if datos.password != password_correcta:
@@ -345,6 +346,7 @@ class SetPassword(BaseModel):
     password: str
 
 @app.post("/admin/tenant/login")
+@limiter.limit("5/minute")
 async def admin_tenant_login(request: Request, datos: AdminTenantLogin):
     db = await get_db()
     try:
