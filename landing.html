@@ -1016,71 +1016,94 @@
                 <div class="section-tag">Precios</div>
                 <h2>Planes para<br>cada organización</h2>
             </div>
-            <p class="section-sub" style="margin-bottom:0; max-width:340px">Todos los planes incluyen <strong>30 días de prueba gratuita</strong>. Sin tarjeta de crédito.</p>
+            <p class="section-sub" style="margin-bottom:0; max-width:380px">Todos los planes incluyen <strong>30 días de prueba gratuita</strong>. Sin tarjeta de crédito. Si el sistema evita una sola reserva perdida, ya pagó el mes.</p>
         </div>
         <div class="planes-grid">
+
+            <!-- BÁSICO -->
             <div class="plan-card">
                 <div class="plan-nombre">Básico</div>
-                <div class="plan-desc">Para organizaciones pequeñas que están empezando.</div>
+                <div class="plan-desc">Para empezar a ordenar tu agenda sin WhatsApp ni Excel.</div>
                 <div class="plan-precio">
                     <div class="plan-monto"><span class="plan-moneda">$</span>15</div>
-                    <div class="plan-periodo">USD por mes</div>
+                    <div class="plan-periodo">USD por mes · menos de $1 por día</div>
                 </div>
                 <ul class="plan-features">
-                    <li>1 edificio</li>
-                    <li>Hasta 10 espacios</li>
-                    <li>Hasta 30 usuarios</li>
-                    <li>Calendario visual</li>
-                    <li>Notificaciones por email</li>
+                    <li>Hasta 2 espacios</li>
+                    <li>Hasta 200 reservas por mes</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Calendario visual día / semana</li>
+                    <li>Reservas sin registro para tus clientes</li>
+                    <li>Notificaciones automáticas por email</li>
                     <li>Exportación a Excel</li>
-                    <li>Soporte técnico 24/7 ✓</li>
+                    <li>Soporte técnico incluido</li>
                 </ul>
-                <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+                <a href="#registro" class="btn btn-outline btn-plan">Empezar gratis →</a>
                 <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('basic')">Suscribirse ahora →</button>
             </div>
+
+            <!-- PROFESIONAL -->
             <div class="plan-card featured">
-                <div class="plan-badge">Más popular</div>
+                <div class="plan-badge">⭐ El más elegido</div>
                 <div class="plan-nombre">Profesional</div>
-                <div class="plan-desc">Para organizaciones medianas con múltiples sedes.</div>
+                <div class="plan-desc">Para organizaciones que quieren cobrar reservas y crecer sin límites.</div>
                 <div class="plan-precio">
                     <div class="plan-monto"><span class="plan-moneda">$</span>35</div>
-                    <div class="plan-periodo">USD por mes</div>
+                    <div class="plan-periodo">USD por mes · menos de $1,20 por día</div>
                 </div>
                 <ul class="plan-features">
-                    <li>Hasta 3 edificios</li>
-                    <li>Hasta 50 espacios</li>
+                    <li>Hasta 6 espacios</li>
+                    <li>Reservas ilimitadas</li>
                     <li>Usuarios ilimitados</li>
                     <li>Todo lo del plan Básico</li>
-                    <li>Logo y colores personalizados</li>
-                    <li>Reportes avanzados</li>
-                    <li>Cobro de reservas con MercadoPago</li>
-                    <li>Soporte técnico 24/7 ✓</li>
+                    <li>Cobro automático de reservas con MercadoPago</li>
+                    <li>Devoluciones automáticas al cancelar</li>
+                    <li>Logo y colores de tu organización</li>
+                    <li>Múltiples edificios o sedes</li>
+                    <li>Soporte técnico prioritario</li>
                 </ul>
-                <a href="#registro" class="btn btn-plan">Comenzar gratis →</a>
+                <a href="#registro" class="btn btn-plan">Empezar gratis →</a>
                 <button class="btn btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center; background:#71D997; color:#2C3E50" onclick="suscribirse('professional')">Suscribirse ahora →</button>
             </div>
+
+            <!-- ENTERPRISE -->
             <div class="plan-card">
                 <div class="plan-nombre">Enterprise</div>
-                <div class="plan-desc">Para grandes instituciones sin límites de crecimiento.</div>
+                <div class="plan-desc">Para grandes instituciones que necesitan escala y control total.</div>
                 <div class="plan-precio">
                     <div class="plan-monto"><span class="plan-moneda">$</span>80</div>
                     <div class="plan-periodo">USD por mes</div>
                 </div>
                 <ul class="plan-features">
-                    <li>Edificios ilimitados</li>
                     <li>Espacios ilimitados</li>
+                    <li>Reservas ilimitadas</li>
                     <li>Usuarios ilimitados</li>
                     <li>Todo lo del plan Profesional</li>
                     <li>Dominio personalizado</li>
-                    <li>Cobro de reservas con MercadoPago</li>
-                    <li>Acceso a API (conectá ReservaTuEspacio con otros sistemas de tu institución)</li>
-                    <li>Soporte técnico 24/7 ✓</li>
+                    <li>Acceso a API</li>
                     <li>Atención personalizada dedicada</li>
                 </ul>
-                <a href="#registro" class="btn btn-outline btn-plan">Comenzar gratis →</a>
+                <p style="font-size:12px; color:#888; margin-bottom:16px; line-height:1.6">
+                    ¿Tenés más de 6 espacios o múltiples sedes? Este plan crece con vos.
+                </p>
+                <a href="#registro" class="btn btn-outline btn-plan">Empezar gratis →</a>
                 <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('enterprise')">Suscribirse ahora →</button>
             </div>
+
         </div>
+
+        <!-- ANCLA DE VALOR bajo los planes -->
+        <div style="margin-top:48px; background:#f0faf5; border:1px solid #c3e8d4; border-radius:16px; padding:28px 36px; display:flex; align-items:center; gap:32px; flex-wrap:wrap">
+            <div style="font-size:36px">💡</div>
+            <div>
+                <div style="font-weight:700; color:#1a5c36; font-size:15px; margin-bottom:4px">¿Cuánto te cuesta una reserva perdida?</div>
+                <div style="font-size:13px; color:#4a7c5e; line-height:1.7">
+                    Un club con 3 canchas puede perder 5 o más reservas por semana por falta de sistema — eso son más de <strong>$150 USD mensuales en ingresos que no llegan</strong>.<br>
+                    ReservaTuEspacio cuesta menos que una sola reserva perdida.
+                </div>
+            </div>
+        </div>
+
     </div>
 </section>
 
@@ -1129,9 +1152,9 @@
                 <div class="form-group">
                     <label>Plan *</label>
                     <select id="reg-plan">
-                        <option value="basic">Básico — USD 15/mes</option>
-                        <option value="professional" selected>Profesional — USD 35/mes</option>
-                        <option value="enterprise">Enterprise — USD 80/mes</option>
+                        <option value="basic">Básico — USD 15/mes (hasta 2 espacios)</option>
+                        <option value="professional" selected>Profesional — USD 35/mes (hasta 6 espacios) ⭐</option>
+                        <option value="enterprise">Enterprise — USD 80/mes (ilimitado)</option>
                     </select>
                 </div>
                 <div class="form-group">
