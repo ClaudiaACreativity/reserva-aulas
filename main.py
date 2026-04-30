@@ -681,8 +681,10 @@ async def consultar_disponibilidad(request: Request, espacio_id: str, fecha: dat
     try:
         tenant = await get_tenant(request, db)
         reservas = await db.fetch(
-            """SELECT hora_inicio, hora_fin FROM reservas
-               WHERE aula_id=$1 AND fecha=$2 AND estado='activa' AND tenant_id=$3""",
+            """SELECT hora_inicio, hora_fin, estado FROM reservas
+               WHERE aula_id=$1 AND fecha=$2
+                 AND estado IN ('activa','pending_payment')
+                 AND tenant_id=$3""",
             espacio_id, fecha, tenant["id"]
         )
         return [dict(r) for r in reservas]
@@ -798,6 +800,22 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                     "disponibles": disponibles,
                     "nombre": recurso["nombre"]
                 })
+
+        # Validar superposición (incluye pending_payment para evitar doble reserva)
+        solapamiento = await db.fetchrow(
+            """SELECT id FROM reservas
+               WHERE aula_id = $1 AND fecha = $2
+                 AND estado IN ('activa', 'pending_payment')
+                 AND tenant_id = $3
+                 AND hora_inicio < $4 AND hora_fin > $5""",
+            reserva.espacio_id, reserva.fecha, tid,
+            reserva.hora_fin, reserva.hora_inicio
+        )
+        if solapamiento:
+            raise HTTPException(
+                status_code=400,
+                detail="Ese horario ya está reservado o está siendo procesado"
+            )
 
         result = await db.fetchrow(
             """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id,
@@ -2385,7 +2403,23 @@ async def crear_preferencia_reserva(request: Request):
         precio_ars = round(precio * tc, 2)
         expires_at = datetime.utcnow() + timedelta(minutes=15)
 
-        # 1. Crear reserva con estado pending_payment
+        # 1. Validar superposición antes de crear la reserva
+        solapamiento = await db.fetchrow(
+            """SELECT id FROM reservas
+               WHERE aula_id = $1 AND fecha = $2
+                 AND estado IN ('activa', 'pending_payment')
+                 AND tenant_id = $3
+                 AND hora_inicio < $4 AND hora_fin > $5""",
+            espacio_id, fecha, tenant["id"],
+            hora_fin, hora_inicio
+        )
+        if solapamiento:
+            raise HTTPException(
+                status_code=400,
+                detail="Ese horario ya está reservado o está siendo procesado"
+            )
+
+        # 2. Crear reserva con estado pending_payment
         reserva_id = await db.fetchval(
             """INSERT INTO reservas
                (tenant_id, aula_id, usuario_id, invitado_nombre, invitado_email,

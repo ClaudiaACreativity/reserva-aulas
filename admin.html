@@ -149,6 +149,9 @@
 
         .badge-activa, .badge-true { background: #d5f0e0; color: #1a5c36; }
         .badge-cancelada, .badge-false { background: #fdedec; color: #c0392b; }
+        .badge-pending_payment { background: #fff3cd; color: #856404; }
+        .badge-expirada { background: #f0f0f0; color: #666; }
+        .badge-reembolsada { background: #dbeafe; color: #1e40af; }
 
         .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
 
@@ -708,6 +711,14 @@
                         <input type="number" id="precio-reserva" min="1" placeholder="Ej: 5000"
                             style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px">
                     </div>
+                    <div class="form-group" id="politica-devolucion-group" style="display:none">
+                        <label>Política de devolución al cancelar</label>
+                        <select id="politica-devolucion" style="padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:100%">
+                            <option value="credito">Crédito interno (el cliente lo usa en su próxima reserva)</option>
+                            <option value="reembolso">Reembolso directo a Mercado Pago (puede demorar 24-72hs)</option>
+                        </select>
+                        <small style="color:#888; margin-top:4px; display:block">El cliente verá esta política en el email de cancelación.</small>
+                    </div>
                     <div class="form-group full" id="btn-guardar-cobro-group" style="display:none">
                         <button class="btn btn-primary" onclick="guardarCobroConfig()">Guardar configuración</button>
                     </div>
@@ -927,7 +938,13 @@ async function cargarReservas() {
                             <td>${r.espacio_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
-                            <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+                            <td><span class="badge badge-${r.estado}">${{
+                                'activa': '✅ Confirmada',
+                                'pending_payment': '⏳ Pago pendiente',
+                                'cancelada': '❌ Cancelada',
+                                'expirada': '🕐 Expirada',
+                                'reembolsada': '💰 Reembolsada'
+                            }[r.estado] || r.estado}</span>${r.monto ? ` <small style="color:#888">$${Number(r.monto).toLocaleString('es-AR')}\</small>` : ''}</td>
                             <td style="min-width:180px">
                                 <div style="display:flex; gap:6px; align-items:flex-start">
                                     <textarea
@@ -1947,8 +1964,12 @@ async function cargarFacturacionConfig() {
 
 function usarPlantilla() {
     const horas = document.getElementById('horas-cancelacion').value || 'X';
+    const politica = document.getElementById('politica-devolucion') ? document.getElementById('politica-devolucion').value : 'credito';
+    const textoDevolucion = politica === 'reembolso'
+        ? `Las cancelaciones realizadas con más de ${horas} horas de anticipación recibirán un reembolso del 100% del importe abonado en el mismo medio de pago (puede demorar entre 24 y 72 horas hábiles). Las cancelaciones con menos de ${horas} horas de anticipación no tendrán derecho a reembolso.`
+        : `Las cancelaciones realizadas con más de ${horas} horas de anticipación generarán un crédito por el 100% del importe abonado, válido por 6 meses para ser utilizado en una nueva reserva en este mismo establecimiento. Las cancelaciones con menos de ${horas} horas de anticipación no tendrán derecho a crédito ni reembolso.`;
     document.getElementById('politica-cancelacion').value =
-        `Las cancelaciones realizadas con más de ${horas} horas de anticipación recibirán un reembolso del 100% del importe abonado. Las cancelaciones con menos de ${horas} horas de anticipación no tendrán derecho a reembolso. Para cancelar, ingresá a "Mis reservas" desde el sitio de tu organización.`;
+        textoDevolucion + ` Para cancelar, ingresá a "Mis reservas" desde el sitio de tu organización.`;
 }
 
 
@@ -1965,8 +1986,10 @@ async function cargarEstadoMP() {
             document.getElementById('cobro-por-reserva').checked = data.cobro_por_reserva;
             if (data.cobro_por_reserva) {
                 document.getElementById('precio-reserva-group').style.display = 'block';
+                document.getElementById('politica-devolucion-group').style.display = 'block';
                 document.getElementById('btn-guardar-cobro-group').style.display = 'block';
                 document.getElementById('precio-reserva').value = data.precio_reserva || '';
+                document.getElementById('politica-devolucion').value = data.politica_devolucion || 'credito';
             }
         } else {
             document.getElementById('mp-no-conectado').style.display = 'block';
@@ -2009,6 +2032,7 @@ async function desconectarMP() {
 function toggleCobroReserva() {
     const activo = document.getElementById('cobro-por-reserva').checked;
     document.getElementById('precio-reserva-group').style.display = activo ? 'block' : 'none';
+    document.getElementById('politica-devolucion-group').style.display = activo ? 'block' : 'none';
     document.getElementById('btn-guardar-cobro-group').style.display = activo ? 'block' : 'none';
 }
 
@@ -2025,7 +2049,7 @@ async function guardarCobroConfig() {
         const res = await apiFetch(`${API}/mp/cobro-config`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cobro_por_reserva: activo, precio_reserva: activo ? precio : null })
+            body: JSON.stringify({ cobro_por_reserva: activo, precio_reserva: activo ? precio : null, politica_devolucion: document.getElementById('politica-devolucion').value })
         });
         const data = await res.json();
         if (res.ok) mostrarMensaje('mensaje-cobro-mp', '✅ Configuración guardada', 'exito');

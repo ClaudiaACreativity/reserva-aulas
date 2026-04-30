@@ -166,6 +166,9 @@
 
         .badge-activa { background: #d5f0e0; color: #1a5c36; }
         .badge-cancelada { background: #fdedec; color: #c0392b; }
+        .badge-pending_payment { background: #fff3cd; color: #856404; }
+        .badge-expirada { background: #f0f0f0; color: #666; }
+        .badge-reembolsada { background: #dbeafe; color: #1e40af; }
 
         .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
 
@@ -176,6 +179,7 @@
         .cal-tabla th { background: #2C3E50; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
         .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; text-align: center; height: 45px; }
         .cal-reserva { background: #2C3E50; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
+        .cal-reserva-pending { background: #e67e22; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
         .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 5px; font-size: 11px; cursor: pointer; }
         .cal-libre:hover { background: #a8dbbe; }
         .cal-libre-cell { cursor: pointer; }
@@ -468,8 +472,9 @@ async function renderDia(aulas, horarios) {
             );
 
             if (res) {
+                const esPending = res.estado === 'pending_payment';
                 html += `<td class="cal-reserva-cell">
-                    <div class="cal-reserva">🔒 ${res.usuario_nombre || ""}<br>
+                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
                     <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
                 </td>`;
             } else {
@@ -563,8 +568,9 @@ async function renderSemana(aulas, horarios) {
             );
 
             if (res) {
+                const esPending = res.estado === 'pending_payment';
                 html += `<td class="cal-reserva-cell">
-                    <div class="cal-reserva">🔒 ${res.usuario_nombre || ""}<br>
+                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
                     <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
                 </td>`;
             } else {
@@ -795,36 +801,43 @@ async function _iniciarPagoReserva({ espacioId, nombre, email, whatsapp, fecha, 
     try {
         mostrarMensaje('mensaje-reserva', '⏳ Preparando el pago...', 'exito');
 
-        // Obtener nombre del espacio
         const espacioNombre = document.getElementById('espacio-nombre').value || 'Espacio';
 
-        // Generar ID temporal para tracking
-        const tempId = 'tmp_' + Date.now();
+        // Buscar usuario_id si el tenant requiere registro
+        let usuarioId = null;
+        const registroRequerido = _tenantInfo && _tenantInfo.registro_requerido;
+        if (registroRequerido) {
+            const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${encodeURIComponent(email)}`);
+            if (usuarioRes.ok) {
+                const usuario = await usuarioRes.json();
+                usuarioId = usuario.id;
+            } else {
+                mostrarMensaje('mensaje-reserva', '❌ Tu usuario no está registrado. Contactá al administrador.', 'error');
+                return;
+            }
+        }
 
-        // Guardar datos de reserva en sessionStorage para después del pago
-        sessionStorage.setItem('reserva_pendiente', JSON.stringify({
-            espacioId, nombre, email, whatsapp, fecha,
-            horaInicio, horaFin, recursosSeleccionados, tempId
-        }));
-
-        // Crear preferencia de pago
+        // Crear reserva pending_payment y preferencia de pago en el backend
         const res = await apiFetch(`${API}/pagos/reserva/crear-preferencia`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                espacio_id: espacioId,
                 espacio_nombre: espacioNombre,
                 fecha,
                 hora_inicio: horaInicio + ':00',
                 hora_fin: horaFin + ':00',
+                usuario_id: usuarioId,
+                invitado_nombre: usuarioId ? null : nombre,
+                invitado_email: usuarioId ? null : email,
+                invitado_whatsapp: usuarioId ? null : whatsapp,
                 email_usuario: email,
-                nombre_usuario: nombre,
-                temp_reserva_id: tempId
+                nombre_usuario: nombre
             })
         });
 
         const data = await res.json();
         if (res.ok && data.init_point) {
-            // Mostrar precio antes de redirigir
             mostrarMensaje('mensaje-reserva',
                 `💳 Total a pagar: $${data.precio_ars.toLocaleString('es-AR')} ARS. Redirigiendo a MercadoPago...`,
                 'exito'
@@ -840,31 +853,24 @@ async function _iniciarPagoReserva({ espacioId, nombre, email, whatsapp, fecha, 
     }
 }
 
-// Verificar si hay una reserva pendiente después de un pago aprobado
+// Verificar retorno desde Mercado Pago y mostrar mensaje al usuario
 async function verificarReservaPendiente() {
     const params = new URLSearchParams(window.location.search);
-    const reservaPagada = params.get('reserva_pagada');
-    if (reservaPagada !== '1') return;
+    const estadoPago = params.get('pago');
+    if (!estadoPago) return;
 
-    const reservaData = sessionStorage.getItem('reserva_pendiente');
-    if (!reservaData) return;
+    // Limpiar el parámetro de la URL
+    const tenantParam = params.get('tenant') ? `?tenant=${params.get('tenant')}` : '';
+    window.history.replaceState({}, '', window.location.pathname + tenantParam);
 
-    // Limpiar URL y sessionStorage
-    window.history.replaceState({}, '', window.location.pathname);
-    sessionStorage.removeItem('reserva_pendiente');
-
-    const r = JSON.parse(reservaData);
-    mostrarMensaje('mensaje-reserva', '✅ Pago aprobado. Confirmando tu reserva...', 'exito');
-    await _ejecutarReserva({
-        espacioId: r.espacioId,
-        nombre: r.nombre,
-        email: r.email,
-        whatsapp: r.whatsapp,
-        fecha: r.fecha,
-        horaInicio: r.horaInicio,
-        horaFin: r.horaFin,
-        recursosSeleccionados: r.recursosSeleccionados || []
-    });
+    if (estadoPago === 'ok') {
+        mostrarMensaje('mensaje-reserva', '✅ ¡Reserva confirmada! Recibirás un email de confirmación en breve.', 'exito');
+        renderCalendario();
+    } else if (estadoPago === 'error') {
+        mostrarMensaje('mensaje-reserva', '❌ El pago no pudo procesarse. Tu reserva fue cancelada, podés intentarlo de nuevo.', 'error');
+    } else if (estadoPago === 'pendiente') {
+        mostrarMensaje('mensaje-reserva', '⏳ Tu pago está siendo procesado. Te avisaremos por email cuando se confirme.', 'exito');
+    }
 }
 
 async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [] }) {
@@ -997,7 +1003,13 @@ async function buscarReservas() {
                             <td>${r.espacio_nombre}</td>
                             <td>${r.fecha}</td>
                             <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
-                            <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+                            <td><span class="badge badge-${r.estado}">${{
+                                'activa': '✅ Confirmada',
+                                'pending_payment': '⏳ Pago pendiente',
+                                'cancelada': '❌ Cancelada',
+                                'expirada': '🕐 Expirada',
+                                'reembolsada': '💰 Reembolsada'
+                            }[r.estado] || r.estado}</span></td>
                             <td>
                                 ${r.estado === 'activa' ? `
                                     <button class="btn btn-danger" onclick="cancelarReserva('${r.id}', '${r.usuario_id}')">
