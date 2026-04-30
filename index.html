@@ -4,1328 +4,1198 @@
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" href="favicon-rte.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReservaTuEspacio</title>
+    <title>ReservaTuEspacio — Gestión de espacios para tu organización</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --green: #71D997;
+            --green-hover: #5bc583;
+            --green-pale: #E8F7EE;
+            --dark: #2C3E50;
+            --dark-2: #1a2b38;
+            --body-text: #4A5568;
+            --light-bg: #F9F9FB;
+            --white: #ffffff;
+            --border: #e8ecef;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: Arial, sans-serif;
-            background: #f0f4f8;
-            color: #333;
+            font-family: 'Montserrat', sans-serif;
+            background: var(--light-bg);
+            color: var(--dark);
+            overflow-x: hidden;
         }
 
-        header {
-            background: #2C3E50;
-            color: white;
-            padding: 20px 40px;
+        /* ===== NAV ===== */
+        nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 15px;
+            padding: 18px 64px;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
         }
 
-        header h1 { font-size: 24px; }
-        header p { font-size: 14px; opacity: 0.8; }
+        .logo {
+            font-weight: 800;
+            font-size: 22px;
+            color: var(--dark);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
 
-        .container {
-            max-width: 1000px;
-            margin: 30px auto;
-            padding: 0 20px;
+        .logo span.tu { color: #C8D8D0; }
+        .logo span.espacio { color: var(--green); }
+
+        nav ul {
+            list-style: none;
             display: flex;
-            flex-direction: column;
-            gap: 30px;
+            gap: 40px;
         }
 
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        nav ul a {
+            text-decoration: none;
+            color: var(--body-text);
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
         }
 
-        .card h2 {
-            font-size: 18px;
-            color: #2C3E50;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #71D997;
-        }
+        nav ul a:hover { color: var(--dark); }
 
-        .espacios-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 15px;
-        }
-
-        .espacio-card {
-            border: 2px solid #e0e8f0;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 26px;
+            border-radius: 50px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            border: none;
+            transition: all 0.25s;
+            text-decoration: none;
         }
 
-        .espacio-card:hover {
-            border-color: #2C3E50;
-            background: #f0f4f8;
+        .btn-primary {
+            background: var(--green);
+            color: var(--dark);
         }
 
-        .espacio-card.seleccionada {
-            border-color: #2C3E50;
-            background: #e8f0fb;
+        .btn-primary:hover {
+            background: var(--green-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(113,217,151,0.35);
         }
 
-        .espacio-card h3 { font-size: 16px; color: #2C3E50; }
-        .espacio-card p { font-size: 13px; color: #888; margin-top: 5px; }
+        .btn-dark {
+            background: var(--dark);
+            color: white;
+        }
 
-        .form-grid {
+        .btn-dark:hover {
+            background: var(--dark-2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(44,62,80,0.25);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--dark);
+            border: 2px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--dark);
+            background: var(--dark);
+            color: white;
+        }
+
+        .btn-lg { padding: 15px 38px; font-size: 15px; }
+
+        /* ===== HERO ===== */
+        .hero {
+            min-height: 100vh;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            padding-top: 72px;
+        }
+
+        .hero-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 64px;
+            background: linear-gradient(135deg, var(--light-bg) 0%, var(--green-pale) 100%);
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--white);
+            border: 1px solid rgba(113,217,151,0.4);
+            color: var(--green-hover);
+            padding: 7px 18px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 28px;
+            width: fit-content;
+            letter-spacing: 0.3px;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 7px; height: 7px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.4); }
+        }
+
+        h1 {
+            font-size: 58px;
+            font-weight: 900;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            margin-bottom: 24px;
+            color: var(--dark);
+        }
+
+        h1 em {
+            font-style: normal;
+            color: var(--green-hover);
+        }
+
+        .hero-desc {
+            font-size: 16px;
+            color: var(--body-text);
+            line-height: 1.8;
+            margin-bottom: 40px;
+            font-weight: 400;
+            max-width: 440px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .hero-note {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--body-text);
+            margin-top: 18px;
+            font-weight: 500;
+        }
+
+        .hero-note::before {
+            content: '✓';
+            color: var(--green-hover);
+            font-weight: 800;
+        }
+
+        .hero-right {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-right img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            bottom: 36px; left: 36px; right: 36px;
+            background: rgba(44,62,80,0.88);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 22px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .overlay-stat { text-align: center; }
+
+        .overlay-stat .num {
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--green);
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .overlay-stat .label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.45);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .overlay-divider {
+            width: 1px; height: 36px;
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ===== CLIENTES ===== */
+        .clientes {
+            padding: 40px 64px;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .clientes-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 48px;
+        }
+
+        .clientes p {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--body-text);
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
+        .clientes-grid {
+            display: flex;
+            gap: 36px;
+            flex-wrap: wrap;
+        }
+
+        .cliente-tipo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--body-text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .cliente-tipo span { font-size: 18px; }
+
+        /* ===== MOSAIC ===== */
+        .mosaic {
+            padding: 96px 64px;
+            background: var(--light-bg);
+        }
+
+        .mosaic-inner { max-width: 1100px; margin: 0 auto; }
+
+        .section-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--green-hover);
+            margin-bottom: 16px;
+        }
+
+        .section-tag::before {
+            content: '';
+            width: 24px; height: 2px;
+            background: var(--green);
+        }
+
+        h2 {
+            font-size: 44px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1.1;
+            margin-bottom: 14px;
+            color: var(--dark);
+        }
+
+        .section-sub {
+            font-size: 16px;
+            color: var(--body-text);
+            font-weight: 400;
+            line-height: 1.75;
+            max-width: 480px;
+            margin-bottom: 52px;
+        }
+
+        .mosaic-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 280px 280px;
+            gap: 14px;
+        }
+
+        .mosaic-item {
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .mosaic-item img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .mosaic-item:hover img { transform: scale(1.05); }
+        .mosaic-item.tall { grid-row: span 2; }
+
+        .mosaic-caption {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(44,62,80,0.85) 0%, transparent 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== FEATURES ===== */
+        .features {
+            padding: 96px 64px;
+            background: var(--white);
+        }
+
+        .features-inner { max-width: 1100px; margin: 0 auto; }
+
+        .features-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: end;
+            margin-bottom: 56px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .feature-card {
+            background: var(--white);
+            padding: 36px 30px;
+            transition: background 0.3s;
+        }
+
+        .feature-card:hover { background: var(--green-pale); }
+
+        .feature-num {
+            font-size: 36px;
+            font-weight: 900;
+            color: rgba(113,217,151,0.35);
+            line-height: 1;
+            margin-bottom: 18px;
+            letter-spacing: -1px;
+        }
+
+        .feature-card h3 {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+
+        .feature-card p {
+            font-size: 13px;
+            color: var(--body-text);
+            line-height: 1.75;
+            font-weight: 400;
+        }
+
+        /* ===== SPLIT ===== */
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 580px;
+        }
+
+        .split-img { position: relative; overflow: hidden; }
+        .split-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        .split-content {
+            background: var(--dark);
+            padding: 80px 68px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .split-content .section-tag { color: var(--green); }
+        .split-content h2 { color: var(--white); }
+        .split-content .section-sub { color: rgba(255,255,255,0.45); }
+
+        .check-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .check-list li::before {
+            content: '✓';
+            width: 20px; height: 20px;
+            background: var(--green);
+            color: var(--dark);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ===== PLANES ===== */
+        .planes {
+            padding: 96px 64px;
+            background: var(--light-bg);
+        }
+
+        .planes-inner { max-width: 1100px; margin: 0 auto; }
+
+        .planes-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 52px;
+            gap: 40px;
+        }
+
+        .planes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .plan-card {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 38px 30px;
+            border: 1.5px solid var(--border);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 60px rgba(44,62,80,0.1);
+        }
+
+        .plan-card.featured {
+            background: var(--dark);
+            border-color: var(--dark);
+        }
+
+        .plan-badge {
+            position: absolute;
+            top: -13px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--green);
+            color: var(--dark);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 5px 18px;
+            border-radius: 50px;
+            white-space: nowrap;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .plan-nombre {
+            font-size: 20px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--dark);
+            letter-spacing: -0.3px;
+        }
+
+        .plan-card.featured .plan-nombre { color: var(--white); }
+
+        .plan-desc {
+            font-size: 13px;
+            color: var(--body-text);
+            margin-bottom: 24px;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .plan-card.featured .plan-desc { color: rgba(255,255,255,0.4); }
+
+        .plan-precio {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .plan-card.featured .plan-precio { border-bottom-color: rgba(255,255,255,0.08); }
+
+        .plan-monto {
+            font-size: 50px;
+            font-weight: 900;
+            letter-spacing: -2px;
+            line-height: 1;
+            color: var(--dark);
+        }
+
+        .plan-card.featured .plan-monto { color: var(--green); }
+
+        .plan-moneda {
+            font-size: 20px;
+            font-weight: 600;
+            vertical-align: super;
+        }
+
+        .plan-periodo {
+            font-size: 12px;
+            color: var(--body-text);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .plan-card.featured .plan-periodo { color: rgba(255,255,255,0.35); }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 28px;
+        }
+
+        .plan-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--body-text);
+            font-weight: 500;
+        }
+
+        .plan-card.featured .plan-features li {
+            border-bottom-color: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.7);
+        }
+
+        .plan-features li::before {
+            content: '✓';
+            color: var(--green-hover);
+            font-weight: 800;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .plan-card.featured .plan-features li::before { color: var(--green); }
+
+        .btn-plan {
+            width: 100%;
+            justify-content: center;
+            padding: 13px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .plan-card.featured .btn-plan {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .plan-card.featured .btn-plan:hover {
+            background: var(--green-hover);
+            color: white;
+        }
+
+        /* ===== REGISTRO ===== */
+        .registro {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 700px;
+        }
+
+        .registro-img { position: relative; overflow: hidden; }
+        .registro-img img { width: 100%; height: 100%; object-fit: cover; }
+
+        .registro-img-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(44,62,80,0.82) 0%, rgba(44,62,80,0.55) 100%);
+        }
+
+        .registro-img-text {
+            position: absolute;
+            bottom: 48px; left: 48px; right: 48px;
+        }
+
+        .registro-img-text h3 {
+            font-size: 34px;
+            font-weight: 900;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .registro-img-text p {
+            font-size: 15px;
+            color: rgba(255,255,255,0.92);
+            line-height: 1.65;
+            font-weight: 400;
+        }
+
+        .registro-form {
+            background: var(--dark);
+            padding: 68px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .registro-form .section-tag { color: var(--green); margin-bottom: 14px; }
+        .registro-form h2 { color: var(--white); font-size: 34px; margin-bottom: 8px; }
+        .registro-form .section-sub { color: rgba(255,255,255,0.4); margin-bottom: 32px; font-size: 14px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-        }
-
-        .form-group label {
-            font-size: 13px;
-            font-weight: bold;
-            color: #555;
-        }
-
-        .form-group input, .form-group select {
-            padding: 10px 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 14px;
-            outline: none;
-            transition: border 0.2s;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            border-color: #2C3E50;
+            gap: 7px;
+            margin-bottom: 12px;
         }
 
         .form-group.full { grid-column: 1 / -1; }
 
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 6px;
-            font-size: 15px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
+        .form-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.45);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        .btn-primary { background: #2C3E50; color: white; }
-        .btn-primary:hover { background: #1a252f; }
-        .btn-danger { background: #e74c3c; color: white; font-size: 13px; padding: 7px 14px; }
-        .btn-danger:hover { background: #c0392b; }
+        .form-group input,
+        .form-group select {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--white);
+            font-family: 'Montserrat', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+            transition: border 0.2s, background 0.2s;
+        }
 
-        .mensaje {
-            padding: 12px 16px;
-            border-radius: 6px;
+        .form-group input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--green);
+            background: rgba(113,217,151,0.05);
+        }
+
+        .form-group select option { background: var(--dark-2); color: white; }
+
+        .slug-preview {
+            font-size: 11px;
+            color: rgba(255,255,255,0.3);
+            margin-top: 3px;
+            font-weight: 500;
+        }
+
+        .slug-preview span { color: var(--green); }
+
+        .btn-registro {
+            width: 100%;
+            justify-content: center;
+            padding: 14px;
             font-size: 14px;
-            margin-top: 15px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+
+        .form-nota {
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+            margin-top: 12px;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        .form-nota strong { color: var(--green); }
+
+        .error-msg {
+            background: rgba(255,100,100,0.1);
+            border: 1px solid rgba(255,100,100,0.25);
+            color: #ff8080;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
             display: none;
         }
 
-        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
-        .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
+        .success-box {
+            display: none;
+            text-align: center;
+            padding: 20px 0;
+        }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .success-box .icon { font-size: 52px; margin-bottom: 18px; }
+
+        .success-box h3 {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--white);
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .success-box p {
+            color: rgba(255,255,255,0.4);
             font-size: 14px;
+            line-height: 1.75;
+            font-weight: 400;
         }
 
-        th {
-            background: #2C3E50;
-            color: white;
-            padding: 12px 15px;
-            text-align: left;
+        .success-box strong { color: var(--green); }
+
+        /* ===== FOOTER ===== */
+        footer {
+            padding: 32px 64px;
+            background: var(--dark-2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.04);
         }
 
-        td {
-            padding: 11px 15px;
-            border-bottom: 1px solid #e0e8f0;
-        }
+        footer .logo { color: var(--white); }
+        footer p { font-size: 12px; color: rgba(255,255,255,0.2); font-weight: 500; }
 
-        tr:hover td { background: #f8fafc; }
-
-        .badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .badge-activa { background: #d5f0e0; color: #1a5c36; }
-        .badge-cancelada { background: #fdedec; color: #c0392b; }
-        .badge-pending_payment { background: #fff3cd; color: #856404; }
-        .badge-expirada { background: #f0f0f0; color: #666; }
-        .badge-reembolsada { background: #dbeafe; color: #1e40af; }
-
-        .empty { text-align: center; color: #aaa; padding: 30px; font-size: 14px; }
-
-        .card-admin h2 { color: #7d3c98; border-bottom-color: #d7bde2; }
-
-        /* CALENDARIO */
-        .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 12px; }
-        .cal-tabla th { background: #2C3E50; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
-        .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; text-align: center; height: 45px; }
-        .cal-reserva { background: #2C3E50; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
-        .cal-reserva-pending { background: #e67e22; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
-        .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 5px; font-size: 11px; cursor: pointer; }
-        .cal-libre:hover { background: #a8dbbe; }
-        .cal-libre-cell { cursor: pointer; }
-        .cal-libre-cell:hover { background: #f0fdf4; }
-        .cal-reserva-cell { background: #eef2fb; }
-
-        /* RESPONSIVE MOBILE */
-        @media (max-width: 600px) {
-            header { padding: 14px 16px; }
-            header h1 { font-size: 18px; }
-            .container { padding: 0 12px; margin: 16px auto; gap: 16px; }
-            .card { padding: 16px; }
-            .card h2 { font-size: 15px; }
-            .form-grid { grid-template-columns: 1fr; gap: 12px; }
-            .form-group.full { grid-column: 1; }
-            .espacios-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-            .espacio-card { padding: 12px; }
-            .espacio-card h3 { font-size: 14px; }
-            table { font-size: 12px; }
-            th, td { padding: 8px 10px; }
-            .btn { padding: 10px 18px; font-size: 14px; }
-            .btn-primary { width: 100%; }
-            footer { padding: 16px; flex-direction: column; text-align: center; gap: 8px; }
-            #header-contacto { flex-direction: column; gap: 6px; }
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 960px) {
+            nav { padding: 16px 24px; }
+            nav ul { display: none; }
+            .hero { grid-template-columns: 1fr; }
+            .hero-right { height: 380px; }
+            .hero-left { padding: 56px 24px; }
+            h1 { font-size: 38px; }
+            .mosaic, .features, .planes, .clientes { padding: 60px 24px; }
+            .mosaic-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+            .mosaic-item.tall { grid-row: span 1; }
+            .features-header { grid-template-columns: 1fr; }
+            .features-grid, .planes-grid { grid-template-columns: 1fr; }
+            .split, .registro { grid-template-columns: 1fr; }
+            .split-img, .registro-img { height: 320px; }
+            .split-content, .registro-form { padding: 56px 24px; }
+            .form-row { grid-template-columns: 1fr; }
+            .planes-header { flex-direction: column; align-items: flex-start; }
+            .clientes-inner { flex-direction: column; align-items: flex-start; gap: 20px; }
+            footer { flex-direction: column; gap: 10px; text-align: center; padding: 28px 24px; }
         }
     </style>
 </head>
 <body>
 
-<header>
-    <div style="display:flex; align-items:center; gap:15px; flex:1">
-        <img id="header-logo" src="" alt="Logo" style="display:none; height:50px; object-fit:contain; border-radius:6px">
-        <div>
-            <h1 id="header-titulo">ReservaTuEspacio</h1>
-            <div id="header-contacto" style="display:flex; gap:15px; font-size:13px; opacity:0.9; margin-top:4px; flex-wrap:wrap"></div>
+<!-- NAV -->
+<nav>
+    <a href="#" class="logo">Reserva<span class="tu">Tu</span><span class="espacio">Espacio</span></a>
+    <ul>
+        <li><a href="#features">Funcionalidades</a></li>
+        <li><a href="#planes">Planes</a></li>
+        <li><a href="#registro">Comenzar</a></li>
+    </ul>
+    <a href="#registro" class="btn btn-primary">Prueba gratuita →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-left">
+        <div class="hero-badge">30 días gratis · Sin tarjeta de crédito</div>
+        <h1>Reservá espacios,<br><em>sin fricciones</em></h1>
+        <p class="hero-desc">La plataforma más simple para gestionar reservas de aulas, consultorios, canchas y cualquier espacio físico. Tu organización, ordenada en minutos.</p>
+        <div class="hero-actions">
+            <a href="#registro" class="btn btn-dark btn-lg">Empezar gratis →</a>
+            <a href="#planes" class="btn btn-outline btn-lg">Ver planes</a>
+        </div>
+        <p class="hero-note">30 días de acceso completo, sin tarjeta de crédito</p>
+    </div>
+    <div class="hero-right">
+        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=900&auto=format&fit=crop&q=80" alt="Espacio moderno de trabajo">
+        <div class="hero-overlay">
+            <div class="overlay-stat">
+                <div class="num">+500</div>
+                <div class="label">Reservas mensuales</div>
+            </div>
+            <div class="overlay-divider"></div>
+            <div class="overlay-stat">
+                <div class="num">30s</div>
+                <div class="label">Para reservar</div>
+            </div>
+            <div class="overlay-divider"></div>
+            <div class="overlay-stat">
+                <div class="num">0</div>
+                <div class="label">Conflictos de horario</div>
+            </div>
         </div>
     </div>
-    <div id="header-redes" style="display:flex; gap:12px; align-items:center"></div>
-</header>
-<div id="foto-establecimiento-container" style="width:100%; max-height:220px; overflow:hidden; display:block">
-    <img id="foto-establecimiento" src="" alt="Foto del establecimiento" style="display:none; width:100%; max-height:220px; object-fit:cover">
-</div>
+</section>
 
-<div class="container">
+<!-- CLIENTES -->
+<section class="clientes">
+    <div class="clientes-inner">
+        <p>Ideal para</p>
+        <div class="clientes-grid">
+            <div class="cliente-tipo"><span>🏫</span> Institutos educativos</div>
+            <div class="cliente-tipo"><span>🏥</span> Clínicas y consultorios</div>
+            <div class="cliente-tipo"><span>🎾</span> Clubes deportivos</div>
+            <div class="cliente-tipo"><span>💼</span> Espacios de coworking</div>
+            <div class="cliente-tipo"><span>🎭</span> Centros culturales</div>
+        </div>
+    </div>
+</section>
 
-    <!-- SECCIÓN 0: CALENDARIO -->
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
-            <h2 style="margin:0; border:none; padding:0">Calendario de reservas</h2>
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="navegarCalendario(-1)">◀</button>
-                <span id="titulo-calendario" style="font-weight:bold; font-size:15px; min-width:200px; text-align:center"></span>
-                <button class="btn btn-primary" onclick="navegarCalendario(1)">▶</button>
-                <button class="btn btn-primary" onclick="navegarCalendario(0)">Hoy</button>
-                <div style="display:flex; gap:5px; margin-left:10px;">
-                    <button class="btn" id="btn-dia" onclick="cambiarVista('dia')"
-                        style="background:#1B4F8A; color:white;">Día</button>
-                    <button class="btn" id="btn-semana" onclick="cambiarVista('semana')"
-                        style="background:#e0e8f0; color:#1B4F8A;">Semana</button>
+<!-- MOSAIC -->
+<section class="mosaic">
+    <div class="mosaic-inner">
+        <div class="section-tag">Espacios que gestionamos</div>
+        <h2>Para cada espacio,<br>una solución</h2>
+        <p class="section-sub">Desde un aula hasta una cancha de pádel. Si tiene un horario, lo podés gestionar con ReservaTuEspacio.</p>
+        <div class="mosaic-grid">
+            <div class="mosaic-item tall">
+                <img src="https://images.pexels.com/photos/32897040/pexels-photo-32897040.jpeg?w=600&auto=compress&cs=tinysrgb" alt="Cancha de pádel">
+                <div class="mosaic-caption">Clubes deportivos</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80" alt="Aula escolar">
+                <div class="mosaic-caption">Institutos educativos</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?w=600&auto=format&fit=crop&q=80" alt="Consultorio médico">
+                <div class="mosaic-caption">Clínicas y consultorios</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&auto=format&fit=crop&q=80" alt="Coworking">
+                <div class="mosaic-caption">Espacios de coworking</div>
+            </div>
+            <div class="mosaic-item">
+                <img src="https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600&auto=format&fit=crop&q=80" alt="Centro cultural">
+                <div class="mosaic-caption">Centros culturales</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+    <div class="features-inner">
+        <div class="features-header">
+            <div>
+                <div class="section-tag">Funcionalidades</div>
+                <h2>Todo lo que necesitás,<br>nada más</h2>
+            </div>
+            <p class="section-sub" style="margin-bottom:0">Diseñado para que cualquier usuario reserve en segundos y el administrador tenga control total sin complicaciones.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-num">01</div>
+                <h3>Calendario visual en tiempo real</h3>
+                <p>Vista diaria y semanal con disponibilidad actualizada al instante. Un click para reservar cualquier turno libre.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">02</div>
+                <h3>Reservas protegidas</h3>
+                <p>Solo el usuario que creó la reserva puede cancelarla. Sin sorpresas, sin conflictos de horario, sin llamados.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">03</div>
+                <h3>Notificaciones automáticas</h3>
+                <p>Emails de confirmación y cancelación enviados automáticamente. Cada usuario siempre informado.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">04</div>
+                <h3>Multi-edificio y multi-sede</h3>
+                <p>Gestioná múltiples edificios y sectores desde un solo panel. Ideal para organizaciones con varias sedes.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">05</div>
+                <h3>Horarios configurables</h3>
+                <p>Horarios de apertura por día de semana. Feriados y fechas bloqueadas con un click.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-num">06</div>
+                <h3>Exportación a Excel</h3>
+                <p>Descargá el historial completo de reservas en formato Excel. Control total de tu operación.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SPLIT -->
+<section class="split">
+    <div class="split-img">
+        <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&auto=format&fit=crop&q=80" alt="Panel de administración">
+    </div>
+    <div class="split-content">
+        <div class="section-tag">Para administradores</div>
+        <h2 style="margin-bottom:12px">Control total,<br>sin complicaciones</h2>
+        <p class="section-sub">Tu panel de administración es intuitivo y completo. Gestionás todo desde un solo lugar, sin soporte técnico.</p>
+        <ul class="check-list">
+            <li>Gestión de espacios, edificios y usuarios</li>
+            <li>Visualización de disponibilidad por día y por semana</li>
+            <li>Bloqueo de fechas: feriados, vacaciones, eventos</li>
+            <li>Cancelación de cualquier reserva desde el panel</li>
+            <li>Exportación del historial completo a Excel</li>
+            <li>Logo y colores personalizados de tu organización</li>
+            <li>Integración con medios de pago para cobrar reservas automáticamente</li>
+        </ul>
+        <div style="margin-top:28px">
+            <a href="https://reservatuespacio.com/manual_reservatuespacio.pdf" 
+               target="_blank"
+               style="display:inline-flex; align-items:center; gap:10px; background:#2C3E50; color:#71D997; 
+                      padding:13px 24px; border-radius:50px; text-decoration:none; font-weight:bold; 
+                      font-size:14px; border:2px solid #71D997; transition:all 0.2s"
+               onmouseover="this.style.background='#71D997'; this.style.color='#2C3E50'"
+               onmouseout="this.style.background='#2C3E50'; this.style.color='#71D997'">
+                📄 Descargar manual de uso →
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- PLANES -->
+<section class="planes" id="planes">
+    <div class="planes-inner">
+        <div class="planes-header">
+            <div>
+                <div class="section-tag">Precios</div>
+                <h2>Planes para<br>cada organización</h2>
+            </div>
+            <p class="section-sub" style="margin-bottom:0; max-width:380px">Todos los planes incluyen <strong>30 días de prueba gratuita</strong>. Sin tarjeta de crédito. Si el sistema evita una sola reserva perdida, ya pagó el mes.</p>
+        </div>
+        <div class="planes-grid">
+
+            <!-- BÁSICO -->
+            <div class="plan-card">
+                <div class="plan-nombre">Básico</div>
+                <div class="plan-desc">Para empezar a ordenar tu agenda sin WhatsApp ni Excel.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>15</div>
+                    <div class="plan-periodo">USD por mes · menos de $1 por día</div>
+                </div>
+                <ul class="plan-features">
+                    <li>Hasta 2 espacios</li>
+                    <li>Hasta 200 reservas por mes</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Calendario visual día / semana</li>
+                    <li>Reservas sin registro para tus clientes</li>
+                    <li>Notificaciones automáticas por email</li>
+                    <li>Exportación a Excel</li>
+                    <li>Soporte técnico incluido</li>
+                </ul>
+                <a href="#registro" class="btn btn-outline btn-plan">Empezar gratis →</a>
+                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('basic')">Suscribirse ahora →</button>
+            </div>
+
+            <!-- PROFESIONAL -->
+            <div class="plan-card featured">
+                <div class="plan-badge">⭐ El más elegido</div>
+                <div class="plan-nombre">Profesional</div>
+                <div class="plan-desc">Para organizaciones que quieren cobrar reservas y crecer sin límites.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>35</div>
+                    <div class="plan-periodo">USD por mes · menos de $1,20 por día</div>
+                </div>
+                <ul class="plan-features">
+                    <li>Hasta 6 espacios</li>
+                    <li>Reservas ilimitadas</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Todo lo del plan Básico</li>
+                    <li>Cobro automático de reservas con MercadoPago</li>
+                    <li>Devoluciones automáticas al cancelar</li>
+                    <li>Logo y colores de tu organización</li>
+                    <li>Múltiples edificios o sedes</li>
+                    <li>Soporte técnico prioritario</li>
+                </ul>
+                <a href="#registro" class="btn btn-plan">Empezar gratis →</a>
+                <button class="btn btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center; background:#71D997; color:#2C3E50" onclick="suscribirse('professional')">Suscribirse ahora →</button>
+            </div>
+
+            <!-- ENTERPRISE -->
+            <div class="plan-card">
+                <div class="plan-nombre">Enterprise</div>
+                <div class="plan-desc">Para grandes instituciones que necesitan escala y control total.</div>
+                <div class="plan-precio">
+                    <div class="plan-monto"><span class="plan-moneda">$</span>80</div>
+                    <div class="plan-periodo">USD por mes</div>
+                </div>
+                <ul class="plan-features">
+                    <li>Espacios ilimitados</li>
+                    <li>Reservas ilimitadas</li>
+                    <li>Usuarios ilimitados</li>
+                    <li>Todo lo del plan Profesional</li>
+                    <li>Dominio personalizado</li>
+                    <li>Acceso a API</li>
+                    <li>Atención personalizada dedicada</li>
+                </ul>
+                <p style="font-size:12px; color:#888; margin-bottom:16px; line-height:1.6">
+                    ¿Tenés más de 6 espacios o múltiples sedes? Este plan crece con vos.
+                </p>
+                <a href="#registro" class="btn btn-outline btn-plan">Empezar gratis →</a>
+                <button class="btn btn-outline btn-plan btn-suscribir" style="margin-top:10px; width:100%; justify-content:center" onclick="suscribirse('enterprise')">Suscribirse ahora →</button>
+            </div>
+
+        </div>
+
+        <!-- ANCLA DE VALOR bajo los planes -->
+        <div style="margin-top:48px; background:#f0faf5; border:1px solid #c3e8d4; border-radius:16px; padding:28px 36px; display:flex; align-items:center; gap:32px; flex-wrap:wrap">
+            <div style="font-size:36px">💡</div>
+            <div>
+                <div style="font-weight:700; color:#1a5c36; font-size:15px; margin-bottom:4px">¿Cuánto te cuesta una reserva perdida?</div>
+                <div style="font-size:13px; color:#4a7c5e; line-height:1.7">
+                    Un club con 3 canchas puede perder 5 o más reservas por semana por falta de sistema — eso son más de <strong>$150 USD mensuales en ingresos que no llegan</strong>.<br>
+                    ReservaTuEspacio cuesta menos que una sola reserva perdida.
                 </div>
             </div>
         </div>
-        <div id="selector-aula-semana" style="display:none; margin-bottom:15px;">
-            <label style="font-size:13px; font-weight:bold; color:#555;">Aula a visualizar:</label>
-            <select id="select-aula-semana" onchange="renderCalendario()"
-                style="margin-left:10px; padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
-            </select>
-        </div>
-        <div id="calendario-container" style="overflow-x:auto;">
-            <p class="empty">Cargando calendario...</p>
+
+    </div>
+</section>
+
+<!-- REGISTRO -->
+<section class="registro" id="registro">
+    <div class="registro-img">
+        <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&auto=format&fit=crop&q=80" alt="Equipo trabajando">
+        <div class="registro-img-overlay"></div>
+        <div class="registro-img-text">
+            <h3>Tu sistema listo<br>en minutos</h3>
+            <p>Sin instalaciones, sin técnicos, sin complicaciones. Solo registrarte y empezar a reservar.</p>
         </div>
     </div>
+    <div class="registro-form">
+        <div class="section-tag">Registro</div>
+        <h2>Empezá hoy,<br>gratis</h2>
+        <p class="section-sub">30 días de acceso completo. Sin compromisos.</p>
 
-    <!-- SECCIÓN 1: Espacios -->
-    <div class="card">
-        <h2>Espacios disponibles</h2>
-        <div class="espacios-grid" id="espacios-grid">
-            <p class="empty">Cargando espacios...</p>
+        <div id="form-container">
+            <div class="error-msg" id="reg-error"></div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre de tu organización *</label>
+                    <input type="text" id="reg-nombre" placeholder="Ej: Instituto San Martín">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de organización *</label>
+                    <select id="reg-tipo">
+                        <option value="">Seleccioná...</option>
+                        <option value="educacion">Instituto / Escuela</option>
+                        <option value="salud">Clínica / Consultorio</option>
+                        <option value="deporte">Club deportivo</option>
+                        <option value="coworking">Coworking</option>
+                        <option value="cultura">Centro cultural</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tu nombre *</label>
+                    <input type="text" id="reg-admin-nombre" placeholder="Nombre completo">
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="reg-email" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Plan *</label>
+                    <select id="reg-plan">
+                        <option value="basic">Básico — USD 15/mes (hasta 2 espacios)</option>
+                        <option value="professional" selected>Profesional — USD 35/mes (hasta 6 espacios) ⭐</option>
+                        <option value="enterprise">Enterprise — USD 80/mes (ilimitado)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>URL deseada *</label>
+                    <input type="text" id="reg-slug" placeholder="mi-instituto">
+                    <div class="slug-preview">Tu URL: <span id="slug-display">mi-instituto</span><div class="reservatuespacio"></div>.com</div>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-registro" onclick="registrar()">
+                Comenzar prueba gratuita →
+            </button>
+            <p class="form-nota">Al registrarte aceptás los términos de uso.<br><strong>30 días gratis</strong> · Sin tarjeta de crédito · Cancelá cuando quieras</p>
+        </div>
+
+        <div class="success-box" id="success-box">
+            <div class="icon">🎉</div>
+            <h3>¡Tu cuenta está lista!</h3>
+            <p>Te enviamos un email a<br><strong id="success-email"></strong><br><br>Tu sistema está disponible en<br><strong id="success-url"></strong></p>
         </div>
     </div>
+</section>
 
-    <!-- SECCIÓN 2: NUEVA RESERVA -->
-    <div class="card">
-        <h2>Nueva reserva</h2>
-
-        <!-- Info pago y política -->
-        <div id="info-pago-reserva" style="display:none; margin-bottom:20px; border-radius:8px; overflow:hidden; border:1px solid #e0e8f0">
-            <div id="info-modalidad" style="display:none; padding:12px 16px; background:#2C3E50; color:white; font-size:14px; font-weight:bold"></div>
-            <div id="info-politica" style="display:none; padding:14px 16px; background:#fff8e8; border-top:none">
-                <p style="font-size:12px; font-weight:bold; color:#7d5200; margin:0 0 6px; text-transform:uppercase; letter-spacing:0.5px">Política de cancelación y reembolso</p>
-                <p id="info-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
-            </div>
+<!-- FOOTER -->
+<footer>
+    <a href="#" class="logo">Reserva<span class="tu">Tu</span><span class="espacio">Espacio</span></a>
+    <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; justify-content:center">
+        <a href="https://claudiaacreativity.github.io/reserva-aulas/soporte.html" 
+           target="_blank"
+           style="color:rgba(255,255,255,0.6); font-size:12px; text-decoration:none; font-weight:500; transition:color 0.2s"
+           onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">
+            🎫 Soporte técnico
+        </a>
+        <span style="color:rgba(255,255,255,0.2); font-size:12px">·</span>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-bottom:8px;">
+            <a href="https://reservatuespacio.com/faq-usuarios.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">FAQ Usuarios</a>
+            <a href="https://reservatuespacio.com/faq-tenants.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">FAQ Organizaciones</a>
+            <a href="https://reservatuespacio.com/manual_reservatuespacio.pdf" target="_blank" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Manual de uso</a>
+            <a href="https://reservatuespacio.com/soporte.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Soporte</a>
         </div>
-
-        <div class="form-grid">
-            <div class="form-group">
-                <label>Espacio seleccionado</label>
-                <input type="text" id="espacio-nombre" placeholder="Seleccioná un espacio arriba" readonly>
-                <input type="hidden" id="espacio-id">
-            </div>
-            <div class="form-group">
-                <label>Tu nombre</label>
-                <input type="text" id="usuario-nombre" placeholder="Ej: Juan Pérez">
-            </div>
-            <div class="form-group">
-                <label>Tu email</label>
-                <input type="email" id="usuario-email" placeholder="tu@email.com">
-            </div>
-            <div class="form-group">
-                <label>Tu WhatsApp <span style="color:#888; font-weight:400; font-size:12px">(con código de área, sin 0 ni 15)</span></label>
-                <input type="tel" id="usuario-whatsapp" placeholder="Ej: 3492123456">
-            </div>
-            <div class="form-group">
-                <label>Fecha</label>
-                <input type="date" id="fecha" onchange="cargarRecursosDisponibles()">
-            </div>
-            <div class="form-group">
-                <label>Hora de inicio</label>
-                <select id="hora-inicio" onchange="cargarRecursosDisponibles()" style="padding:10px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px; outline:none; background:white">
-                    <option value="">-- Seleccioná --</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Hora de fin</label>
-                <select id="hora-fin" onchange="cargarRecursosDisponibles()" style="padding:10px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px; outline:none; background:white">
-                    <option value="">-- Seleccioná --</option>
-                </select>
-            </div>
-            <!-- RECURSOS -->
-            <div class="form-group full" id="recursos-container" style="display:none">
-                <label>Recursos adicionales <span style="color:#888; font-weight:400; font-size:12px">(opcional)</span></label>
-                <div id="recursos-lista" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px"></div>
-            </div>
-            <div class="form-group full">
-                <button class="btn btn-primary" onclick="crearReserva()">Reservar</button>
-            </div>
-        </div>
-        <div class="mensaje" id="mensaje-reserva"></div>
+        <p style="margin:0">© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
     </div>
-
-    <!-- SECCIÓN 3: MIS RESERVAS -->
-    <div class="card">
-        <h2>Mis reservas</h2>
-        <div class="form-grid" style="margin-bottom:15px">
-            <div class="form-group">
-                <label>Buscar por email</label>
-                <input type="email" id="buscar-email" placeholder="tu@email.com">
-            </div>
-            <div class="form-group" style="justify-content: flex-end;">
-                <button class="btn btn-primary" onclick="buscarReservas()">Buscar</button>
-            </div>
-        </div>
-        <div id="tabla-reservas">
-            <p class="empty">Ingresá tu email para ver tus reservas</p>
-        </div>
-        <div class="mensaje" id="mensaje-cancelar"></div>
-    </div>
-
-
-
-</div>
-
-<script>
-const API = 'https://reserva-aulas.onrender.com';
-const TENANT_SLUG = new URLSearchParams(window.location.search).get('tenant');
-if (!TENANT_SLUG) { window.location.href = 'landing.html'; }
-
-async function apiFetch(url, options = {}) {
-    options.headers = {
-        ...options.headers,
-        'X-Tenant-Slug': TENANT_SLUG
-    };
-    return fetch(url, options);
-}
-
-// ===== CALENDARIO =====
-let vistaActual = 'dia';
-let fechaBase = new Date();
-
-function cambiarVista(vista) {
-    vistaActual = vista;
-    document.getElementById('btn-dia').style.background = vista === 'dia' ? '#1B4F8A' : '#e0e8f0';
-    document.getElementById('btn-dia').style.color = vista === 'dia' ? 'white' : '#1B4F8A';
-    document.getElementById('btn-semana').style.background = vista === 'semana' ? '#1B4F8A' : '#e0e8f0';
-    document.getElementById('btn-semana').style.color = vista === 'semana' ? 'white' : '#1B4F8A';
-    document.getElementById('selector-aula-semana').style.display = vista === 'semana' ? 'block' : 'none';
-    renderCalendario();
-}
-
-function navegarCalendario(dir) {
-    if (dir === 0) {
-        fechaBase = new Date();
-    } else if (vistaActual === 'dia') {
-        fechaBase.setDate(fechaBase.getDate() + dir);
-    } else {
-        fechaBase.setDate(fechaBase.getDate() + dir * 7);
-    }
-    renderCalendario();
-}
-
-function getLunes(fecha) {
-    const d = new Date(fecha);
-    const dia = d.getDay();
-    const diff = dia === 0 ? -6 : 1 - dia;
-    d.setDate(d.getDate() + diff);
-    return d;
-}
-
-function formatFecha(fecha) {
-    return fecha.toISOString().split('T')[0];
-}
-
-const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-
-async function renderCalendario() {
-    const container = document.getElementById('calendario-container');
-    container.innerHTML = '<p class="empty">Cargando...</p>';
-
-    try {
-        const [resAulas, resHorarios] = await Promise.all([
-            apiFetch(`${API}/espacios`),
-            apiFetch(`${API}/horarios`)
-        ]);
-        const aulas = await resAulas.json();
-        const horarios = await resHorarios.json();
-
-        // Poblar selector de aula para vista semana
-        const selectAula = document.getElementById('select-aula-semana');
-        if (selectAula.options.length === 0) {
-            aulas.forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a.id;
-                opt.textContent = a.nombre;
-                selectAula.appendChild(opt);
-            });
-        }
-
-        if (vistaActual === 'dia') {
-            await renderDia(aulas, horarios);
-        } else {
-            await renderSemana(aulas, horarios);
-        }
-    } catch (e) {
-        container.innerHTML = '<p class="empty">Error al cargar el calendario</p>';
-    }
-}
-
-async function renderDia(aulas, horarios) {
-    const hoy = formatFecha(fechaBase);
-    const diaSemana = fechaBase.getDay() === 0 ? 6 : fechaBase.getDay() - 1;
-    const config = horarios.find(h => h.dia_semana === diaSemana);
-
-    document.getElementById('titulo-calendario').textContent =
-        `${DIAS_SEMANA[fechaBase.getDay()]} ${fechaBase.getDate()} de ${MESES[fechaBase.getMonth()]} ${fechaBase.getFullYear()}`;
-
-    if (!config || !config.habilitado) {
-        document.getElementById('calendario-container').innerHTML =
-            '<p class="empty">No hay disponibilidad este día</p>';
-        return;
-    }
-
-    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${hoy}&fecha_fin=${hoy}`);
-    const reservas = await resReservas.json();
-
-    // Generar franjas horarias de 1 hora
-    const horaAp = parseInt(config.hora_apertura.slice(0,2));
-    const horaCi = parseInt(config.hora_cierre.slice(0,2));
-    const franjas = [];
-    for (let h = horaAp; h < horaCi; h++) {
-        franjas.push(h.toString().padStart(2,'0') + ':00');
-    }
-
-    let html = '<table class="cal-tabla"><thead><tr>';
-    html += '<th style="width:70px">Horario</th>';
-    aulas.forEach(a => html += `<th>${a.nombre}</th>`);
-    html += '</tr></thead><tbody>';
-
-    franjas.forEach(franja => {
-        const horaNum = parseInt(franja.slice(0,2));
-        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
-
-        aulas.forEach(aula => {
-            const res = reservas.find(r =>
-                r.aula_id === aula.id &&
-                parseInt(r.hora_inicio.slice(0,2)) <= horaNum &&
-                parseInt(r.hora_fin.slice(0,2)) > horaNum
-            );
-
-            if (res) {
-                const esPending = res.estado === 'pending_payment';
-                html += `<td class="cal-reserva-cell">
-                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
-                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
-                </td>`;
-            } else {
-                const ahora = new Date();
-                const fechaFranja = new Date(fechaBase);
-                fechaFranja.setHours(horaNum, 0, 0);
-                const pasado = fechaFranja < ahora;
-                if (pasado) {
-                    html += `<td style="background:#f5f5f5"></td>`;
-                } else {
-                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${aula.id}','${aula.nombre}','${hoy}','${franja}')">
-                        <div class="cal-libre">+ Reservar</div>
-                    </td>`;
-                }
-            }
-        });
-        html += '</tr>';
-    });
-
-    html += '</tbody></table>';
-    document.getElementById('calendario-container').innerHTML = html;
-}
-
-async function renderSemana(aulas, horarios) {
-    const espacioId = document.getElementById('select-aula-semana').value;
-    const aulaNombre = document.getElementById('select-aula-semana').selectedOptions[0]?.text || '';
-
-    const lunes = getLunes(fechaBase);
-    const sabado = new Date(lunes);
-    sabado.setDate(sabado.getDate() + 5);
-
-    document.getElementById('titulo-calendario').textContent =
-        `${aulaNombre} — ${lunes.getDate()} ${MESES[lunes.getMonth()]} al ${sabado.getDate()} ${MESES[sabado.getMonth()]}`;
-
-    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
-    const reservas = await resReservas.json();
-    const resAula = reservas.filter(r => r.espacio_id === espacioId || r.aula_id === espacioId);
-
-    // Calcular horario máximo de la semana
-    let horaMin = 7, horaMax = 20;
-    horarios.forEach(h => {
-        if (h.habilitado && h.hora_apertura) horaMin = Math.min(horaMin, parseInt(h.hora_apertura.slice(0,2)));
-        if (h.habilitado && h.hora_cierre) horaMax = Math.max(horaMax, parseInt(h.hora_cierre.slice(0,2)));
-    });
-
-    const dias = [];
-    for (let i = 0; i < 6; i++) {
-        const d = new Date(lunes);
-        d.setDate(d.getDate() + i);
-        dias.push(d);
-    }
-
-    let html = '<table class="cal-tabla"><thead><tr><th style="width:70px">Horario</th>';
-    dias.forEach(d => {
-        const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
-        const config = horarios.find(h => h.dia_semana === diaSemana);
-        const cerrado = !config || !config.habilitado;
-        const esHoy = formatFecha(d) === formatFecha(new Date());
-        html += `<th style="${cerrado ? 'background:#888' : ''} ${esHoy ? 'background:#2980b9' : ''}">
-            ${DIAS[diaSemana]}<br>${d.getDate()}/${d.getMonth()+1}
-        </th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    for (let h = horaMin; h < horaMax; h++) {
-        const franja = h.toString().padStart(2,'0') + ':00';
-        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
-
-        dias.forEach(d => {
-            const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
-            const config = horarios.find(h2 => h2.dia_semana === diaSemana);
-            const cerrado = !config || !config.habilitado;
-            const fechaStr = formatFecha(d);
-
-            if (cerrado) {
-                html += `<td style="background:#f0f0f0"></td>`;
-                return;
-            }
-
-            const horaApDia = parseInt(config.hora_apertura.slice(0,2));
-            const horaCiDia = parseInt(config.hora_cierre.slice(0,2));
-            if (h < horaApDia || h >= horaCiDia) {
-                html += `<td style="background:#f0f0f0"></td>`;
-                return;
-            }
-
-            const res = resAula.find(r =>
-                r.fecha === fechaStr &&
-                parseInt(r.hora_inicio.slice(0,2)) <= h &&
-                parseInt(r.hora_fin.slice(0,2)) > h
-            );
-
-            if (res) {
-                const esPending = res.estado === 'pending_payment';
-                html += `<td class="cal-reserva-cell">
-                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
-                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
-                </td>`;
-            } else {
-                const ahora = new Date();
-                const fechaFranja = new Date(d);
-                fechaFranja.setHours(h, 0, 0);
-                const pasado = fechaFranja < ahora;
-                if (pasado) {
-                    html += `<td style="background:#f5f5f5"></td>`;
-                } else {
-                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${espacioId}','${aulaNombre}','${fechaStr}','${franja}')">
-                        <div class="cal-libre">+ Reservar</div>
-                    </td>`;
-                }
-            }
-        });
-        html += '</tr>';
-    }
-
-    html += '</tbody></table>';
-    document.getElementById('calendario-container').innerHTML = html;
-}
-
-function precargarReserva(espacioId, aulaNombre, fecha, hora) {
-    document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
-    const cards = document.querySelectorAll('.espacio-card');
-    cards.forEach(c => {
-        if (c.querySelector('h3').textContent === aulaNombre) {
-            c.classList.add('seleccionada');
-        }
-    });
-    document.getElementById('espacio-id').value = aulaId;
-    document.getElementById('espacio-nombre').value = aulaNombre;
-    document.getElementById('fecha').value = fecha;
-    if (hora) {
-        const sel = document.getElementById('hora-inicio');
-        // Si el valor existe en el select lo selecciona, sino agrega opción
-        let found = false;
-        for (let opt of sel.options) { if (opt.value === hora) { found = true; break; } }
-        if (!found) { const opt = new Option(hora, hora); sel.add(opt); }
-        sel.value = hora;
-        cargarRecursosDisponibles();
-    }
-    document.getElementById('fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-// ===== CARGAR AULAS =====
-async function poblarSelectsHora(horarios) {
-    // Calcular rango de horas habilitadas
-    let horaMin = 7, horaMax = 20;
-    let minSet = false, maxSet = false;
-    if (horarios && horarios.length) {
-        horarios.forEach(h => {
-            if (h.habilitado && h.hora_apertura) {
-                const v = parseInt(h.hora_apertura.slice(0,2));
-                if (!minSet || v < horaMin) { horaMin = v; minSet = true; }
-            }
-            if (h.habilitado && h.hora_cierre) {
-                const v = parseInt(h.hora_cierre.slice(0,2));
-                if (!maxSet || v > horaMax) { horaMax = v; maxSet = true; }
-            }
-        });
-    }
-    const opciones = ['<option value="">-- Seleccioná --</option>'];
-    for (let h = horaMin; h <= horaMax; h++) {
-        const hStr = h.toString().padStart(2,'0') + ':00';
-        opciones.push(`<option value="${hStr}">${hStr}</option>`);
-        if (h < horaMax) {
-            const hStr30 = h.toString().padStart(2,'0') + ':30';
-            opciones.push(`<option value="${hStr30}">${hStr30}</option>`);
-        }
-    }
-    const html = opciones.join('');
-    document.getElementById('hora-inicio').innerHTML = html;
-    document.getElementById('hora-fin').innerHTML = html;
-}
-
-async function cargarEspacios() {
-    try {
-        const res = await apiFetch(`${API}/espacios`);
-        const aulas = await res.json();
-        const grid = document.getElementById('espacios-grid');
-
-        if (aulas.length === 0) {
-            grid.innerHTML = '<p class="empty">No hay espacios disponibles</p>';
-            return;
-        }
-
-        grid.innerHTML = aulas.map(a => `
-            <div class="espacio-card" onclick="seleccionarEspacio('${a.id}', '${a.nombre}', this)">
-                <h3>${a.nombre}</h3>
-                ${a.capacidad ? `<p>Capacidad: ${a.capacidad}</p>` : ''}
-                <p>${a.nombre_edificio || ''}</p>
-            </div>
-        `).join('');
-    } catch (e) {
-        document.getElementById('espacios-grid').innerHTML = '<p class="empty">Error al cargar espacios</p>';
-    }
-}
-
-function seleccionarEspacio(id, nombre, el) {
-    document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
-    el.classList.add('seleccionada');
-    document.getElementById('espacio-id').value = id;
-    document.getElementById('espacio-nombre').value = nombre;
-}
-
-// ===== CREAR RESERVA =====
-let _reservaPendiente = null;
-let _mpEstado = null;
-let _tenantInfo = null;
-
-function cerrarModalPolitica() {
-    document.getElementById('modal-politica').style.display = 'none';
-    _reservaPendiente = null;
-}
-
-async function confirmarReservaConPolitica() {
-    document.getElementById('modal-politica').style.display = 'none';
-    if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
-}
-
-function mostrarModalTransferencia(tenant) {
-    document.getElementById('modal-transferencia-alias').textContent = tenant.transferencia_alias;
-    const msgEl = document.getElementById('modal-transferencia-mensaje');
-    msgEl.textContent = tenant.transferencia_mensaje || '';
-    msgEl.style.display = tenant.transferencia_mensaje ? 'block' : 'none';
-    document.getElementById('modal-transferencia').style.display = 'flex';
-}
-
-function cerrarModalTransferencia() {
-    document.getElementById('modal-transferencia').style.display = 'none';
-    _reservaPendiente = null;
-}
-
-async function confirmarReservaTransferencia() {
-    document.getElementById('modal-transferencia').style.display = 'none';
-    if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
-}
-
-function mostrarModalMetodoPago(mpEstado, tenant) {
-    document.getElementById('modal-metodo-pago').style.display = 'flex';
-}
-
-function cerrarModalMetodoPago() {
-    document.getElementById('modal-metodo-pago').style.display = 'none';
-    _reservaPendiente = null;
-}
-
-async function elegirMetodoPago(metodo) {
-    document.getElementById('modal-metodo-pago').style.display = 'none';
-    if (!_reservaPendiente) return;
-    const r = _reservaPendiente;
-    if (metodo === 'mp') {
-        await _iniciarPagoReserva(r);
-    } else {
-        mostrarModalTransferencia(_tenantInfo);
-    }
-}
-
-async function crearReserva() {
-    const espacioId = document.getElementById('espacio-id').value;
-    const nombre = document.getElementById('usuario-nombre').value.trim();
-    const email = document.getElementById('usuario-email').value.trim();
-    const whatsapp = document.getElementById('usuario-whatsapp').value.trim();
-    const fecha = document.getElementById('fecha').value;
-    const horaInicio = document.getElementById('hora-inicio').value;
-    const horaFin = document.getElementById('hora-fin').value;
-
-    if (!espacioId || !nombre || !email || !whatsapp || !fecha || !horaInicio || !horaFin) {
-        mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos incluyendo WhatsApp', 'error');
-        return;
-    }
-
-    // Recolectar recursos seleccionados
-    const recursosSeleccionados = [];
-    document.querySelectorAll('.recurso-input').forEach(input => {
-        const cantidad = parseInt(input.value);
-        if (cantidad > 0) {
-            recursosSeleccionados.push({ recurso_id: input.dataset.id, cantidad });
-        }
-    });
-
-    // Verificar métodos de pago habilitados
-    const mpEstadoRes = await apiFetch(`${API}/mp/estado`);
-    const tenantRes = await apiFetch(`${API}/tenant`);
-    const tenant = tenantRes.ok ? await tenantRes.json() : {};
-
-    if (mpEstadoRes.ok) {
-        const mpEstado = await mpEstadoRes.json();
-        const tieneMP = mpEstado.cobro_por_reserva && mpEstado.conectado;
-        const tieneTransferencia = tenant.transferencia_habilitada && tenant.transferencia_alias;
-        _tenantInfo = tenant;
-
-        if (tieneMP && tieneTransferencia) {
-            // Mostrar modal para elegir método de pago
-            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
-            _mpEstado = mpEstado;
-            _tenantInfo = tenant;
-            mostrarModalMetodoPago(mpEstado, tenant);
-            return;
-        } else if (tieneMP) {
-            await _iniciarPagoReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados });
-            return;
-        } else if (tieneTransferencia) {
-            _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
-            mostrarModalTransferencia(tenant);
-            return;
-        }
-    }
-
-    // Sin cobro — mostrar política si existe
-    if (tenant.politica_cancelacion && tenant.modalidad_cobro !== 'sin_cobro') {
-        const modalidades = {
-            'por_reserva': '💳 Esta reserva requiere pago al confirmar.',
-            'mes_adelantado': '📅 El cobro se realiza por mes adelantado.',
-            'mes_vencido': '📄 Recibirás una factura al cierre del mes.'
-        };
-        document.getElementById('modal-politica-texto').textContent = tenant.politica_cancelacion;
-        document.getElementById('modal-modalidad').textContent = modalidades[tenant.modalidad_cobro] || '';
-        _reservaPendiente = { espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados };
-        document.getElementById('modal-politica').style.display = 'flex';
-        return;
-    }
-    await _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados });
-}
-
-async function _iniciarPagoReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados }) {
-    try {
-        mostrarMensaje('mensaje-reserva', '⏳ Preparando el pago...', 'exito');
-
-        const espacioNombre = document.getElementById('espacio-nombre').value || 'Espacio';
-
-        // Buscar usuario_id si el tenant requiere registro
-        let usuarioId = null;
-        const registroRequerido = _tenantInfo && _tenantInfo.registro_requerido;
-        if (registroRequerido) {
-            const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${encodeURIComponent(email)}`);
-            if (usuarioRes.ok) {
-                const usuario = await usuarioRes.json();
-                usuarioId = usuario.id;
-            } else {
-                mostrarMensaje('mensaje-reserva', '❌ Tu usuario no está registrado. Contactá al administrador.', 'error');
-                return;
-            }
-        }
-
-        // Crear reserva pending_payment y preferencia de pago en el backend
-        const res = await apiFetch(`${API}/pagos/reserva/crear-preferencia`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                espacio_id: espacioId,
-                espacio_nombre: espacioNombre,
-                fecha,
-                hora_inicio: horaInicio + ':00',
-                hora_fin: horaFin + ':00',
-                usuario_id: usuarioId,
-                invitado_nombre: usuarioId ? null : nombre,
-                invitado_email: usuarioId ? null : email,
-                invitado_whatsapp: usuarioId ? null : whatsapp,
-                email_usuario: email,
-                nombre_usuario: nombre
-            })
-        });
-
-        const data = await res.json();
-        if (res.ok && data.init_point) {
-            mostrarMensaje('mensaje-reserva',
-                `💳 Total a pagar: $${data.precio_ars.toLocaleString('es-AR')} ARS. Redirigiendo a MercadoPago...`,
-                'exito'
-            );
-            setTimeout(() => {
-                window.location.href = data.init_point;
-            }, 1500);
-        } else {
-            mostrarMensaje('mensaje-reserva', `❌ ${data.detail || 'Error al iniciar el pago'}`, 'error');
-        }
-    } catch(e) {
-        mostrarMensaje('mensaje-reserva', 'Error al conectar con el servidor', 'error');
-    }
-}
-
-// Verificar retorno desde Mercado Pago y mostrar mensaje al usuario
-async function verificarReservaPendiente() {
-    const params = new URLSearchParams(window.location.search);
-    const estadoPago = params.get('pago');
-    if (!estadoPago) return;
-
-    // Limpiar el parámetro de la URL
-    const tenantParam = params.get('tenant') ? `?tenant=${params.get('tenant')}` : '';
-    window.history.replaceState({}, '', window.location.pathname + tenantParam);
-
-    if (estadoPago === 'ok') {
-        mostrarMensaje('mensaje-reserva', '✅ ¡Reserva confirmada! Recibirás un email de confirmación en breve.', 'exito');
-        renderCalendario();
-    } else if (estadoPago === 'error') {
-        mostrarMensaje('mensaje-reserva', '❌ El pago no pudo procesarse. Tu reserva fue cancelada, podés intentarlo de nuevo.', 'error');
-    } else if (estadoPago === 'pendiente') {
-        mostrarMensaje('mensaje-reserva', '⏳ Tu pago está siendo procesado. Te avisaremos por email cuando se confirme.', 'exito');
-    }
-}
-
-async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [] }) {
-    try {
-        let usuarioId = null;
-
-        // Solo buscar/crear usuario si el tenant requiere registro
-        const registroRequerido = _tenantInfo && _tenantInfo.registro_requerido;
-
-        if (registroRequerido) {
-            const usuarioRes = await apiFetch(`${API}/usuarios/buscar?email=${encodeURIComponent(email)}`);
-            if (usuarioRes.ok) {
-                const usuario = await usuarioRes.json();
-                usuarioId = usuario.id;
-            } else {
-                mostrarMensaje('mensaje-reserva', '❌ Tu usuario no está registrado. Contactá al administrador.', 'error');
-                return;
-            }
-        }
-
-        // Crear reserva
-        const body = {
-            espacio_id: espacioId,
-            usuario_id: usuarioId,
-            fecha,
-            hora_inicio: horaInicio + ':00',
-            hora_fin: horaFin + ':00',
-            recursos: recursosSeleccionados.length > 0 ? recursosSeleccionados : null,
-            invitado_nombre: usuarioId ? null : nombre,
-            invitado_email: usuarioId ? null : email,
-            invitado_whatsapp: usuarioId ? null : whatsapp
-        };
-
-        const res = await apiFetch(`${API}/reservas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-            let msg = '✅ Reserva creada correctamente';
-            if (data.avisos && data.avisos.length > 0) {
-                msg += '<br><small style="color:#e67e22">⚠️ ' + data.avisos.join(' | ') + '</small>';
-            }
-            mostrarMensaje('mensaje-reserva', msg, 'exito');
-            document.getElementById('fecha').value = '';
-            document.getElementById('hora-inicio').value = '';
-            document.getElementById('hora-fin').value = '';
-            document.getElementById('usuario-whatsapp').value = '';
-            document.getElementById('recursos-lista').innerHTML = '';
-            document.getElementById('recursos-container').style.display = 'none';
-            renderCalendario();
-        } else {
-            mostrarMensaje('mensaje-reserva', `❌ ${data.detail}`, 'error');
-        }
-    } catch (e) {
-        mostrarMensaje('mensaje-reserva', 'Error al conectar con el servidor', 'error');
-    }
-}
-
-// ===== RECURSOS DISPONIBLES =====
-async function cargarRecursosDisponibles() {
-    const fecha = document.getElementById('fecha').value;
-    const horaInicio = document.getElementById('hora-inicio').value;
-    const horaFin = document.getElementById('hora-fin').value;
-
-    if (!fecha || !horaInicio || !horaFin) return;
-
-    try {
-        const res = await apiFetch(`${API}/recursos/disponibilidad?fecha=${fecha}&hora_inicio=${horaInicio}:00&hora_fin=${horaFin}:00`);
-        if (!res.ok) return;
-        const recursos = await res.json();
-
-        if (recursos.length === 0) {
-            document.getElementById('recursos-container').style.display = 'none';
-            return;
-        }
-
-        document.getElementById('recursos-container').style.display = 'block';
-        document.getElementById('recursos-lista').innerHTML = recursos.map(r => `
-            <div style="background:#f8fafc; border:1px solid #e0e8f0; border-radius:8px; padding:12px 16px; min-width:160px">
-                <div style="font-weight:bold; color:#2C3E50; font-size:14px; margin-bottom:6px">${r.nombre}</div>
-                <div style="font-size:12px; color:#888; margin-bottom:8px">Disponibles: ${r.disponibles} de ${r.cantidad_total}</div>
-                ${r.disponibles > 0 ? `
-                <div style="display:flex; align-items:center; gap:8px">
-                    <label style="font-size:12px; color:#555">Cantidad:</label>
-                    <input type="number" class="recurso-input" data-id="${r.id}"
-                        min="0" max="${r.disponibles}" value="0"
-                        style="width:60px; padding:4px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px">
-                </div>` : `<div style="font-size:12px; color:#e74c3c; font-weight:bold">No disponible</div>`}
-            </div>
-        `).join('');
-    } catch(e) {
-        // Si falla, simplemente no mostramos recursos
-        document.getElementById('recursos-container').style.display = 'none';
-    }
-}
-
-// ===== BUSCAR RESERVAS =====
-async function buscarReservas() {
-    const email = document.getElementById('buscar-email').value.trim();
-    if (!email) return;
-
-    try {
-        const res = await apiFetch(`${API}/reservas/usuario?email=${email}`);
-        const reservas = await res.json();
-        const contenedor = document.getElementById('tabla-reservas');
-
-        if (!reservas.length) {
-            contenedor.innerHTML = '<p class="empty">No se encontraron reservas para ese email</p>';
-            return;
-        }
-
-        contenedor.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Aula</th>
-                        <th>Fecha</th>
-                        <th>Horario</th>
-                        <th>Estado</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${reservas.map(r => `
-                        <tr>
-                            <td>${r.espacio_nombre}</td>
-                            <td>${r.fecha}</td>
-                            <td>${r.hora_inicio.slice(0,5)} - ${r.hora_fin.slice(0,5)}</td>
-                            <td><span class="badge badge-${r.estado}">${{
-                                'activa': '✅ Confirmada',
-                                'pending_payment': '⏳ Pago pendiente',
-                                'cancelada': '❌ Cancelada',
-                                'expirada': '🕐 Expirada',
-                                'reembolsada': '💰 Reembolsada'
-                            }[r.estado] || r.estado}</span></td>
-                            <td>
-                                ${r.estado === 'activa' ? `
-                                    <button class="btn btn-danger" onclick="cancelarReserva('${r.id}', '${r.usuario_id}')">
-                                        Cancelar
-                                    </button>
-                                ` : '—'}
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    } catch (e) {
-        document.getElementById('tabla-reservas').innerHTML = '<p class="empty">Error al buscar reservas</p>';
-    }
-}
-
-// ===== CANCELAR RESERVA =====
-async function cancelarReserva(reservaId, usuarioId) {
-    if (!confirm('¿Confirmás que querés cancelar esta reserva?')) return;
-
-    try {
-        const res = await apiFetch(`${API}/reservas/${reservaId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reserva_id: reservaId, usuario_id: usuarioId })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-            mostrarMensaje('mensaje-cancelar', '✅ Reserva cancelada correctamente', 'exito');
-            buscarReservas();
-        } else {
-            mostrarMensaje('mensaje-cancelar', `❌ ${data.detail}`, 'error');
-        }
-    } catch (e) {
-        mostrarMensaje('mensaje-cancelar', 'Error al cancelar la reserva', 'error');
-    }
-}
-
-// ===== FECHAS BLOQUEADAS =====
-async function cargarFechasBloqueadas() {
-    try {
-        const res = await apiFetch(`${API}/fechas-bloqueadas`);
-        const fechas = await res.json();
-        const contenedor = document.getElementById('tabla-fechas-bloqueadas');
-
-        if (!fechas.length) {
-            contenedor.innerHTML = '<p class="empty">No hay fechas bloqueadas</p>';
-            return;
-        }
-
-        contenedor.innerHTML = `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Motivo</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${fechas.map(f => `
-                        <tr>
-                            <td>${f.fecha}</td>
-                            <td>${f.motivo}</td>
-                            <td>
-                                <button class="btn btn-danger" onclick="eliminarFechaBloqueada('${f.fecha}')">
-                                    Desbloquear
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    } catch (e) {
-        const el = document.getElementById('tabla-fechas-bloqueadas');
-        if (el) el.innerHTML = '<p class="empty">Error al cargar fechas</p>';
-    }
-}
-
-async function agregarFechaBloqueada() {
-    const fecha = document.getElementById('fecha-bloquear').value;
-    const motivo = document.getElementById('motivo-bloquear').value.trim();
-
-    if (!fecha || !motivo) {
-        mostrarMensaje('mensaje-admin', 'Completá la fecha y el motivo', 'error');
-        return;
-    }
-
-    try {
-        const res = await apiFetch(`${API}/fechas-bloqueadas`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fecha, motivo })
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-            mostrarMensaje('mensaje-admin', `✅ ${data.mensaje}`, 'exito');
-            document.getElementById('fecha-bloquear').value = '';
-            document.getElementById('motivo-bloquear').value = '';
-            cargarFechasBloqueadas();
-        } else {
-            mostrarMensaje('mensaje-admin', `❌ ${data.detail}`, 'error');
-        }
-    } catch (e) {
-        mostrarMensaje('mensaje-admin', 'Error al conectar con el servidor', 'error');
-    }
-}
-
-async function eliminarFechaBloqueada(fecha) {
-    if (!confirm(`¿Desbloquear el ${fecha}?`)) return;
-
-    try {
-        const res = await apiFetch(`${API}/fechas-bloqueadas/${fecha}`, {
-            method: 'DELETE'
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-            mostrarMensaje('mensaje-admin', `✅ ${data.mensaje}`, 'exito');
-            cargarFechasBloqueadas();
-        } else {
-            mostrarMensaje('mensaje-admin', `❌ ${data.detail}`, 'error');
-        }
-    } catch (e) {
-        mostrarMensaje('mensaje-admin', 'Error al conectar con el servidor', 'error');
-    }
-}
-
-// ===== UTILIDAD =====
-function mostrarMensaje(id, texto, tipo) {
-    const el = document.getElementById(id);
-    el.textContent = texto;
-    el.className = `mensaje ${tipo}`;
-    el.style.display = 'block';
-    setTimeout(() => el.style.display = 'none', 4000);
-}
-
-
-function colorContraste(hexColor) {
-    // Calcula si el texto debe ser blanco o oscuro según el color de fondo
-    if (!hexColor) return '#ffffff';
-    const hex = hexColor.replace('#', '');
-    const r = parseInt(hex.substring(0,2), 16);
-    const g = parseInt(hex.substring(2,4), 16);
-    const b = parseInt(hex.substring(4,6), 16);
-    // Luminancia relativa
-    const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminancia > 0.5 ? '#1a1a1a' : '#ffffff';
-}
-
-function svgIcono(red, color) {
-    color = color || "#ffffff";
-    const iconos = {
-        instagram: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>`,
-        facebook: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>`,
-        twitter: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
-        linkedin: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>`,
-        youtube: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>`,
-        tiktok: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>`,
-        whatsapp: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>`,
-        web: `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1 17.93c-3.94-.494-7-3.858-7-7.93s3.06-7.436 7-7.93v15.86zm2 0V2.07c3.94.494 7 3.858 7 7.93s-3.06 7.436-7 7.93z"/></svg>`,
-        ubicacion: `<svg width="14" height="14" viewBox="0 0 24 24" fill="${color}"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`
-    };
-    return iconos[red] || `<svg width="22" height="22" viewBox="0 0 24 24" fill="${color}"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
-}
-
-// ===== TENANT =====
-async function cargarTenant() {
-    try {
-        const res = await apiFetch(`${API}/tenant`);
-        if (!res.ok) return;
-        const tenant = await res.json();
-
-        // Título
-        const titulo = document.getElementById('header-titulo');
-        if (titulo) titulo.textContent = tenant.nombre;
-
-        // Logo
-        const logoEl = document.getElementById('header-logo');
-        if (logoEl && tenant.logo_url) {
-            logoEl.src = tenant.logo_url;
-            logoEl.style.display = 'block';
-            logoEl.onerror = () => { logoEl.style.display = 'none'; };
-        }
-
-        // Favicon
-        if (tenant.favicon_url) {
-            let link = document.querySelector("link[rel~='icon']");
-            if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
-            link.href = tenant.favicon_url;
-        }
-
-        // Colores
-        if (tenant.color_primario) {
-            document.querySelectorAll('header').forEach(h => h.style.background = tenant.color_primario);
-            // Aplicar color de texto con contraste automático
-            const textoColor = colorContraste(tenant.color_primario);
-            document.querySelectorAll('header h1, header p, header span, header a').forEach(el => {
-                el.style.color = textoColor;
-            });
-            document.getElementById('header-titulo').style.color = textoColor;
-
-        }
-        if (tenant.color_secundario) {
-            document.querySelectorAll('.card h2').forEach(el => el.style.color = tenant.color_secundario);
-            document.querySelectorAll('.btn-primary').forEach(el => el.style.background = tenant.color_secundario);
-        }
-
-        // Foto del establecimiento
-        if (tenant.foto_url) {
-            const fotoEl = document.getElementById('foto-establecimiento');
-            if (fotoEl) {
-                fotoEl.src = tenant.foto_url;
-                fotoEl.style.display = 'block';
-                fotoEl.style.objectPosition = tenant.foto_posicion || 'center center';
-            }
-        }
-
-        // Contacto y redes — usar color con contraste automático
-        const tc = colorContraste(tenant.color_primario || '#1B4F8A');
-        const contactoEl = document.getElementById('header-contacto');
-        if (contactoEl) {
-            let html = '';
-            if (tenant.direccion) html += `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenant.direccion)}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('ubicacion', tc)} ${tenant.direccion}</a>`;
-            if (tenant.whatsapp) html += `<a href="https://wa.me/${tenant.whatsapp}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center;gap:4px">${svgIcono('whatsapp', tc)} ${tenant.whatsapp}</a>`;
-            contactoEl.innerHTML = html;
-        }
-
-        // Redes sociales — parsear si viene como string
-        let redes = tenant.redes_sociales || [];
-        if (typeof redes === 'string') { try { redes = JSON.parse(redes); } catch(e) { redes = []; } }
-        const redesEl = document.getElementById('header-redes');
-        if (redesEl && Array.isArray(redes) && redes.length) {
-            redesEl.innerHTML = redes.map(r =>
-                `<a href="${r.url}" target="_blank" style="color:${tc};text-decoration:none;display:flex;align-items:center" title="${r.red}">${svgIcono(r.red, tc)}</a>`
-            ).join('');
-        }
-
-        // Show payment/policy info panel
-        const infoPago = document.getElementById('info-pago-reserva');
-        const infoModalidad = document.getElementById('info-modalidad');
-        const infoPolitica = document.getElementById('info-politica');
-        const infoPoliticaTexto = document.getElementById('info-politica-texto');
-
-        const modalidades = {
-            'por_reserva': '💳 Esta organización cobra por reserva al confirmar',
-            'mes_adelantado': '📅 El cobro se realiza por mes adelantado',
-            'mes_vencido': '📄 Recibirás una factura al cierre del mes'
-        };
-        const textoModalidad = modalidades[tenant.modalidad_cobro];
-        const tienePolitica = tenant.politica_cancelacion;
-
-        if (textoModalidad || tienePolitica) {
-            infoPago.style.display = 'block';
-            if (textoModalidad && infoModalidad) {
-                infoModalidad.textContent = textoModalidad;
-                infoModalidad.style.display = 'block';
-            }
-            if (tienePolitica && infoPolitica && infoPoliticaTexto) {
-                infoPoliticaTexto.textContent = tenant.politica_cancelacion;
-                infoPolitica.style.display = 'block';
-            }
-        }
-
-    } catch(e) {
-        console.log('Error al cargar tenant:', e);
-    }
-}
-
-// Iniciar — despertar servidor primero
-async function iniciar() {
-    try {
-        await apiFetch(`${API}/`);
-        // Esperar 3 segundos para que Render despierte completamente
-        await new Promise(resolve => setTimeout(resolve, 3000));
-    } catch(e) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    cargarTenant();
-    cargarEspacios();
-    verificarReservaPendiente();
-    // Poblar selects de hora con horarios del tenant
-    try {
-        const resH = await apiFetch(`${API}/horarios`);
-        if (resH.ok) {
-            const horarios = await resH.json();
-            poblarSelectsHora(horarios);
-        } else {
-            poblarSelectsHora([]);
-        }
-    } catch(e) { poblarSelectsHora([]); }
-    cargarFechasBloqueadas();
-    renderCalendario();
-}
-
-iniciar();
-</script>
-
-
-<footer style="background:#2C3E50; color:white; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:auto">
-    <a href="https://reservatuespacio.com/" style="text-decoration:none; font-family:'Montserrat',Arial,sans-serif; font-weight:800; font-size:18px; color:white; letter-spacing:-0.3px">
-        Reserva<span style="color:#C8D8D0">Tu</span><span style="color:#71D997">Espacio</span>
-    </a>
-    <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-        <a href="https://reservatuespacio.com/faq-usuarios.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">FAQ Usuarios</a>
-        <a href="https://reservatuespacio.com/faq-tenants.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">FAQ Organizaciones</a>
-        <a href="https://reservatuespacio.com/soporte.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">Soporte</a>
-    </div>
-    <p style="font-size:12px; color:rgba(255,255,255,0.5); margin:0">© 2026 ReservaTuEspacio · Todos los derechos reservados</p>
     <a href="https://gestionateia.com" target="_blank"
        style="display:flex; align-items:center; gap:6px; text-decoration:none; opacity:0.7; transition:opacity 0.2s"
        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
@@ -1334,59 +1204,193 @@ iniciar();
     </a>
 </footer>
 
+<script>
+const API = 'https://reserva-aulas.onrender.com';
 
-<!-- Modal política de cancelación -->
-<div id="modal-politica" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
-    <div style="background:white; border-radius:12px; padding:30px; max-width:500px; width:100%; max-height:90vh; overflow-y:auto">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">Confirmación de reserva</h3>
-        <p style="font-size:13px; color:#888; margin-bottom:20px">Revisá los detalles antes de confirmar</p>
-        <div id="modal-modalidad" style="font-size:14px; background:#f0f4f8; padding:14px; border-radius:8px; margin-bottom:16px; color:#2C3E50; font-weight:bold; border-left:4px solid #2C3E50"></div>
-        <div style="background:#fff8e8; border-left:4px solid #e67e22; border-radius:0 8px 8px 0; padding:14px; margin-bottom:20px">
-            <p style="font-size:13px; font-weight:bold; color:#7d5200; margin-bottom:6px">Política de cancelación y reembolso</p>
-            <p id="modal-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
-        </div>
-        <p style="font-size:13px; color:#888; margin-bottom:20px">Al confirmar aceptás estas condiciones.</p>
-        <div style="display:flex; gap:10px; justify-content:flex-end">
-            <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
-            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#2C3E50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
-        </div>
-    </div>
-</div><!-- Modal transferencia -->
-<div id="modal-transferencia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
-    <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">💸 Pago por transferencia</h3>
-        <p style="font-size:13px; color:#888; margin-bottom:20px">Realizá el pago y luego confirmá tu reserva</p>
-        <div style="background:#e8f8f0; border-left:4px solid #71D997; border-radius:0 8px 8px 0; padding:16px; margin-bottom:16px">
-            <p style="font-size:13px; font-weight:bold; color:#1a5c36; margin-bottom:4px">Alias / CBU</p>
-            <p id="modal-transferencia-alias" style="font-size:18px; font-weight:bold; color:#2C3E50; margin:0; letter-spacing:1px"></p>
-        </div>
-        <p id="modal-transferencia-mensaje" style="font-size:13px; color:#555; margin-bottom:20px; line-height:1.6"></p>
-        <p style="font-size:12px; color:#aaa; margin-bottom:20px">Al confirmar, tu reserva queda registrada. El administrador verificará el pago.</p>
-        <div style="display:flex; gap:10px; justify-content:flex-end">
-            <button onclick="cerrarModalTransferencia()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
-            <button onclick="confirmarReservaTransferencia()" style="padding:10px 20px; background:#71D997; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Confirmar reserva →</button>
-        </div>
-    </div>
-</div>
+document.getElementById('reg-nombre').addEventListener('input', function() {
+    const slug = this.value.toLowerCase()
+        .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e')
+        .replace(/[íìï]/g, 'i').replace(/[óòö]/g, 'o')
+        .replace(/[úùü]/g, 'u').replace(/ñ/g, 'n')
+        .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 30);
+    document.getElementById('reg-slug').value = slug;
+    document.getElementById('slug-display').textContent = slug || 'mi-organizacion';
+});
 
-<!-- Modal elegir método de pago -->
-<div id="modal-metodo-pago" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
-    <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">¿Cómo querés pagar?</h3>
-        <p style="font-size:13px; color:#888; margin-bottom:24px">Elegí el método de pago para confirmar tu reserva</p>
-        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px">
-            <button onclick="elegirMetodoPago('mp')"
-                style="padding:16px; background:#009ee3; color:white; border:none; border-radius:10px; cursor:pointer; font-size:15px; font-weight:bold; display:flex; align-items:center; gap:10px; justify-content:center">
-                💳 Pagar con MercadoPago
-            </button>
-            <button onclick="elegirMetodoPago('transferencia')"
-                style="padding:16px; background:#e8f8f0; color:#1a5c36; border:2px solid #71D997; border-radius:10px; cursor:pointer; font-size:15px; font-weight:bold; display:flex; align-items:center; gap:10px; justify-content:center">
-                🏦 Pagar por transferencia
-            </button>
+document.getElementById('reg-slug').addEventListener('input', function() {
+    document.getElementById('slug-display').textContent = this.value || 'mi-organizacion';
+});
+
+async function registrar() {
+    const nombre = document.getElementById('reg-nombre').value.trim();
+    const tipo = document.getElementById('reg-tipo').value;
+    const adminNombre = document.getElementById('reg-admin-nombre').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const plan = document.getElementById('reg-plan').value;
+    const slug = document.getElementById('reg-slug').value.trim().toLowerCase().replace(/\s+/g, '-');
+    const errorEl = document.getElementById('reg-error');
+
+    errorEl.style.display = 'none';
+
+    if (!nombre || !tipo || !adminNombre || !email || !slug) {
+        errorEl.textContent = 'Por favor completá todos los campos obligatorios.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+        errorEl.textContent = 'La URL solo puede contener letras minúsculas, números y guiones.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const btn = document.querySelector('.btn-registro');
+    btn.textContent = 'Registrando...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/registro`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, tipo, email_admin: email, nombre_admin: adminNombre, plan_id: plan, slug })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('success-box').style.display = 'block';
+            document.getElementById('success-email').textContent = email;
+            document.getElementById('success-url').textContent = `${slug}.reservatuespacio.com`;
+        } else {
+            errorEl.textContent = data.detail || 'Error al registrar. Intentá de nuevo.';
+            errorEl.style.display = 'block';
+            btn.textContent = 'Comenzar prueba gratuita →';
+            btn.disabled = false;
+        }
+    } catch(e) {
+        errorEl.textContent = 'Error de conexión. Intentá de nuevo.';
+        errorEl.style.display = 'block';
+        btn.textContent = 'Comenzar prueba gratuita →';
+        btn.disabled = false;
+    }
+}
+
+// ===== SUSCRIPCIÓN CON MERCADOPAGO =====
+
+async function suscribirse(planId) {
+    const nombres = { basic: 'Básico', professional: 'Profesional', enterprise: 'Enterprise' };
+
+    // Pedir email y tenant_id al usuario
+    const email = prompt(`Para suscribirte al plan ${nombres[planId]}, ingresá el email con el que te registraste:`);
+    if (!email || !email.includes('@')) {
+        alert('Email inválido. Intentá de nuevo.');
+        return;
+    }
+
+    // Buscar el tenant por email en el backend
+    let tenantData;
+    try {
+        const res = await fetch(`${API}/superadmin/tenant-por-email?email=${encodeURIComponent(email)}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+            // Si no existe, ofrecer registrarse primero
+            alert('No encontramos una cuenta con ese email. Registrate primero con el formulario de arriba y luego suscribite.');
+            document.getElementById('registro').scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        tenantData = await res.json();
+    } catch(e) {
+        alert('Error de conexión. Intentá de nuevo.');
+        return;
+    }
+
+    // Mostrar modal de confirmación
+    const modal = document.getElementById('modal-suscripcion');
+    document.getElementById('modal-plan-nombre').textContent = nombres[planId];
+    document.getElementById('modal-tenant-nombre').textContent = tenantData.nombre;
+    document.getElementById('modal-email').textContent = email;
+    modal.style.display = 'flex';
+
+    // Guardar datos para cuando confirme
+    modal.dataset.planId = planId;
+    modal.dataset.tenantId = tenantData.id;
+    modal.dataset.email = email;
+    modal.dataset.nombre = tenantData.nombre;
+}
+
+async function confirmarSuscripcion() {
+    const modal = document.getElementById('modal-suscripcion');
+    const { planId, tenantId, email, nombre } = modal.dataset;
+    const btn = document.getElementById('btn-confirmar-pago');
+
+    btn.textContent = 'Redirigiendo a MercadoPago...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/pagos/crear-preferencia`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plan_id: planId,
+                tenant_id: tenantId,
+                email_admin: email,
+                nombre_tenant: nombre
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.detail || 'Error al generar el pago. Intentá de nuevo.');
+            btn.textContent = 'Ir a pagar →';
+            btn.disabled = false;
+            return;
+        }
+
+        // Redirigir a MercadoPago
+        window.location.href = data.init_point;
+
+    } catch(e) {
+        alert('Error de conexión. Intentá de nuevo.');
+        btn.textContent = 'Ir a pagar →';
+        btn.disabled = false;
+    }
+}
+
+function cerrarModal() {
+    document.getElementById('modal-suscripcion').style.display = 'none';
+}
+</script>
+
+<!-- MODAL SUSCRIPCIÓN -->
+<div id="modal-suscripcion" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div style="background:white; border-radius:20px; padding:40px; max-width:460px; width:100%; position:relative; box-shadow:0 24px 80px rgba(0,0,0,0.2)">
+        <button onclick="cerrarModal()" style="position:absolute; top:16px; right:20px; background:none; border:none; font-size:22px; cursor:pointer; color:#888">✕</button>
+        <div style="text-align:center; margin-bottom:28px">
+            <div style="width:56px; height:56px; background:#E8F7EE; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:26px">💳</div>
+            <h3 style="font-size:22px; font-weight:800; color:#2C3E50; margin-bottom:8px">Confirmar suscripción</h3>
+            <p style="color:#4A5568; font-size:14px">Vas a ser redirigido a MercadoPago para completar el pago.</p>
         </div>
-        <div style="text-align:center">
-            <button onclick="cerrarModalMetodoPago()" style="padding:8px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:13px; color:#888">Volver</button>
+        <div style="background:#F9F9FB; border-radius:12px; padding:20px; margin-bottom:24px">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                <span style="color:#888; font-size:13px">Plan</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-plan-nombre"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px">
+                <span style="color:#888; font-size:13px">Organización</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-tenant-nombre"></span>
+            </div>
+            <div style="display:flex; justify-content:space-between">
+                <span style="color:#888; font-size:13px">Email</span>
+                <span style="font-weight:700; color:#2C3E50; font-size:13px" id="modal-email"></span>
+            </div>
         </div>
+        <button id="btn-confirmar-pago" onclick="confirmarSuscripcion()" style="width:100%; background:#71D997; color:#2C3E50; border:none; border-radius:50px; padding:15px; font-family:'Montserrat',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s">
+            Ir a pagar →
+        </button>
+        <p style="text-align:center; font-size:11px; color:#aaa; margin-top:14px">Pago seguro procesado por MercadoPago</p>
     </div>
 </div>
 
