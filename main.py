@@ -2450,9 +2450,9 @@ async def crear_preferencia_reserva(request: Request):
             }],
             "payer": {"email": email_usuario, "name": nombre_usuario},
             "back_urls": {
-                "success": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=ok&reserva_id={reserva_id}",
-                "failure": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=error&reserva_id={reserva_id}",
-                "pending": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=pendiente&reserva_id={reserva_id}"
+                "success": f"https://reservatuespacio.com/{tenant['slug']}?pago=ok&reserva_id={reserva_id}",
+                "failure": f"https://reservatuespacio.com/{tenant['slug']}?pago=error&reserva_id={reserva_id}",
+                "pending": f"https://reservatuespacio.com/{tenant['slug']}?pago=pendiente&reserva_id={reserva_id}"
             },
             "auto_return": "approved",
             "notification_url": "https://reserva-aulas.onrender.com/pagos/webhook-reserva",
