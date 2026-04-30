@@ -797,8 +797,17 @@
 
 <script>
 const API = 'https://reserva-aulas.onrender.com';
-const TENANT_SLUG = new URLSearchParams(window.location.search).get('tenant');
-if (!TENANT_SLUG) { window.location.href = 'landing.html'; }
+// Detectar tenant desde ?tenant=slug O desde URL limpia /admin/slug
+function detectarTenantSlug() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tenant')) return params.get('tenant');
+    // Path: /admin/mciaagency → slug = mciaagency
+    const parts = window.location.pathname.replace(/^\//, '').split('/');
+    if (parts[0] === 'admin' && parts[1]) return parts[1];
+    return null;
+}
+const TENANT_SLUG = detectarTenantSlug();
+if (!TENANT_SLUG) { window.location.href = '/'; }
 let adminToken = null;
 
 async function apiFetch(url, options = {}) {
