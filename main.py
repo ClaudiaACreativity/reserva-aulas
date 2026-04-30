@@ -909,38 +909,128 @@ async def cancelar_reserva(request: Request, reserva_id: str, datos: CancelarRes
     try:
         tenant = await get_tenant(request, db)
         reserva = await db.fetchrow(
-            "SELECT usuario_id FROM reservas WHERE id=$1 AND estado='activa' AND tenant_id=$2",
+            """SELECT id, usuario_id, invitado_email, invitado_nombre,
+                      mp_payment_id, monto, fecha, hora_inicio, hora_fin
+               FROM reservas
+               WHERE id=$1 AND estado='activa' AND tenant_id=$2""",
             reserva_id, tenant["id"]
         )
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
-        if str(reserva["usuario_id"]) != datos.usuario_id:
-            raise HTTPException(status_code=403, detail="Solo el usuario que creó la reserva puede cancelarla")
-        await db.execute(
-            "UPDATE reservas SET estado='cancelada' WHERE id=$1",
-            reserva_id
-        )
-        usuario = await db.fetchrow(
-            "SELECT email, nombre FROM usuarios WHERE id = $1",
-            reserva["usuario_id"]
-        )
-        if usuario:
+
+        # Validar identidad: usuario registrado o invitado
+        if reserva["usuario_id"]:
+            if str(reserva["usuario_id"]) != datos.usuario_id:
+                raise HTTPException(status_code=403, detail="Solo el usuario que creó la reserva puede cancelarla")
+        elif reserva["invitado_email"]:
+            if reserva["invitado_email"] != datos.usuario_id:  # para invitados se usa email como identificador
+                raise HTTPException(status_code=403, detail="Solo el usuario que creó la reserva puede cancelarla")
+
+        mp_payment_id = reserva["mp_payment_id"]
+        monto = reserva["monto"]
+        devolucion_aplicada = "sin_pago"
+
+        # Determinar política de devolución del tenant
+        politica = tenant.get("politica_devolucion", "credito")
+
+        if mp_payment_id and monto and float(monto) > 0:
+            if politica == "reembolso":
+                # Reembolso directo a Mercado Pago
+                try:
+                    async with httpx.AsyncClient() as client:
+                        res = await client.post(
+                            f"https://api.mercadopago.com/v1/payments/{mp_payment_id}/refunds",
+                            headers={
+                                "Authorization": f"Bearer {tenant['mp_access_token']}",
+                                "Content-Type": "application/json"
+                            },
+                            json={}
+                        )
+                    if res.status_code in (200, 201):
+                        await db.execute(
+                            "UPDATE reservas SET estado='reembolsada' WHERE id=$1",
+                            reserva_id
+                        )
+                        devolucion_aplicada = "reembolso"
+                    else:
+                        # Si falla el reembolso, igual cancelamos y otorgamos crédito
+                        politica = "credito"
+                except Exception:
+                    politica = "credito"
+
+            if politica == "credito":
+                # Crédito interno para próxima reserva
+                await db.execute(
+                    """INSERT INTO creditos_reserva
+                       (tenant_id, usuario_id, invitado_email, monto, motivo, reserva_origen_id)
+                       VALUES ($1,$2,$3,$4,'Cancelación de reserva',$5)""",
+                    tenant["id"],
+                    reserva["usuario_id"],
+                    reserva["invitado_email"],
+                    float(monto),
+                    reserva_id
+                )
+                await db.execute(
+                    "UPDATE reservas SET estado='cancelada' WHERE id=$1",
+                    reserva_id
+                )
+                devolucion_aplicada = "credito"
+        else:
+            # Sin pago registrado, cancelación simple
+            await db.execute(
+                "UPDATE reservas SET estado='cancelada' WHERE id=$1",
+                reserva_id
+            )
+
+        # Email de cancelación
+        email_destino = reserva["invitado_email"]
+        nombre_destino = reserva["invitado_nombre"] or "Cliente"
+        if not email_destino and reserva["usuario_id"]:
+            usuario = await db.fetchrow(
+                "SELECT email, nombre FROM usuarios WHERE id=$1",
+                reserva["usuario_id"]
+            )
+            if usuario:
+                email_destino = usuario["email"]
+                nombre_destino = usuario["nombre"]
+
+        if email_destino:
+            msg_devolucion = ""
+            if devolucion_aplicada == "reembolso":
+                msg_devolucion = "<p style='color:#1A6B3C'><b>💰 El reembolso fue procesado.</b> El dinero volverá a tu medio de pago en 24-72 horas hábiles.</p>"
+            elif devolucion_aplicada == "credito":
+                msg_devolucion = f"<p style='color:#1A6B3C'><b>💳 Se generó un crédito de ${monto}</b> que podés usar en tu próxima reserva (válido por 6 meses).</p>"
+
             enviar_email(
-                usuario["email"],
+                email_destino,
                 "❌ Reserva cancelada",
                 f"""
-                <h2>Reserva cancelada</h2>
-                <p>Hola <b>{usuario['nombre']}</b>, tu reserva fue cancelada.</p>
-                <p style="margin-top:15px; color:#888">Si no realizaste esta cancelación, contactá al administrador.</p>
-                <p style="color:#888">{tenant['nombre']}</p>
-                <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
-                    <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50; font-weight:bold">Preguntas frecuentes →</a>
-                    &nbsp;&nbsp;|&nbsp;&nbsp;
-                    <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
-                </p>
+                <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto">
+                    <h2 style="color:#2C3E50">Reserva cancelada</h2>
+                    <p>Hola <b>{nombre_destino}</b>, tu reserva fue cancelada.</p>
+                    <table style="border-collapse:collapse;width:100%;margin-top:16px">
+                        <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Fecha</td>
+                            <td style="padding:10px 14px">{reserva['fecha']}</td></tr>
+                        <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Horario</td>
+                            <td style="padding:10px 14px">{reserva['hora_inicio']} – {reserva['hora_fin']}</td></tr>
+                    </table>
+                    {msg_devolucion}
+                    <p style="margin-top:15px;color:#888">Si no realizaste esta cancelación, contactá al administrador.</p>
+                    <p style="color:#888">{tenant['nombre']}</p>
+                    <p style="margin-top:20px;font-size:13px;color:#888;text-align:center">
+                        <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50;font-weight:bold">Preguntas frecuentes →</a>
+                        &nbsp;&nbsp;|&nbsp;&nbsp;
+                        <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+                    </p>
+                </div>
                 """
             )
-        return {"mensaje": "Reserva cancelada correctamente"}
+
+        return {"mensaje": "Reserva cancelada correctamente", "devolucion": devolucion_aplicada}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         await release_db(db)
 
@@ -2267,30 +2357,56 @@ async def mp_cobro_config(request: Request, datos: MPCobroConfig):
 
 @app.post("/pagos/reserva/crear-preferencia")
 async def crear_preferencia_reserva(request: Request):
-    """Crea una preferencia de pago para una reserva específica usando el token del tenant."""
+    """Crea reserva con pending_payment y genera preferencia de pago MP."""
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
 
         if not tenant.get("mp_cobro_por_reserva"):
             raise HTTPException(status_code=400, detail="Este tenant no tiene cobro por reserva activado")
-
         if not tenant.get("mp_access_token"):
             raise HTTPException(status_code=400, detail="El tenant no tiene MercadoPago conectado")
 
         body = await request.json()
-        espacio_nombre = body.get("espacio_nombre", "Espacio")
-        fecha = body.get("fecha", "")
-        hora_inicio = body.get("hora_inicio", "")
-        hora_fin = body.get("hora_fin", "")
-        email_usuario = body.get("email_usuario", "")
-        nombre_usuario = body.get("nombre_usuario", "")
-        temp_reserva_id = body.get("temp_reserva_id", "")  # ID temporal para tracking
+        espacio_id        = body.get("espacio_id")
+        espacio_nombre    = body.get("espacio_nombre", "Espacio")
+        fecha             = body.get("fecha", "")
+        hora_inicio       = body.get("hora_inicio", "")
+        hora_fin          = body.get("hora_fin", "")
+        usuario_id        = body.get("usuario_id")        # puede ser None (invitado)
+        invitado_nombre   = body.get("invitado_nombre")
+        invitado_email    = body.get("invitado_email")
+        invitado_whatsapp = body.get("invitado_whatsapp")
+        email_usuario     = invitado_email or body.get("email_usuario", "")
+        nombre_usuario    = invitado_nombre or body.get("nombre_usuario", "")
 
         precio = float(tenant["mp_precio_reserva"])
         tc = await obtener_tipo_cambio(db)
         precio_ars = round(precio * tc, 2)
+        expires_at = datetime.utcnow() + timedelta(minutes=15)
 
+        # 1. Crear reserva con estado pending_payment
+        reserva_id = await db.fetchval(
+            """INSERT INTO reservas
+               (tenant_id, aula_id, usuario_id, invitado_nombre, invitado_email,
+                invitado_whatsapp, fecha, hora_inicio, hora_fin,
+                estado, expires_at, monto)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending_payment',$10,$11)
+               RETURNING id""",
+            tenant["id"],
+            espacio_id,
+            usuario_id,
+            invitado_nombre,
+            invitado_email,
+            invitado_whatsapp,
+            fecha,
+            hora_inicio,
+            hora_fin,
+            expires_at,
+            precio
+        )
+
+        # 2. Crear preferencia en Mercado Pago
         preferencia_body = {
             "items": [{
                 "title": f"Reserva {espacio_nombre} — {fecha} {hora_inicio}-{hora_fin}",
@@ -2300,18 +2416,15 @@ async def crear_preferencia_reserva(request: Request):
             }],
             "payer": {"email": email_usuario, "name": nombre_usuario},
             "back_urls": {
-                "success": f"https://reservatuespacio.com/?reserva_pagada=1&ref={temp_reserva_id}",
-                "failure": f"https://reservatuespacio.com/?pago_fallido=1",
-                "pending": f"https://reservatuespacio.com/?pago_pendiente=1"
+                "success": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=ok&reserva_id={reserva_id}",
+                "failure": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=error&reserva_id={reserva_id}",
+                "pending": f"https://reservatuespacio.com/?tenant={tenant['slug']}&pago=pendiente&reserva_id={reserva_id}"
             },
             "auto_return": "approved",
-            "notification_url": f"https://reserva-aulas.onrender.com/pagos/webhook-reserva",
-            "external_reference": temp_reserva_id,
+            "notification_url": "https://reserva-aulas.onrender.com/pagos/webhook-reserva",
+            "external_reference": str(reserva_id),
             "statement_descriptor": tenant["nombre"][:22],
-            "payment_methods": {
-                "excluded_payment_types": [],
-                "installments": 1
-            }
+            "payment_methods": {"installments": 1}
         }
 
         async with httpx.AsyncClient() as client:
@@ -2325,14 +2438,26 @@ async def crear_preferencia_reserva(request: Request):
             )
 
         if res.status_code not in (200, 201):
+            # Si falla MP, cancelar la reserva creada
+            await db.execute("UPDATE reservas SET estado='cancelada' WHERE id=$1", reserva_id)
             raise HTTPException(status_code=500, detail=f"Error MP: {res.text}")
 
         mp_data = res.json()
+        preference_id = mp_data["id"]
+
+        # 3. Guardar preference_id en la reserva
+        await db.execute(
+            "UPDATE reservas SET mp_preference_id=$1 WHERE id=$2",
+            preference_id, reserva_id
+        )
+
         return {
             "init_point": mp_data["init_point"],
-            "preference_id": mp_data["id"],
+            "preference_id": preference_id,
+            "reserva_id": str(reserva_id),
             "precio_ars": precio_ars,
-            "precio_usd": precio
+            "precio_usd": precio,
+            "expires_at": expires_at.isoformat()
         }
 
     except HTTPException:
@@ -2344,7 +2469,7 @@ async def crear_preferencia_reserva(request: Request):
 
 @app.post("/pagos/webhook-reserva")
 async def webhook_reserva(request: Request):
-    """Webhook para pagos de reservas (cobro del tenant a sus usuarios)."""
+    """Webhook para pagos de reservas. Confirma o cancela la reserva automáticamente."""
     try:
         body = await request.json()
     except Exception:
@@ -2360,9 +2485,107 @@ async def webhook_reserva(request: Request):
     if not payment_id:
         return {"status": "sin_payment_id"}
 
-    # Este webhook no requiere acción automática en la DB
-    # La confirmación del pago se verifica desde el frontend vía /pagos/estado-reserva
-    return {"status": "ok"}
+    db = await get_db()
+    try:
+        # Buscar el tenant dueño de este pago usando external_reference
+        # Primero obtenemos el detalle del pago — necesitamos recorrer tenants con mp_access_token
+        # para encontrar cuál es el dueño. Usamos external_reference (= reserva_id) como clave.
+
+        # Obtener datos del pago iterando tokens de tenants activos con MP conectado
+        pago = None
+        tenant_row = None
+        tenants_mp = await db.fetch(
+            "SELECT id, mp_access_token FROM tenants WHERE mp_access_token IS NOT NULL AND activo = TRUE"
+        )
+        for t in tenants_mp:
+            try:
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(
+                        f"https://api.mercadopago.com/v1/payments/{payment_id}",
+                        headers={"Authorization": f"Bearer {t['mp_access_token']}"}
+                    )
+                if res.status_code == 200:
+                    pago = res.json()
+                    tenant_row = t
+                    break
+            except Exception:
+                continue
+
+        if not pago:
+            return {"status": "pago_no_encontrado"}
+
+        external_reference = pago.get("external_reference", "")
+        status = pago.get("status", "")
+
+        if not external_reference:
+            return {"status": "sin_external_reference"}
+
+        # Verificar que la reserva existe y pertenece al tenant
+        reserva = await db.fetchrow(
+            "SELECT * FROM reservas WHERE id=$1 AND tenant_id=$2",
+            external_reference, tenant_row["id"]
+        )
+        if not reserva:
+            return {"status": "reserva_no_encontrada"}
+
+        if status == "approved":
+            # Confirmar reserva
+            await db.execute(
+                """UPDATE reservas
+                   SET estado='activa', mp_payment_id=$1, expires_at=NULL
+                   WHERE id=$2""",
+                str(payment_id), external_reference
+            )
+            # Enviar email de confirmación
+            email_destino = reserva["invitado_email"]
+            nombre_destino = reserva["invitado_nombre"] or "Cliente"
+            if not email_destino and reserva["usuario_id"]:
+                usuario = await db.fetchrow(
+                    "SELECT email, nombre FROM usuarios WHERE id=$1",
+                    reserva["usuario_id"]
+                )
+                if usuario:
+                    email_destino = usuario["email"]
+                    nombre_destino = usuario["nombre"]
+            if email_destino:
+                tenant_info = await db.fetchrow("SELECT nombre FROM tenants WHERE id=$1", tenant_row["id"])
+                enviar_email(
+                    email_destino,
+                    "✅ Reserva confirmada",
+                    f"""
+                    <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto">
+                        <h2 style="color:#2C3E50">¡Reserva confirmada!</h2>
+                        <p>Hola <b>{nombre_destino}</b>, tu pago fue aprobado y tu reserva está confirmada.</p>
+                        <table style="border-collapse:collapse;width:100%;margin-top:16px">
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Fecha</td>
+                                <td style="padding:10px 14px">{reserva['fecha']}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Horario</td>
+                                <td style="padding:10px 14px">{reserva['hora_inicio']} – {reserva['hora_fin']}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Organización</td>
+                                <td style="padding:10px 14px">{tenant_info['nombre']}</td></tr>
+                        </table>
+                        <p style="margin-top:20px;font-size:13px;color:#888;text-align:center">
+                            <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50;font-weight:bold">Preguntas frecuentes →</a>
+                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                            <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+                        </p>
+                    </div>
+                    """
+                )
+
+        elif status in ("rejected", "cancelled"):
+            await db.execute(
+                "UPDATE reservas SET estado='cancelada' WHERE id=$1",
+                external_reference
+            )
+
+        return {"status": "ok", "pago_status": status}
+
+    except Exception as e:
+        print(f"Error en webhook-reserva: {e}")
+        return {"status": "error", "detalle": str(e)}
+    finally:
+        await release_db(db)
 
 @app.get("/pagos/estado-reserva")
 async def estado_reserva_pago(request: Request, preference_id: str):
@@ -2863,6 +3086,24 @@ async def procesar_vencimientos(request: Request, token: Optional[str] = None):
 
             except Exception as e:
                 resumen["errores"].append(f"{nombre}: {str(e)}")
+
+        # ── EXPIRACIÓN DE RESERVAS PENDING_PAYMENT ─────────────────────
+        ahora = datetime.utcnow()
+        reservas_expiradas = await db.fetch(
+            """SELECT id FROM reservas
+               WHERE estado = 'pending_payment'
+                 AND expires_at IS NOT NULL
+                 AND expires_at < $1""",
+            ahora
+        )
+        ids_expirados = [str(r["id"]) for r in reservas_expiradas]
+        if ids_expirados:
+            await db.execute(
+                """UPDATE reservas SET estado='expirada'
+                   WHERE id = ANY($1::uuid[])""",
+                ids_expirados
+            )
+        resumen["reservas_expiradas"] = len(ids_expirados)
 
         return {"ok": True, "resumen": resumen}
 
