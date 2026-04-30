@@ -355,7 +355,26 @@ function detectarTenantSlug() {
     return null;
 }
 const TENANT_SLUG = detectarTenantSlug();
-if (!TENANT_SLUG) { window.location.href = '/'; }
+if (!TENANT_SLUG) {
+    document.body.innerHTML = `
+        <div style="font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f8fafc; margin:0; padding:24px; box-sizing:border-box">
+            <div style="text-align:center; max-width:480px">
+                <div style="font-size:48px; margin-bottom:24px">📅</div>
+                <h1 style="color:#2C3E50; font-size:24px; margin-bottom:12px">Sistema de reservas</h1>
+                <p style="color:#666; font-size:15px; line-height:1.7; margin-bottom:32px">
+                    Para acceder al sistema de reservas de tu organización,<br>
+                    usá la URL que te proporcionamos.
+                </p>
+                <div style="background:#fff; border:1.5px solid #e0e8f0; border-radius:12px; padding:20px 28px; margin-bottom:32px">
+                    <p style="color:#888; font-size:12px; margin:0 0 8px 0; text-transform:uppercase; letter-spacing:1px; font-weight:600">Ejemplo</p>
+                    <p style="color:#2C3E50; font-size:16px; font-weight:700; margin:0">reservatuespacio.com/<span style="color:#71D997">nombre-de-tu-organizacion</span></p>
+                </div>
+                <a href="/" style="color:#71D997; font-size:14px; text-decoration:none; font-weight:600">← Volver al inicio</a>
+            </div>
+        </div>
+    `;
+    throw new Error('Sin tenant');
+}
 
 async function apiFetch(url, options = {}) {
     options.headers = {
