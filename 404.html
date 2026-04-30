@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReservaTuEspacio</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f8fafc; }
+        .loader { text-align: center; color: #2C3E50; }
+        .loader svg { width: 48px; height: 48px; margin-bottom: 16px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader p { font-size: 14px; color: #888; margin: 0; }
+    </style>
+</head>
+<body>
+<div class="loader">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#71D997" stroke-width="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+    <p>Cargando...</p>
+</div>
+
+<script>
+(function() {
+    const path = window.location.pathname;
+    const parts = path.replace(/^\//, '').split('/');
+    const search = window.location.search;
+
+    // /admin/slug → admin.html con tenant slug
+    if (parts[0] === 'admin' && parts[1]) {
+        window.location.replace('/admin.html?tenant=' + parts[1]);
+        return;
+    }
+
+    // /slug → reservas.html con tenant slug
+    // Excluir rutas conocidas que no son tenants
+    const rutasReservadas = ['landing', 'reservas', 'soporte', 'faq-usuarios', 'faq-tenants', 'superadmin', 'pago-exitoso', 'padel', 'futbol5', 'academias', 'consultorios', 'coworking'];
+    if (parts[0] && !rutasReservadas.includes(parts[0])) {
+        window.location.replace('/reservas.html?tenant=' + parts[0] + search);
+        return;
+    }
+
+    // Si no matchea nada, ir a la landing
+    window.location.replace('/');
+})();
+</script>
+</body>
+</html>
