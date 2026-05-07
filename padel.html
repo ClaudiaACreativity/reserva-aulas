@@ -8,8 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --azul:    #2C3E50;
-            --azul-l:  #34495E;
+            --azul:    #2E4057;
+            --azul-l:  #3A536B;
             --naranja: #FF8000;
             --verde:   #71D997;
             --blanco:  #F0F4F8;
@@ -67,7 +67,7 @@
             position: absolute; inset:0;
             background-image: url('/Padel-02.png');
             background-size: cover; background-position: center top;
-            filter: brightness(0.35) saturate(0.8);
+            filter: brightness(0.55) saturate(0.9);
             transform: scale(1.03);
             transition: transform 8s ease;
         }
@@ -75,8 +75,8 @@
         .hero-overlay {
             position: absolute; inset:0;
             background: linear-gradient(120deg,
-                rgba(44,62,80,0.92) 40%,
-                rgba(44,62,80,0.4) 100%);
+                rgba(44,62,80,0.78) 35%,
+                rgba(44,62,80,0.25) 100%);
         }
         .hero-content {
             position: relative; z-index:2;
@@ -330,6 +330,7 @@
             border-radius:20px; padding:36px;
             transition: transform 0.2s, border-color 0.2s;
             position:relative; overflow:hidden;
+            display: flex; flex-direction: column;
         }
         .precio-card:hover {
             transform: translateY(-6px);
@@ -368,6 +369,7 @@
         }
         .precio-features {
             list-style:none; margin-bottom:32px;
+            flex: 1;
         }
         .precio-features li {
             font-size:14px; color:rgba(240,244,248,0.8);
