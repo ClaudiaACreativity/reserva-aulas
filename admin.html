@@ -801,7 +801,11 @@ const API = 'https://reserva-aulas.onrender.com';
 function detectarTenantSlug() {
     // 1. sessionStorage (viene del 404.html con URL limpia)
     const fromSession = sessionStorage.getItem('rte_tenant_slug');
-    if (fromSession) return fromSession;
+    if (fromSession) {
+        // Restaurar URL limpia sin exponer /admin.html
+        history.replaceState(null, '', '/admin/' + fromSession);
+        return fromSession;
+    }
     // 2. ?tenant= (compatibilidad)
     const params = new URLSearchParams(window.location.search);
     if (params.get('tenant')) return params.get('tenant');

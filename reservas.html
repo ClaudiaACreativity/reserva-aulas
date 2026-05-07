@@ -348,7 +348,15 @@ const API = 'https://reserva-aulas.onrender.com';
 function detectarTenantSlug() {
     // 1. sessionStorage (viene del 404.html con URL limpia)
     const fromSession = sessionStorage.getItem('rte_tenant_slug');
-    if (fromSession) return fromSession;
+    if (fromSession) {
+        // Restaurar URL limpia sin exponer /reservas.html
+        const pago = new URLSearchParams(window.location.search).get('pago');
+        const reservaId = new URLSearchParams(window.location.search).get('reserva_id');
+        let urlLimpia = '/' + fromSession;
+        if (pago) urlLimpia += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
+        history.replaceState(null, '', urlLimpia);
+        return fromSession;
+    }
     // 2. ?tenant= (compatibilidad)
     const params = new URLSearchParams(window.location.search);
     if (params.get('tenant')) return params.get('tenant');
