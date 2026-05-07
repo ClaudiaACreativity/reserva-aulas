@@ -1788,6 +1788,15 @@ async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
                 datos.email_admin, password_temp, trial_hasta
             )
         )
+        # Registrar envío en emails_bienvenida
+        try:
+            await db.execute(
+                """INSERT INTO emails_bienvenida (tenant_id, enviado_a, enviado_por)
+                   VALUES ($1, $2, 'automatico')""",
+                tenant_id, datos.email_admin
+            )
+        except Exception:
+            pass  # No bloquear si falla el registro
         return {
             "mensaje": "Tenant creado correctamente",
             "tenant_id": str(tenant_id),
@@ -1827,6 +1836,81 @@ async def superadmin_eliminar_tenant(request: Request, tenant_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+@app.post("/superadmin/tenants/{tenant_id}/reenviar-bienvenida")
+async def superadmin_reenviar_bienvenida(request: Request, tenant_id: str):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        # Obtener datos del tenant
+        tenant = await db.fetchrow(
+            """SELECT t.*, p.nombre as plan_nombre
+               FROM tenants t
+               LEFT JOIN planes p ON t.plan_id = p.id
+               WHERE t.id = $1""",
+            tenant_id
+        )
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+        # Obtener admin del tenant
+        admin = await db.fetchrow(
+            """SELECT nombre, email FROM usuarios
+               WHERE tenant_id = $1 AND rol = 'admin'
+               ORDER BY created_at ASC LIMIT 1""",
+            tenant_id
+        )
+        if not admin:
+            raise HTTPException(status_code=404, detail="No se encontró el usuario admin del tenant")
+
+        slug = tenant['slug']
+        trial_hasta = tenant['trial_hasta'].strftime('%d/%m/%Y') if tenant.get('trial_hasta') else 'N/A'
+
+        # Enviar email con contraseña temporal genérica (el admin debe cambiarla)
+        html = email_bienvenida_tenant(
+            nombre_admin=admin['nombre'],
+            nombre_tenant=tenant['nombre'],
+            slug=slug,
+            email=admin['email'],
+            password_temp='(usá la contraseña que te enviamos anteriormente o contactá a soporte)',
+            trial_hasta=trial_hasta
+        )
+        enviar_email(admin['email'], '¡Bienvenido a ReservaTuEspacio! Tus datos de acceso', html)
+
+        # Registrar en emails_bienvenida
+        await db.execute(
+            """INSERT INTO emails_bienvenida (tenant_id, enviado_a, enviado_por)
+               VALUES ($1, $2, 'superadmin')""",
+            tenant_id, admin['email']
+        )
+
+        return {"mensaje": f"Email de bienvenida reenviado a {admin['email']}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await release_db(db)
+
+
+@app.get("/superadmin/emails-bienvenida")
+async def superadmin_listar_emails_bienvenida(request: Request):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        emails = await db.fetch(
+            """SELECT e.*, t.nombre as tenant_nombre, t.slug
+               FROM emails_bienvenida e
+               LEFT JOIN tenants t ON e.tenant_id = t.id
+               ORDER BY e.created_at DESC
+               LIMIT 100"""
+        )
+        return [dict(e) for e in emails]
+    except Exception as ex:
+        return []
+    finally:
+        await release_db(db)
+
 
 @app.get("/superadmin/planes")
 async def superadmin_listar_planes(request: Request):

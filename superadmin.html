@@ -447,6 +447,12 @@
             <h2>Historial de comunicaciones</h2>
             <div id="tabla-comunicaciones"><p class="empty">Cargando...</p></div>
         </div>
+
+        <div class="card">
+            <h2>📧 Registro de emails de bienvenida</h2>
+            <p style="font-size:13px; color:#888; margin-bottom:16px">Emails de bienvenida enviados (automáticos al crear tenant + reenvíos manuales).</p>
+            <div id="tabla-emails-bienvenida"><p class="empty">Cargando...</p></div>
+        </div>
     </div>
 
 
@@ -527,6 +533,7 @@ function cargarTodo() {
     cargarFacturacion();
     cargarTickets();
     cargarComunicaciones();
+    cargarEmailsBienvenida();
     cargarConfiguracion();
 }
 
@@ -618,6 +625,11 @@ function renderizarTenants(tenants) {
                                     : `<button class="btn btn-success btn-sm" onclick="toggleTenant('${t.id}', false)">Activar</button>`
                                 }
                                 <button class="btn btn-sm"
+                                    style="background:#1a5276; color:white;"
+                                    onclick="reenviarBienvenida('${t.id}', '${t.nombre}', '${t.email_admin}')">
+                                    📧 Reenviar bienvenida
+                                </button>
+                                <button class="btn btn-sm"
                                     style="background:#c0392b; color:white;"
                                     onclick="eliminarTenant('${t.id}', '${t.nombre.replace(/'/g, "\\'")}')">
                                     🗑️ Eliminar
@@ -639,6 +651,22 @@ function estadoTenant(t) {
     const trial = t.trial_hasta ? t.trial_hasta.split('T')[0] : '';
     if (trial >= hoy) return { clase: 'trial', texto: 'En trial' };
     return { clase: 'vencido', texto: 'Trial vencido' };
+}
+
+async function reenviarBienvenida(id, nombre, email) {
+    if (!confirm('¿Reenviar el email de bienvenida a ' + email + ' (' + nombre + ')?')) return;
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}/reenviar-bienvenida`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert('✅ ' + data.mensaje);
+            cargarEmailsBienvenida();
+        } else {
+            alert('Error: ' + (data.detail || 'No se pudo reenviar'));
+        }
+    } catch(e) {
+        alert('Error al reenviar email');
+    }
 }
 
 async function eliminarTenant(id, nombre) {
@@ -1126,6 +1154,44 @@ function usarPlantilla(tipo) {
 
 function toggleTenantEspecifico(valor) {
     document.getElementById('tenant-especifico-group').style.display = valor === 'especifico' ? 'block' : 'none';
+}
+
+async function cargarEmailsBienvenida() {
+    try {
+        const res = await apiFetch(`${API}/superadmin/emails-bienvenida`);
+        const emails = await res.json();
+        const contenedor = document.getElementById('tabla-emails-bienvenida');
+        if (!emails.length) {
+            contenedor.innerHTML = '<p class="empty">No hay registros todavía</p>';
+            return;
+        }
+        contenedor.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Organización</th>
+                        <th>Slug</th>
+                        <th>Enviado a</th>
+                        <th>Enviado por</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${emails.map(e => `
+                    <tr>
+                        <td><b>${e.tenant_nombre || '—'}</b></td>
+                        <td><code style="font-size:12px">${e.slug || '—'}</code></td>
+                        <td style="font-size:13px">${e.enviado_a}</td>
+                        <td><span class="badge badge-${e.enviado_por === 'superadmin' ? 'manual' : 'auto'}" style="background:${e.enviado_por === 'superadmin' ? '#e8f0fe' : '#e8f8ee'}; color:${e.enviado_por === 'superadmin' ? '#1a3a8c' : '#1a5c36'}">${e.enviado_por === 'superadmin' ? '👤 Manual' : '🤖 Automático'}</span></td>
+                        <td style="font-size:12px; color:#888">${new Date(e.created_at).toLocaleString('es-AR')}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch(e) {
+        document.getElementById('tabla-emails-bienvenida').innerHTML = '<p class="empty">Error al cargar</p>';
+    }
 }
 
 async function cargarComunicaciones() {
