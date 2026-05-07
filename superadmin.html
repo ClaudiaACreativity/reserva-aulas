@@ -630,6 +630,11 @@ function renderizarTenants(tenants) {
                                     📧 Reenviar bienvenida
                                 </button>
                                 <button class="btn btn-sm"
+                                    style="background:#1d8348; color:white;"
+                                    onclick="editarWhatsapp('${t.id}', '${t.nombre}', '${t.whatsapp_admin || ''}')">
+                                    📱 ${t.whatsapp_admin ? 'WhatsApp ✓' : 'WhatsApp'}
+                                </button>
+                                <button class="btn btn-sm"
                                     style="background:#c0392b; color:white;"
                                     onclick="eliminarTenant('${t.id}', '${t.nombre.replace(/'/g, "\\'")}')">
                                     🗑️ Eliminar
@@ -666,6 +671,39 @@ async function reenviarBienvenida(id, nombre, email) {
         }
     } catch(e) {
         alert('Error al reenviar email');
+    }
+}
+
+async function editarWhatsapp(id, nombre, whatsappActual) {
+    const nuevo = prompt(
+        `WhatsApp de ${nombre}
+Ingresá el número con código de país, sin + ni espacios.
+Ej: 5491123456789
+
+Actual: ${whatsappActual || 'no cargado'}`,
+        whatsappActual || ''
+    );
+    if (nuevo === null) return; // canceló
+    const limpio = nuevo.trim().replace(/[^0-9]/g, '');
+    if (nuevo.trim() && !limpio) {
+        alert('Número inválido. Usá solo números con código de país.');
+        return;
+    }
+    try {
+        const res = await apiFetch(`${API}/superadmin/tenants/${id}/whatsapp`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ whatsapp: limpio || null })
+        });
+        if (res.ok) {
+            alert(limpio ? `✅ WhatsApp actualizado: ${limpio}` : '✅ WhatsApp eliminado');
+            cargarTenants();
+        } else {
+            const err = await res.json();
+            alert('Error: ' + (err.detail || 'No se pudo actualizar'));
+        }
+    } catch(e) {
+        alert('Error al actualizar WhatsApp');
     }
 }
 

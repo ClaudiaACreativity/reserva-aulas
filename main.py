@@ -1557,6 +1557,7 @@ class RegistroCreate(BaseModel):
     tipo: str
     email_admin: str
     nombre_admin: str
+    whatsapp_admin: Optional[str] = None
     plan_id: str
     slug: str
 
@@ -1620,9 +1621,9 @@ async def registrar_tenant(datos: RegistroCreate):
         password_temp = generar_password_temporal()
         password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
         await db.execute(
-            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
-               VALUES ($1, $2, $3, 'admin', TRUE, $4)""",
-            tenant_id, datos.email_admin, datos.nombre_admin, password_hash
+            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash, whatsapp)
+               VALUES ($1, $2, $3, 'admin', TRUE, $4, $5)""",
+            tenant_id, datos.email_admin, datos.nombre_admin, password_hash, datos.whatsapp_admin
         )
 
         # Enviar email de bienvenida con credenciales
@@ -1688,7 +1689,8 @@ async def superadmin_listar_tenants(request: Request):
                 p.nombre as plan_nombre,
                 p.precio_mensual as plan_precio,
                 (SELECT COUNT(*) FROM usuarios u WHERE u.tenant_id = t.id) as total_usuarios,
-                (SELECT COUNT(*) FROM reservas r WHERE r.tenant_id = t.id AND r.estado = 'activa') as total_reservas
+                (SELECT COUNT(*) FROM reservas r WHERE r.tenant_id = t.id AND r.estado = 'activa') as total_reservas,
+                (SELECT whatsapp FROM usuarios u WHERE u.tenant_id = t.id AND u.rol = 'admin' LIMIT 1) as whatsapp_admin
             FROM tenants t
             LEFT JOIN planes p ON t.plan_id = p.id
             ORDER BY t.activo DESC, t.trial_hasta DESC
@@ -1774,9 +1776,9 @@ async def superadmin_crear_tenant(request: Request, datos: TenantCreate):
         password_temp = generar_password_temporal()
         password_hash = bcrypt.hashpw(password_temp.encode(), bcrypt.gensalt()).decode()
         await db.execute(
-            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash)
-               VALUES ($1, $2, $3, 'admin', TRUE, $4)""",
-            tenant_id, datos.email_admin, datos.nombre_admin, password_hash
+            """INSERT INTO usuarios (tenant_id, email, nombre, rol, activo, password_hash, whatsapp)
+               VALUES ($1, $2, $3, 'admin', TRUE, $4, $5)""",
+            tenant_id, datos.email_admin, datos.nombre_admin, password_hash, datos.whatsapp_admin
         )
 
         # Enviar email de bienvenida con credenciales
@@ -1836,6 +1838,31 @@ async def superadmin_eliminar_tenant(request: Request, tenant_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     finally:
         await release_db(db)
+
+@app.patch("/superadmin/tenants/{tenant_id}/whatsapp")
+async def superadmin_actualizar_whatsapp(request: Request, tenant_id: str):
+    verificar_superadmin(request)
+    db = await get_db()
+    try:
+        body = await request.json()
+        whatsapp = body.get('whatsapp')
+        tenant = await db.fetchrow('SELECT id FROM tenants WHERE id = $1', tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail='Tenant no encontrado')
+        # Actualizar whatsapp en el usuario admin del tenant
+        await db.execute(
+            """UPDATE usuarios SET whatsapp = $1
+               WHERE tenant_id = $2 AND rol = 'admin'""",
+            whatsapp, tenant_id
+        )
+        return {'mensaje': 'WhatsApp actualizado correctamente'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        await release_db(db)
+
 
 @app.post("/superadmin/tenants/{tenant_id}/reenviar-bienvenida")
 async def superadmin_reenviar_bienvenida(request: Request, tenant_id: str):
