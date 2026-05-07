@@ -1714,9 +1714,8 @@ async function cargarPersonalizacion() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Mostrar aviso si no hay parámetro tenant en la URL
-    const tenantParam = new URLSearchParams(window.location.search).get('tenant');
-    if (!tenantParam) {
+    // Mostrar aviso si no hay tenant detectado
+    if (!TENANT_SLUG) {
         document.getElementById('aviso-tenant').style.display = 'block';
     }
     document.getElementById('pers-logo-url')?.addEventListener('input', e => mostrarPreviewLogo(e.target.value));
