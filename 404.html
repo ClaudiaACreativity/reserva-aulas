@@ -5,20 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReservaTuEspacio</title>
     <style>
-        body { font-family: Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f8fafc; }
-        .loader { text-align: center; color: #2C3E50; }
-        .loader svg { width: 48px; height: 48px; margin-bottom: 16px; animation: spin 1s linear infinite; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; }
+        #loader {
+            font-family: Arial, sans-serif;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; background: #f8fafc;
+        }
+        .loader-inner { text-align: center; color: #2C3E50; }
+        .loader-inner svg { width: 48px; height: 48px; margin-bottom: 16px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .loader p { font-size: 14px; color: #888; margin: 0; }
+        .loader-inner p { font-size: 14px; color: #888; margin: 0; }
+        iframe {
+            display: none;
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            border: none;
+        }
     </style>
 </head>
 <body>
-<div class="loader">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#71D997" stroke-width="2">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-    </svg>
-    <p>Cargando...</p>
+<div id="loader">
+    <div class="loader-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#71D997" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        <p>Cargando...</p>
+    </div>
 </div>
+<iframe id="app" scrolling="yes"></iframe>
 
 <script>
 (function() {
@@ -31,28 +46,34 @@
                              'superadmin', 'pago-exitoso', 'padel', 'futbol5', 'academias',
                              'consultorios', 'coworking', 'sitemap.xml', '404'];
 
-    // /admin/slug → admin con URL limpia
+    function cargarEnIframe(src) {
+        const iframe = document.getElementById('app');
+        iframe.src = src;
+        iframe.onload = function() {
+            document.getElementById('loader').style.display = 'none';
+            iframe.style.display = 'block';
+        };
+    }
+
+    // /admin/slug
     if (parts[0] === 'admin' && parts[1]) {
         sessionStorage.setItem('rte_tenant_slug', parts[1]);
-        const pago = params.get('pago');
-        const reservaId = params.get('reserva_id');
-        let destino = '/admin.html';
-        if (pago) destino += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
-        window.location.replace(destino);
+        cargarEnIframe('/admin.html');
         return;
     }
 
-    // /slug → reservas con URL limpia
+    // /slug
     if (parts[0] && !rutasReservadas.includes(parts[0])) {
         sessionStorage.setItem('rte_tenant_slug', parts[0]);
         const pago = params.get('pago');
         const reservaId = params.get('reserva_id');
-        let destino = '/reservas.html';
-        if (pago) destino += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
-        window.location.replace(destino);
+        let src = '/reservas.html';
+        if (pago) src += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
+        cargarEnIframe(src);
         return;
     }
 
+    // Nada matchea → landing
     window.location.replace('/');
 })();
 </script>
