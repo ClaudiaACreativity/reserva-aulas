@@ -55,25 +55,22 @@
         };
     }
 
-    // /admin/slug
+    // /admin/slug — pasar slug por hash al iframe
     if (parts[0] === 'admin' && parts[1]) {
-        sessionStorage.setItem('rte_tenant_slug', parts[1]);
-        cargarEnIframe('/admin.html');
+        cargarEnIframe('/admin.html#tenant=' + parts[1]);
         return;
     }
 
-    // /slug
+    // /slug — pasar slug por hash al iframe
     if (parts[0] && !rutasReservadas.includes(parts[0])) {
-        sessionStorage.setItem('rte_tenant_slug', parts[0]);
         const pago = params.get('pago');
         const reservaId = params.get('reserva_id');
-        let src = '/reservas.html';
-        if (pago) src += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
+        let src = '/reservas.html#tenant=' + parts[0];
+        if (pago) src += '&pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
         cargarEnIframe(src);
         return;
     }
 
-    // Nada matchea → landing
     window.location.replace('/');
 })();
 </script>

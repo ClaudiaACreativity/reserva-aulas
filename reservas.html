@@ -346,18 +346,12 @@
 const API = 'https://reserva-aulas.onrender.com';
 // Detectar tenant desde ?tenant=slug O desde la URL limpia /slug
 function detectarTenantSlug() {
-    // 1. sessionStorage (viene del 404.html con URL limpia)
-    const fromSession = sessionStorage.getItem('rte_tenant_slug');
-    if (fromSession) {
-        // Restaurar URL limpia sin exponer /reservas.html
-        const pago = new URLSearchParams(window.location.search).get('pago');
-        const reservaId = new URLSearchParams(window.location.search).get('reserva_id');
-        let urlLimpia = '/' + fromSession;
-        if (pago) urlLimpia += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
-        history.replaceState(null, '', urlLimpia);
-        return fromSession;
+    // 1. Hash (viene del 404.html vía iframe: #tenant=slug)
+    if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        if (hashParams.get('tenant')) return hashParams.get('tenant');
     }
-    // 2. ?tenant= (compatibilidad)
+    // 2. ?tenant= (compatibilidad con links viejos)
     const params = new URLSearchParams(window.location.search);
     if (params.get('tenant')) return params.get('tenant');
     return null;
