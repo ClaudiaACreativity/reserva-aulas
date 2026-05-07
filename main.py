@@ -232,9 +232,9 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                     <tr>
                         <td style="padding:8px 0; color:#7f8c8d; font-size:13px; width:120px">Panel admin:</td>
                         <td style="padding:8px 0">
-                            <a href="https://reservatuespacio.com/admin.html?tenant={slug}"
+                            <a href="https://reservatuespacio.com/admin/{slug}"
                                style="color:#71D997; font-weight:bold; font-size:14px">
-                                reservatuespacio.com/admin.html?tenant={slug}
+                                reservatuespacio.com/admin/{slug}
                             </a>
                         </td>
                     </tr>
@@ -249,9 +249,9 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                     <tr style="background:#f9f9fb">
                         <td style="padding:8px 0; color:#7f8c8d; font-size:13px">Tu URL p\u00fablica:</td>
                         <td style="padding:8px 0">
-                            <a href="https://reservatuespacio.com?tenant={slug}"
+                            <a href="https://reservatuespacio.com/{slug}"
                                style="color:#71D997; font-weight:bold; font-size:14px">
-                                reservatuespacio.com?tenant={slug}
+                                reservatuespacio.com/{slug}
                             </a>
                         </td>
                     </tr>
@@ -262,7 +262,7 @@ def email_bienvenida_tenant(nombre_admin, nombre_tenant, slug, email, password_t
                 desde el panel \u2192 Mi perfil.
             </p>
             <div style="text-align:center; margin-top:24px">
-                <a href="https://reservatuespacio.com/admin.html?tenant={slug}"
+                <a href="https://reservatuespacio.com/admin/{slug}"
                    style="background:#71D997; color:#2C3E50; padding:14px 32px;
                           border-radius:50px; text-decoration:none; font-weight:bold; font-size:15px">
                     Ir al panel de administraci\u00f3n \u2192

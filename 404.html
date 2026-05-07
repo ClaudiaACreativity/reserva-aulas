@@ -25,22 +25,34 @@
     const path = window.location.pathname;
     const parts = path.replace(/^\//, '').split('/');
     const search = window.location.search;
+    const params = new URLSearchParams(search);
 
-    // /admin/slug → admin.html con tenant slug
+    const rutasReservadas = ['landing', 'reservas', 'soporte', 'faq-usuarios', 'faq-tenants',
+                             'superadmin', 'pago-exitoso', 'padel', 'futbol5', 'academias',
+                             'consultorios', 'coworking', 'sitemap.xml', '404'];
+
+    // /admin/slug → admin con URL limpia
     if (parts[0] === 'admin' && parts[1]) {
-        window.location.replace('/admin.html?tenant=' + parts[1]);
+        sessionStorage.setItem('rte_tenant_slug', parts[1]);
+        const pago = params.get('pago');
+        const reservaId = params.get('reserva_id');
+        let destino = '/admin.html';
+        if (pago) destino += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
+        window.location.replace(destino);
         return;
     }
 
-    // /slug → reservas.html con tenant slug
-    // Excluir rutas conocidas que no son tenants
-    const rutasReservadas = ['landing', 'reservas', 'soporte', 'faq-usuarios', 'faq-tenants', 'superadmin', 'pago-exitoso', 'padel', 'futbol5', 'academias', 'consultorios', 'coworking'];
+    // /slug → reservas con URL limpia
     if (parts[0] && !rutasReservadas.includes(parts[0])) {
-        window.location.replace('/reservas.html?tenant=' + parts[0] + search);
+        sessionStorage.setItem('rte_tenant_slug', parts[0]);
+        const pago = params.get('pago');
+        const reservaId = params.get('reserva_id');
+        let destino = '/reservas.html';
+        if (pago) destino += '?pago=' + pago + (reservaId ? '&reserva_id=' + reservaId : '');
+        window.location.replace(destino);
         return;
     }
 
-    // Si no matchea nada, ir a la landing
     window.location.replace('/');
 })();
 </script>
