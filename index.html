@@ -1150,6 +1150,11 @@
                     <input type="email" id="reg-email" placeholder="tu@email.com">
                 </div>
                 <div class="form-group">
+                    <label>WhatsApp *</label>
+                    <input type="tel" id="reg-whatsapp" placeholder="Ej: 5491123456789" style="width:100%">
+                    <small style="color:rgba(255,255,255,0.4); font-size:11px">Con código de país, sin + ni espacios. Ej: 5491123456789</small>
+                </div>
+                <div class="form-group">
                     <label>Plan *</label>
                     <select id="reg-plan">
                         <option value="basic">Básico — USD 15/mes (hasta 2 espacios)</option>
@@ -1232,7 +1237,9 @@ async function registrar() {
 
     errorEl.style.display = 'none';
 
-    if (!nombre || !tipo || !adminNombre || !email || !slug) {
+    const whatsapp = document.getElementById('reg-whatsapp').value.trim().replace(/[^0-9]/g, '');
+
+    if (!nombre || !tipo || !adminNombre || !email || !whatsapp || !slug) {
         errorEl.textContent = 'Por favor completá todos los campos obligatorios.';
         errorEl.style.display = 'block';
         return;
@@ -1252,7 +1259,7 @@ async function registrar() {
         const res = await fetch(`${API}/registro`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, tipo, email_admin: email, nombre_admin: adminNombre, plan_id: plan, slug })
+            body: JSON.stringify({ nombre, tipo, email_admin: email, nombre_admin: adminNombre, whatsapp_admin: whatsapp, plan_id: plan, slug })
         });
 
         const data = await res.json();
