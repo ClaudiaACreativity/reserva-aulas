@@ -1884,7 +1884,7 @@ async def superadmin_reenviar_bienvenida(request: Request, tenant_id: str):
         admin = await db.fetchrow(
             """SELECT nombre, email FROM usuarios
                WHERE tenant_id = $1 AND rol = 'admin'
-               ORDER BY created_at ASC LIMIT 1""",
+               LIMIT 1""",
             tenant_id
         )
         if not admin:
