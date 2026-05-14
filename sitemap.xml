@@ -3,30 +3,51 @@
 
   <url>
     <loc>https://reservatuespacio.com/</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <url>
+    <loc>https://reservatuespacio.com/padel</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://reservatuespacio.com/academias</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://reservatuespacio.com/consultorios</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://reservatuespacio.com/faq-usuarios</loc>
-    <lastmod>2026-05-05</lastmod>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
 
   <url>
-    <loc>https://reservatuespacio.com/soporte</loc>
-    <lastmod>2026-05-05</lastmod>
+    <loc>https://reservatuespacio.com/faq-tenants</loc>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.6</priority>
   </url>
 
   <url>
-    <loc>https://reservatuespacio.com/faq-tenants</loc>
-    <lastmod>2026-05-05</lastmod>
+    <loc>https://reservatuespacio.com/soporte</loc>
+    <lastmod>2026-05-14</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.4</priority>
   </url>
 
 </urlset>
