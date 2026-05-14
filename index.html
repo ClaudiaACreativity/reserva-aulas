@@ -258,45 +258,99 @@
         }
 
         /* ===== CLIENTES ===== */
-        .clientes {
-            padding: 40px 64px;
-            background: var(--white);
+        /* ===== NICHOS ===== */
+        .nichos {
+            padding: 96px 64px;
+            background: #f8fafc;
             border-bottom: 1px solid var(--border);
         }
-
-        .clientes-inner {
+        .nichos-inner {
             max-width: 1100px;
             margin: 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 48px;
         }
-
-        .clientes p {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--body-text);
-            white-space: nowrap;
+        .nichos-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+        }
+        .nicho-card {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border: 2px solid transparent;
+            border-radius: 16px;
+            overflow: hidden;
+            text-decoration: none;
+            color: var(--heading);
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        .nicho-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--color);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+        }
+        .nicho-img {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.4s ease;
+        }
+        .nicho-card:hover .nicho-img {
+            transform: scale(1.06);
+        }
+        .nicho-img-wrap {
+            overflow: hidden;
+            position: relative;
+        }
+        .nicho-img-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 60%);
+            transition: opacity 0.2s;
+        }
+        .nicho-body {
+            padding: 18px 20px 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .nicho-nombre {
+            font-size: 16px;
             font-weight: 700;
+            color: var(--heading);
+            margin-bottom: 6px;
         }
-
-        .clientes-grid {
-            display: flex;
-            gap: 36px;
-            flex-wrap: wrap;
-        }
-
-        .cliente-tipo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .nicho-desc {
+            font-size: 12px;
             color: var(--body-text);
-            font-size: 13px;
-            font-weight: 600;
+            line-height: 1.6;
+            flex: 1;
+            margin-bottom: 14px;
         }
+        .nicho-link {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: gap 0.2s;
+        }
+        .nicho-card:hover .nicho-link { gap: 8px; }
 
-        .cliente-tipo span { font-size: 18px; }
+        @media (max-width: 1024px) {
+            .nichos-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .nichos-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+            .nichos { padding: 60px 24px; }
+        }
+        @media (max-width: 380px) {
+            .nichos-grid { grid-template-columns: 1fr; }
+        }
 
         /* ===== MOSAIC ===== */
         .mosaic {
@@ -825,7 +879,7 @@
             .hero-right { height: 380px; }
             .hero-left { padding: 56px 24px; }
             h1 { font-size: 38px; }
-            .mosaic, .features, .planes, .clientes { padding: 60px 24px; }
+            .mosaic, .features, .planes, .nichos { padding: 60px 24px; }
             .mosaic-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
             .mosaic-item.tall { grid-row: span 1; }
             .features-header { grid-template-columns: 1fr; }
@@ -835,7 +889,7 @@
             .split-content, .registro-form { padding: 56px 24px; }
             .form-row { grid-template-columns: 1fr; }
             .planes-header { flex-direction: column; align-items: flex-start; }
-            .clientes-inner { flex-direction: column; align-items: flex-start; gap: 20px; }
+            
             footer { flex-direction: column; gap: 10px; text-align: center; padding: 28px 24px; }
         }
     </style>
@@ -886,16 +940,63 @@
     </div>
 </section>
 
-<!-- CLIENTES -->
-<section class="clientes">
-    <div class="clientes-inner">
-        <p>Ideal para</p>
-        <div class="clientes-grid">
-            <div class="cliente-tipo"><span>🏫</span> Institutos educativos</div>
-            <div class="cliente-tipo"><span>🏥</span> Clínicas y consultorios</div>
-            <div class="cliente-tipo"><span>🎾</span> Clubes deportivos</div>
-            <div class="cliente-tipo"><span>💼</span> Espacios de coworking</div>
-            <div class="cliente-tipo"><span>🎭</span> Centros culturales</div>
+<!-- NICHOS -->
+<section class="nichos">
+    <div class="nichos-inner">
+        <div class="section-tag" style="text-align:center">Soluciones por sector</div>
+        <h2 style="text-align:center; margin-bottom:12px">¿En qué tipo de espacio<br>trabajás?</h2>
+        <p class="section-sub" style="text-align:center; margin-bottom:48px">Tenemos una solución pensada para cada sector. Hacé clic y descubrí cómo ReservaTuEspacio funciona para tu organización.</p>
+        <div class="nichos-grid">
+            <a href="/padel" class="nicho-card" style="--color: #FF8000">
+                <div class="nicho-img-wrap">
+                    <img class="nicho-img" src="/Padel-02.png" alt="Canchas de pádel">
+                </div>
+                <div class="nicho-body">
+                    <div class="nicho-nombre">Pádel</div>
+                    <div class="nicho-desc">Tus canchas siempre llenas. Reservas online 24/7 sin llamadas.</div>
+                    <div class="nicho-link">Ver solución →</div>
+                </div>
+            </a>
+            <a href="/futbol5" class="nicho-card" style="--color: #00A651">
+                <div class="nicho-img-wrap">
+                    <img class="nicho-img" src="/pexels-carlos-reyes-221717023-27486718.jpg" alt="Canchas de fútbol 5">
+                </div>
+                <div class="nicho-body">
+                    <div class="nicho-nombre">Fútbol 5</div>
+                    <div class="nicho-desc">Gestioná tu complejo sin WhatsApp ni cuadernos.</div>
+                    <div class="nicho-link">Ver solución →</div>
+                </div>
+            </a>
+            <a href="/academias" class="nicho-card" style="--color: #6C5CE7">
+                <div class="nicho-img-wrap">
+                    <img class="nicho-img" src="/pexels-zeynep-beste-990301136-20657537.jpg" alt="Academia">
+                </div>
+                <div class="nicho-body">
+                    <div class="nicho-nombre">Academias</div>
+                    <div class="nicho-desc">Organizá aulas, talleres y salas sin superposiciones.</div>
+                    <div class="nicho-link">Ver solución →</div>
+                </div>
+            </a>
+            <a href="/consultorios" class="nicho-card" style="--color: #00B894">
+                <div class="nicho-img-wrap">
+                    <img class="nicho-img" src="/pexels-felipebalduino-9578526.jpg" alt="Consultorio">
+                </div>
+                <div class="nicho-body">
+                    <div class="nicho-nombre">Consultorios</div>
+                    <div class="nicho-desc">Gestioná quién usa cada consultorio y cuándo.</div>
+                    <div class="nicho-link">Ver solución →</div>
+                </div>
+            </a>
+            <a href="/coworking" class="nicho-card" style="--color: #F59E0B">
+                <div class="nicho-img-wrap">
+                    <img class="nicho-img" src="/pexels-fotografiagmazg-8477444.jpg" alt="Coworking">
+                </div>
+                <div class="nicho-body">
+                    <div class="nicho-nombre">Coworking</div>
+                    <div class="nicho-desc">Escritorios, salas y recursos reservados sin fricciones.</div>
+                    <div class="nicho-link">Ver solución →</div>
+                </div>
+            </a>
         </div>
     </div>
 </section>
