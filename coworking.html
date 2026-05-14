@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coworking — ReservaTuEspacio</title>
+    <link rel="icon" type="image/png" href="/favicon-rte.png">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul:    #2C3E50;
+            --oscuro:  #1A252F;
+            --ambar:   #F59E0B;
+            --ambar-l: rgba(245,158,11,0.12);
+            --verde:   #71D997;
+            --blanco:  #F0F4F8;
+            --gris:    #8A9BB0;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--azul);
+            color: var(--blanco);
+            font-family: 'Barlow', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ── NAV ── */
+        nav {
+            position: fixed; top:0; left:0; right:0; z-index:100;
+            display: flex; align-items:center; justify-content:space-between;
+            padding: 18px 48px;
+            background: rgba(26,37,47,0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .nav-logo {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px; font-weight: 800; text-decoration: none;
+        }
+        .nav-logo span.r { color: var(--blanco); }
+        .nav-logo span.t { color: var(--gris); }
+        .nav-logo span.e { color: var(--verde); }
+        .nav-cta {
+            background: var(--ambar);
+            color: var(--oscuro); font-weight: 700; font-size: 14px;
+            padding: 10px 24px; border-radius: 50px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245,158,11,0.45);
+        }
+
+        /* ── HERO ── */
+        .hero {
+            min-height: 100vh;
+            position: relative;
+            display: flex; align-items:center;
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; inset:0;
+            background-image: url('/pexels-fotografiagmazg-8477444.jpg');
+            background-size: cover; background-position: center 45%;
+            filter: brightness(0.38) saturate(0.85);
+        }
+        .hero-overlay {
+            position: absolute; inset:0;
+            background: linear-gradient(120deg,
+                rgba(26,37,47,0.90) 38%,
+                rgba(26,37,47,0.2) 100%);
+        }
+        .hero-content {
+            position: relative; z-index:2;
+            max-width: 720px;
+            padding: 140px 48px 180px;
+        }
+        .hero-chip {
+            display: inline-flex; align-items:center; gap:8px;
+            background: rgba(245,158,11,0.12);
+            border: 1px solid rgba(245,158,11,0.35);
+            color: var(--ambar);
+            font-size: 12px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 6px 16px; border-radius: 50px;
+            margin-bottom: 28px;
+        }
+        .hero-chip::before {
+            content: ''; width:6px; height:6px;
+            background: var(--ambar); border-radius:50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50% { opacity:0.4; transform:scale(1.5); }
+        }
+        .hero h1 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(52px, 7vw, 86px);
+            font-weight: 900; line-height: 0.93;
+            letter-spacing: -1px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+        .hero h1 em { font-style:normal; color: var(--ambar); }
+        .hero h1 .verde { color: var(--verde); }
+        .hero-sub {
+            font-size: 18px; line-height: 1.75;
+            color: rgba(240,244,248,0.72);
+            max-width: 520px; margin-bottom: 44px;
+        }
+        .hero-actions {
+            display: flex; align-items:center; gap:20px; flex-wrap:wrap;
+        }
+        .btn-primary {
+            background: var(--ambar);
+            color: var(--oscuro); font-weight: 700; font-size: 16px;
+            padding: 16px 36px; border-radius: 50px;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(245,158,11,0.45);
+        }
+        .btn-secondary {
+            color: var(--blanco); font-size: 15px; font-weight: 600;
+            text-decoration: none; opacity: 0.65; transition: opacity 0.2s;
+        }
+        .btn-secondary:hover { opacity:1; }
+        .hero-stats {
+            position: absolute; bottom:48px; left:48px; right:48px; z-index:2;
+            display: flex; gap:48px;
+        }
+        .stat { display:flex; flex-direction:column; }
+        .stat-num {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 36px; font-weight: 800;
+            color: var(--ambar); line-height:1;
+        }
+        .stat-label { font-size: 12px; color: var(--gris); margin-top:4px; }
+        .stat-divider { width:1px; background: rgba(255,255,255,0.08); }
+
+        /* ── SECCIONES ── */
+        .section-inner { max-width: 1100px; margin: 0 auto; }
+        .section-tag {
+            font-size: 11px; font-weight: 700; letter-spacing: 3px;
+            text-transform: uppercase; color: var(--ambar); margin-bottom: 16px;
+        }
+        .section-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(36px, 4vw, 52px);
+            font-weight: 800; text-transform: uppercase;
+            line-height: 1.05; margin-bottom: 48px;
+        }
+
+        /* ── PROBLEMA ── */
+        .problema { background: var(--oscuro); padding: 100px 48px; position:relative; overflow:hidden; }
+        .problema::before {
+            content:''; position:absolute; top:-80px; right:-80px;
+            width:400px; height:400px;
+            background: radial-gradient(circle, rgba(245,158,11,0.06) 0%, transparent 70%);
+            border-radius:50%;
+        }
+        .problema-grid { display: grid; grid-template-columns: repeat(3,1fr); gap:24px; }
+        .problema-card {
+            background: rgba(44,62,80,0.7);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px; padding: 32px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .problema-card:hover { transform: translateY(-4px); border-color: rgba(245,158,11,0.3); }
+        .problema-icon { font-size: 32px; margin-bottom:16px; }
+        .problema-card h3 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px; font-weight: 700; text-transform: uppercase;
+            color: var(--blanco); margin-bottom: 8px;
+        }
+        .problema-card p { font-size: 14px; color: var(--gris); line-height: 1.65; }
+
+        /* ── SOLUCIÓN ── */
+        .solucion { padding: 100px 48px; background: var(--azul); }
+        .solucion-grid { display:grid; grid-template-columns:1fr 1fr; gap:80px; align-items:center; }
+        .solucion-features { display:flex; flex-direction:column; gap:28px; }
+        .feature-item { display:flex; gap:20px; align-items:flex-start; }
+        .feature-icon {
+            width:48px; height:48px; border-radius:12px;
+            background: rgba(245,158,11,0.1);
+            border: 1px solid rgba(245,158,11,0.2);
+            display:flex; align-items:center; justify-content:center;
+            font-size:20px; flex-shrink:0;
+        }
+        .feature-text h4 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size:18px; font-weight:700; text-transform:uppercase;
+            color:var(--blanco); margin-bottom:4px;
+        }
+        .feature-text p { font-size:14px; color:var(--gris); line-height:1.65; }
+
+        /* ── MOCKUP ── */
+        .mockup-box {
+            background: var(--oscuro);
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 20px; padding: 32px; position:relative;
+        }
+        .mockup-box::before {
+            content:''; position:absolute; inset:-1px; border-radius:21px;
+            background: linear-gradient(135deg, rgba(245,158,11,0.22), rgba(113,217,151,0.1), transparent);
+            z-index:-1;
+        }
+        .mockup-header { display:flex; align-items:center; gap:8px; margin-bottom:24px; }
+        .dot { width:10px; height:10px; border-radius:50%; }
+        .dot-r { background:#FF5F57; }
+        .dot-y { background:#FFBD2E; }
+        .dot-g { background:#28CA41; }
+        .mockup-title { font-size:13px; color:var(--gris); margin-left:8px; }
+        .mockup-espacio {
+            background: rgba(44,62,80,0.8);
+            border-radius:12px; padding:14px 16px; margin-bottom:10px;
+            display:flex; justify-content:space-between; align-items:center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: border-color 0.2s;
+        }
+        .mockup-espacio:hover { border-color: rgba(245,158,11,0.25); }
+        .mockup-espacio-name { font-weight:600; font-size:14px; color:var(--blanco); }
+        .mockup-espacio-sub { font-size:12px; color:var(--gris); margin-top:2px; }
+        .mockup-badge {
+            font-size:11px; font-weight:700; padding:4px 12px; border-radius:50px;
+        }
+        .badge-libre {
+            background:rgba(113,217,151,0.12); color:var(--verde);
+            border: 1px solid rgba(113,217,151,0.25);
+        }
+        .badge-ocupado {
+            background:rgba(245,158,11,0.1); color:var(--ambar);
+            border: 1px solid rgba(245,158,11,0.25);
+        }
+
+        /* ── PRECIOS ── */
+        .precios { background: var(--oscuro); padding: 100px 48px; }
+        .precios-grid { display:grid; grid-template-columns: repeat(3,1fr); gap:24px; margin-top:48px; }
+        .precio-card {
+            background: var(--azul);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius:20px; padding:36px;
+            transition: transform 0.2s, border-color 0.2s;
+            position:relative; overflow:hidden;
+            display:flex; flex-direction:column;
+        }
+        .precio-card:hover { transform: translateY(-6px); border-color: rgba(245,158,11,0.3); }
+        .precio-card.featured {
+            border-color: var(--ambar);
+            background: linear-gradient(160deg, rgba(245,158,11,0.08) 0%, var(--azul) 60%);
+        }
+        .precio-card.featured::before {
+            content:'⭐ El más elegido';
+            position:absolute; top:0; right:0;
+            background:var(--ambar); color:var(--oscuro);
+            font-size:11px; font-weight:700;
+            padding:6px 16px; border-radius:0 20px 0 12px;
+        }
+        .precio-nombre {
+            font-family:'Barlow Condensed',sans-serif;
+            font-size:22px; font-weight:800; text-transform:uppercase;
+            color:var(--blanco); margin-bottom:8px;
+        }
+        .precio-desc { font-size:13px; color:var(--gris); margin-bottom:24px; line-height:1.5; }
+        .precio-monto {
+            font-family:'Barlow Condensed',sans-serif;
+            font-size:52px; font-weight:900; color:var(--ambar); line-height:1;
+        }
+        .precio-monto span { font-size:20px; vertical-align:super; margin-right:2px; }
+        .precio-periodo { font-size:13px; color:var(--gris); margin-bottom:28px; }
+        .precio-features { list-style:none; margin-bottom:32px; flex:1; }
+        .precio-features li {
+            font-size:14px; color:rgba(240,244,248,0.8);
+            padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+            display:flex; align-items:center; gap:10px;
+        }
+        .precio-features li::before { content:'✓'; color:var(--verde); font-weight:700; flex-shrink:0; }
+        .btn-plan {
+            display:block; text-align:center; padding:14px; border-radius:50px;
+            font-weight:700; font-size:14px; text-decoration:none; transition:all 0.2s;
+        }
+        .btn-plan-primary { background:var(--ambar); color:var(--oscuro); }
+        .btn-plan-primary:hover { box-shadow: 0 8px 24px rgba(245,158,11,0.4); transform:translateY(-2px); }
+        .btn-plan-outline { background:transparent; border:2px solid rgba(255,255,255,0.15); color:var(--blanco); }
+        .btn-plan-outline:hover { border-color:var(--ambar); color:var(--ambar); }
+
+        /* ── CTA FINAL ── */
+        .cta-final {
+            padding: 120px 48px; text-align:center;
+            background: var(--azul); position:relative; overflow:hidden;
+        }
+        .cta-final::before {
+            content:''; position:absolute; top:50%; left:50%;
+            transform:translate(-50%,-50%);
+            width:700px; height:350px;
+            background: radial-gradient(ellipse, rgba(245,158,11,0.07) 0%, transparent 70%);
+        }
+        .cta-final h2 {
+            font-family:'Barlow Condensed',sans-serif;
+            font-size:clamp(40px,5vw,64px); font-weight:900;
+            text-transform:uppercase; line-height:1; margin-bottom:20px;
+        }
+        .cta-final p { font-size:18px; color:var(--gris); max-width:480px; margin:0 auto 40px; line-height:1.6; }
+        .cta-nota { margin-top:20px; font-size:13px; color:var(--gris); }
+
+        /* ── FOOTER ── */
+        footer {
+            background: #141E26; padding: 32px 48px;
+            display:flex; align-items:center; justify-content:space-between;
+            border-top:1px solid rgba(255,255,255,0.06); flex-wrap:wrap; gap:16px;
+        }
+        .footer-marca { font-size:13px; color:var(--gris); }
+        .footer-marca strong { color:var(--verde); }
+        .footer-links { display:flex; gap:24px; }
+        .footer-links a { font-size:13px; color:var(--gris); text-decoration:none; transition:color 0.2s; }
+        .footer-links a:hover { color:var(--blanco); }
+
+        /* ── RESPONSIVE ── */
+        @media(max-width:768px) {
+            nav { padding:16px 24px; }
+            .hero-content { padding:120px 24px 180px; }
+            .hero-stats { left:24px; right:24px; gap:24px; flex-wrap:wrap; }
+            .problema, .solucion, .precios, .cta-final { padding:72px 24px; }
+            .problema-grid { grid-template-columns:1fr; }
+            .solucion-grid { grid-template-columns:1fr; gap:48px; }
+            .precios-grid { grid-template-columns:1fr; }
+            footer { padding:24px; flex-direction:column; text-align:center; }
+        }
+
+        .fade-up { opacity:0; transform:translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .fade-up.visible { opacity:1; transform:translateY(0); }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+    <a href="/" class="nav-logo">
+        <span class="r">Reserva</span><span class="t">Tu</span><span class="e">Espacio</span>
+    </a>
+    <a href="/#registro" class="nav-cta">Probá gratis 30 días →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="hero-chip">Para espacios de coworking</div>
+        <h1>
+            Tus espacios,<br>
+            <em>siempre organizados.</em><br>
+            <span class="verde">Sin fricciones.</span>
+        </h1>
+        <p class="hero-sub">
+            Tus miembros reservan escritorios, salas y recursos online las 24 horas. Vos administrás todo desde un panel — sin emails, sin papeles, sin superposiciones.
+        </p>
+        <div class="hero-actions">
+            <a href="/#registro" class="btn-primary">Empezar gratis — 30 días →</a>
+            <a href="#como-funciona" class="btn-secondary">Ver cómo funciona ↓</a>
+        </div>
+    </div>
+    <div class="hero-stats">
+        <div class="stat">
+            <span class="stat-num">24/7</span>
+            <span class="stat-label">Reservas online</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <span class="stat-num">0</span>
+            <span class="stat-label">Emails para reservar</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+            <span class="stat-num">30 días</span>
+            <span class="stat-label">Prueba gratis</span>
+        </div>
+    </div>
+</section>
+
+<!-- PROBLEMA -->
+<section class="problema" id="como-funciona">
+    <div class="section-inner">
+        <p class="section-tag fade-up">El problema de hoy</p>
+        <h2 class="section-title fade-up">¿Te suena familiar?</h2>
+        <div class="problema-grid">
+            <div class="problema-card fade-up">
+                <div class="problema-icon">📧</div>
+                <h3>Emails y mensajes</h3>
+                <p>Reservas por email, por WhatsApp, por teléfono. Sin un sistema central, cada reserva es una gestión manual.</p>
+            </div>
+            <div class="problema-card fade-up">
+                <div class="problema-icon">🔀</div>
+                <h3>Superposiciones</h3>
+                <p>Dos miembros en la misma sala de reuniones a la misma hora. Conflictos evitables que generan mala experiencia.</p>
+            </div>
+            <div class="problema-card fade-up">
+                <div class="problema-icon">📊</div>
+                <h3>Sin datos de ocupación</h3>
+                <p>No sabés qué espacios se usan más, en qué horarios, ni cuánto rinde cada sala. Decisiones a ciegas.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SOLUCIÓN -->
+<section class="solucion">
+    <div class="section-inner">
+        <div class="solucion-grid">
+            <div>
+                <p class="section-tag fade-up">La solución</p>
+                <h2 class="section-title fade-up">Tu coworking,<br><em style="font-style:normal;color:var(--ambar)">sin el caos.</em></h2>
+                <div class="solucion-features">
+                    <div class="feature-item fade-up">
+                        <div class="feature-icon">📅</div>
+                        <div class="feature-text">
+                            <h4>Calendario visual por espacio</h4>
+                            <p>Escritorios, salas de reuniones, cabinas privadas — disponibilidad visible al instante para todos tus miembros.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item fade-up">
+                        <div class="feature-icon">💳</div>
+                        <div class="feature-text">
+                            <h4>Cobro automático con MercadoPago</h4>
+                            <p>Si cobrás por hora o por día, recibís el pago al momento de la reserva. Sin deudas ni cobros incómodos.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item fade-up">
+                        <div class="feature-icon">🔑</div>
+                        <div class="feature-text">
+                            <h4>Acceso libre o con registro</h4>
+                            <p>Elegís si tus miembros necesitan cuenta para reservar o si cualquiera puede reservar directamente.</p>
+                        </div>
+                    </div>
+                    <div class="feature-item fade-up">
+                        <div class="feature-icon">⚙️</div>
+                        <div class="feature-text">
+                            <h4>Panel de administración completo</h4>
+                            <p>Gestioná todos tus espacios, bloqueá horarios y revisá quién usa qué desde cualquier dispositivo.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="solucion-visual fade-up">
+                <div class="mockup-box">
+                    <div class="mockup-header">
+                        <div class="dot dot-r"></div>
+                        <div class="dot dot-y"></div>
+                        <div class="dot dot-g"></div>
+                        <span class="mockup-title">Espacios disponibles — hoy</span>
+                    </div>
+                    <div class="mockup-espacio">
+                        <div>
+                            <div class="mockup-espacio-name">💼 Sala de reuniones A</div>
+                            <div class="mockup-espacio-sub">10:00 — 12:00 · hasta 8 personas</div>
+                        </div>
+                        <span class="mockup-badge badge-ocupado">Reservada</span>
+                    </div>
+                    <div class="mockup-espacio">
+                        <div>
+                            <div class="mockup-espacio-name">💼 Sala de reuniones B</div>
+                            <div class="mockup-espacio-sub">10:00 — 12:00 · hasta 4 personas</div>
+                        </div>
+                        <span class="mockup-badge badge-libre">Libre</span>
+                    </div>
+                    <div class="mockup-espacio">
+                        <div>
+                            <div class="mockup-espacio-name">🎙️ Cabina de grabación</div>
+                            <div class="mockup-espacio-sub">14:00 — 16:00</div>
+                        </div>
+                        <span class="mockup-badge badge-libre">Libre</span>
+                    </div>
+                    <div class="mockup-espacio">
+                        <div>
+                            <div class="mockup-espacio-name">🖥️ Escritorio privado 3</div>
+                            <div class="mockup-espacio-sub">Todo el día</div>
+                        </div>
+                        <span class="mockup-badge badge-ocupado">Reservado</span>
+                    </div>
+                    <div style="margin-top:20px; padding:16px; background:rgba(245,158,11,0.07); border-radius:10px; border:1px solid rgba(245,158,11,0.18)">
+                        <div style="font-size:12px; color:var(--ambar); font-weight:700; margin-bottom:4px">✓ Sin superposiciones</div>
+                        <div style="font-size:12px; color:var(--gris)">2 espacios reservados · 2 disponibles ahora</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRECIOS -->
+<section class="precios" id="precios">
+    <div class="section-inner">
+        <p class="section-tag fade-up">Planes</p>
+        <h2 class="section-title fade-up">Elegí el plan<br>para tu coworking</h2>
+        <p style="color:var(--gris); margin-top:-32px; margin-bottom:0" class="fade-up">30 días de prueba gratuita. Sin tarjeta de crédito.</p>
+        <div class="precios-grid">
+            <div class="precio-card fade-up">
+                <div class="precio-nombre">Básico</div>
+                <div class="precio-desc">Para empezar a gestionar tus espacios sin emails ni papeles.</div>
+                <div class="precio-monto"><span>$</span>15</div>
+                <div class="precio-periodo">USD por mes · menos de $1 por día</div>
+                <ul class="precio-features">
+                    <li>Hasta 2 espacios</li>
+                    <li>Hasta 200 reservas por mes</li>
+                    <li>Miembros ilimitados</li>
+                    <li>Calendario visual día / semana</li>
+                    <li>Reservas con o sin registro</li>
+                    <li>Notificaciones por email</li>
+                </ul>
+                <a href="/#registro" class="btn-plan btn-plan-outline">Empezar gratis →</a>
+            </div>
+            <div class="precio-card featured fade-up">
+                <div class="precio-nombre">Profesional</div>
+                <div class="precio-desc">Para coworkings que quieren cobrar por espacio y escalar.</div>
+                <div class="precio-monto"><span>$</span>35</div>
+                <div class="precio-periodo">USD por mes · menos de $1,20 por día</div>
+                <ul class="precio-features">
+                    <li>Hasta 6 espacios</li>
+                    <li>Reservas ilimitadas</li>
+                    <li>Miembros ilimitados</li>
+                    <li>Todo lo del plan Básico</li>
+                    <li>Cobro automático con MercadoPago</li>
+                    <li>Devoluciones automáticas</li>
+                    <li>Logo y colores de tu espacio</li>
+                </ul>
+                <a href="/#registro" class="btn-plan btn-plan-primary">Empezar gratis →</a>
+            </div>
+            <div class="precio-card fade-up">
+                <div class="precio-nombre">Enterprise</div>
+                <div class="precio-desc">Para espacios grandes con múltiples plantas o sedes.</div>
+                <div class="precio-monto"><span>$</span>80</div>
+                <div class="precio-periodo">USD por mes</div>
+                <ul class="precio-features">
+                    <li>Espacios ilimitados</li>
+                    <li>Reservas ilimitadas</li>
+                    <li>Múltiples sedes</li>
+                    <li>Todo lo del plan Profesional</li>
+                    <li>Dominio personalizado</li>
+                    <li>Atención dedicada</li>
+                </ul>
+                <a href="/#registro" class="btn-plan btn-plan-outline">Empezar gratis →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+    <div style="position:relative;z-index:1">
+        <h2 class="fade-up">¿Listo para gestionar<br><em style="font-style:normal;color:var(--ambar)">tu coworking sin fricciones?</em></h2>
+        <p class="fade-up">Configurá tus espacios en minutos y empezá a recibir reservas online hoy mismo.</p>
+        <a href="/#registro" class="btn-primary fade-up">Empezar prueba gratuita →</a>
+        <p class="cta-nota fade-up">30 días gratis · Sin tarjeta de crédito · Cancelá cuando quieras</p>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+    <div class="footer-marca">
+        ReservaTuEspacio · un producto de <strong>GestionaTeIA</strong>
+    </div>
+    <div class="footer-links">
+        <a href="/faq-tenants">FAQ</a>
+        <a href="/soporte">Soporte</a>
+        <a href="/">Inicio</a>
+    </div>
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+    });
+}, { threshold: 0.12 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
