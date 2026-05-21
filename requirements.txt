@@ -7,3 +7,4 @@ openpyxl
 bcrypt
 httpx
 slowapi
+PyJWT==2.8.0
