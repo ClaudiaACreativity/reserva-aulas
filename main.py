@@ -15,6 +15,7 @@ import openpyxl
 from io import BytesIO
 import bcrypt
 import httpx
+from main_qfa import qfa_app, init_qfa_pool
 
 load_dotenv()
 
@@ -56,6 +57,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-Tenant-Slug", "X-Admin-Token", "X-Superadmin-Token", "Authorization"],
 )
 
+app.mount("/quefiestaapp", qfa_app)
+
 pool = None
 
 @app.on_event("startup")
@@ -70,6 +73,7 @@ async def startup():
         min_size=1,
         max_size=5
     )
+    await init_qfa_pool()
 
 @app.on_event("shutdown")
 async def shutdown():
