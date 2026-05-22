@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QueFiestaApp — Panel Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0f13;
+  --surface: #1a1a22;
+  --surface2: #22222e;
+  --border: #2e2e3e;
+  --accent: #ff6b6b;
+  --accent2: #ffd93d;
+  --accent3: #6bcb77;
+  --text: #f0f0f5;
+  --text2: #9090a8;
+  --radius: 12px;
+  --sidebar: 240px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+}
+
+/* LOGIN */
+#login-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(255,107,107,0.08) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 20%, rgba(255,217,61,0.06) 0%, transparent 50%);
+}
+
+.login-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.login-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.login-logo span { color: var(--accent); }
+
+.login-subtitle {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 32px;
+}
+
+.login-box input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  margin-bottom: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.login-box input:focus { border-color: var(--accent); }
+
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 13px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  margin-top: 4px;
+}
+
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.login-error {
+  color: var(--accent);
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+}
+
+/* LAYOUT PRINCIPAL */
+#app { display: none; width: 100%; }
+
+/* SIDEBAR */
+.sidebar {
+  width: var(--sidebar);
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 10;
+}
+
+.sidebar-brand {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.brand-salon {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+.nav-section {
+  padding: 8px 16px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text2);
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  color: var(--text2);
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.15s;
+  font-size: 14px;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+
+.nav-item.active {
+  color: var(--accent);
+  background: rgba(255,107,107,0.08);
+  border-left-color: var(--accent);
+}
+
+.nav-icon { font-size: 16px; min-width: 20px; text-align: center; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-logout {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px;
+  color: var(--text2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+/* MAIN CONTENT */
+.main {
+  margin-left: var(--sidebar);
+  flex: 1;
+  padding: 32px;
+  min-height: 100vh;
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* TOPBAR */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.page-subtitle { color: var(--text2); font-size: 14px; margin-top: 2px; }
+
+/* CARDS */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.stat-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+.stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; margin-top: 4px; }
+.stat-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+/* TABLA */
+.table-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+thead th {
+  background: var(--surface2);
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text2);
+}
+
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 12px 16px; font-size: 14px; }
+
+/* BADGES */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-pendiente { background: rgba(255,217,61,0.15); color: var(--accent2); }
+.badge-confirmada { background: rgba(107,203,119,0.15); color: var(--accent3); }
+.badge-cancelada { background: rgba(255,107,107,0.15); color: var(--accent); }
+.badge-realizada { background: rgba(144,144,168,0.15); color: var(--text2); }
+
+/* BOTONES */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-accent { background: var(--accent); color: white; }
+.btn-accent:hover { opacity: 0.85; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text2); }
+.btn-danger { background: transparent; color: var(--accent); border: 1px solid rgba(255,107,107,0.3); }
+.btn-danger:hover { background: rgba(255,107,107,0.1); }
+.btn-success { background: var(--accent3); color: #0f2010; }
+.btn-success:hover { opacity: 0.85; }
+
+/* FORMULARIOS */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1 / -1; }
+
+label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text2);
+}
+
+input, select, textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; }
+select option { background: var(--surface2); }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* TOGGLE */
+.toggle-wrap { display: flex; align-items: center; gap: 10px; }
+
+.toggle {
+  position: relative;
+  width: 44px; height: 24px;
+  background: var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  flex-shrink: 0;
+}
+
+.toggle.on { background: var(--accent3); }
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  background: white;
+  border-radius: 50%;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+}
+
+.toggle.on::after { transform: translateX(20px); }
+
+/* DIAS SEMANA */
+.dias-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dia-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dia-btn.sel { background: rgba(255,107,107,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* HORARIOS LIST */
+.horarios-list { display: flex; flex-direction: column; gap: 8px; }
+
+.horario-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+/* ITEMS GRID (menú y juegos) */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.item-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.item-card:hover { border-color: var(--text2); }
+
+.item-card-img {
+  width: 100%; height: 140px;
+  object-fit: cover;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+}
+
+.item-card-body { padding: 16px; }
+.item-card-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+.item-card-desc { font-size: 13px; color: var(--text2); margin-top: 4px; }
+.item-card-price { font-size: 13px; color: var(--accent2); margin-top: 8px; }
+.item-card-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* CONFIG */
+.config-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.config-section-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* COLOR PICKER */
+.color-row { display: flex; align-items: center; gap: 12px; }
+.color-preview {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  font-size: 14px;
+  z-index: 200;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s;
+  max-width: 320px;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-left: 3px solid var(--accent3); }
+.toast.error { border-left: 3px solid var(--accent); }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state-text { font-size: 15px; }
+
+/* LOADING */
+.loading { text-align: center; padding: 40px; color: var(--text2); }
+
+/* RESPONSIVE BÁSICO */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .main { margin-left: 0; padding: 20px; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Que<span>Fiesta</span>App</div>
+    <div class="login-subtitle">Panel de administración</div>
+    <input type="text" id="login-slug" placeholder="ID de tu salón (ej: salon-feliz)" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
+    <button class="btn-primary" onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-name">QueFiestaApp</div>
+      <div class="brand-salon" id="sidebar-salon-name">Cargando...</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">🎉</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('reservas')">
+        <span class="nav-icon">📅</span> Reservas
+      </div>
+      <div class="nav-section">Contenido</div>
+      <div class="nav-item" onclick="showPage('menu')">
+        <span class="nav-icon">🍕</span> Menú
+      </div>
+      <div class="nav-item" onclick="showPage('juegos')">
+        <span class="nav-icon">🎪</span> Juegos y adicionales
+      </div>
+      <div class="nav-section">Disponibilidad</div>
+      <div class="nav-item" onclick="showPage('horarios')">
+        <span class="nav-icon">🕐</span> Horarios
+      </div>
+      <div class="nav-item" onclick="showPage('bloqueadas')">
+        <span class="nav-icon">🚫</span> Fechas bloqueadas
+      </div>
+      <div class="nav-section">Cuenta</div>
+      <div class="nav-item" onclick="showPage('configuracion')">
+        <span class="nav-icon">⚙️</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Dashboard 🎉</div>
+          <div class="page-subtitle" id="dashboard-fecha"></div>
+        </div>
+      </div>
+      <div class="cards-grid" id="stats-cards">
+        <div class="stat-card">
+          <div class="stat-label">Reservas pendientes</div>
+          <div class="stat-value" id="stat-pendientes">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Confirmadas este mes</div>
+          <div class="stat-value" id="stat-confirmadas">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total reservas</div>
+          <div class="stat-value" id="stat-total">—</div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div class="table-header">
+          <div class="table-title">Próximas reservas</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Horario</th>
+              <th>Cliente</th>
+              <th>Festejado/a</th>
+              <th>Niños</th>
+              <th>Total</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="proximas-tbody">
+            <tr><td colspan="7" class="loading">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RESERVAS -->
+    <div id="page-reservas" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Reservas 📅</div>
+          <div class="page-subtitle">Gestión completa de reservas</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalReservaManual()">+ Nueva reserva manual</button>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+        <select id="filtro-estado" onchange="cargarReservas()" style="width:auto;">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="cancelada">Cancelada</option>
+          <option value="realizada">Realizada</option>
+        </select>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Horario</th>
+              <th>Cliente</th>
+              <th>Festejado/a</th>
+              <th>Niños</th>
+              <th>Total</th>
+              <th>Seña</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="reservas-tbody">
+            <tr><td colspan="9" class="loading">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MENÚ -->
+    <div id="page-menu" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Menú 🍕</div>
+          <div class="page-subtitle">Ítems disponibles para armar el menú</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalMenuItem()">+ Agregar ítem</button>
+      </div>
+      <div class="items-grid" id="menu-grid">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- JUEGOS -->
+    <div id="page-juegos" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Juegos y adicionales 🎪</div>
+          <div class="page-subtitle">Entretenimiento y servicios extra</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalJuego()">+ Agregar juego</button>
+      </div>
+      <div class="items-grid" id="juegos-grid">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- HORARIOS -->
+    <div id="page-horarios" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Horarios 🕐</div>
+          <div class="page-subtitle">Días y horarios disponibles para reservar</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalHorario()">+ Agregar horario</button>
+      </div>
+      <div class="horarios-list" id="horarios-list">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- FECHAS BLOQUEADAS -->
+    <div id="page-bloqueadas" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Fechas bloqueadas 🚫</div>
+          <div class="page-subtitle">Días no disponibles para reservar</div>
+        </div>
+        <button class="btn btn-accent" onclick="openModalBloqueo()">+ Bloquear fecha</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Horario</th>
+              <th>Motivo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="bloqueadas-tbody">
+            <tr><td colspan="4" class="loading">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN -->
+    <div id="page-configuracion" class="page">
+      <div class="topbar">
+        <div>
+          <div class="page-title">Configuración ⚙️</div>
+          <div class="page-subtitle">Personalizá tu página de reservas</div>
+        </div>
+        <button class="btn btn-success" onclick="guardarConfiguracion()">💾 Guardar cambios</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">Identidad del salón</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre visible</label>
+            <input type="text" id="cfg-nombre-visible" placeholder="Ej: Salón Feliz">
+          </div>
+          <div class="form-group">
+            <label>WhatsApp de contacto</label>
+            <input type="text" id="cfg-whatsapp" placeholder="Ej: 5491112345678">
+          </div>
+          <div class="form-group">
+            <label>Email de contacto</label>
+            <input type="email" id="cfg-email-contacto">
+          </div>
+          <div class="form-group">
+            <label>Dirección</label>
+            <input type="text" id="cfg-direccion">
+          </div>
+          <div class="form-group">
+            <label>URL del logo</label>
+            <input type="url" id="cfg-logo-url" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label>URL imagen de portada</label>
+            <input type="url" id="cfg-portada-url" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">Colores de tu página</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Color principal</label>
+            <div class="color-row">
+              <input type="color" id="cfg-color-primario" style="width:60px; height:40px; padding:2px;">
+              <input type="text" id="cfg-color-primario-hex" placeholder="#6C3FC5">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Color secundario</label>
+            <div class="color-row">
+              <input type="color" id="cfg-color-secundario" style="width:60px; height:40px; padding:2px;">
+              <input type="text" id="cfg-color-secundario-hex" placeholder="#F9A8D4">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">Precios base</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Capacidad máxima (personas)</label>
+            <input type="number" id="cfg-capacidad" min="1">
+          </div>
+          <div class="form-group">
+            <label>Cantidad base de niños</label>
+            <input type="number" id="cfg-ninos-base" min="1" placeholder="20">
+          </div>
+          <div class="form-group full">
+            <label>Precio base del salón (para la cantidad base de niños)</label>
+            <input type="number" id="cfg-precio-salon" min="0" step="100">
+          </div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">Modalidad de cobro</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Forma de cobro</label>
+            <select id="cfg-modalidad-cobro">
+              <option value="total_transferencia">Pago total por transferencia</option>
+              <option value="seña_transferencia_resto_efectivo">Seña por transferencia + resto en efectivo</option>
+              <option value="seña_transferencia_resto_transferencia">Seña por transferencia + resto por transferencia</option>
+              <option value="mercadopago">MercadoPago</option>
+            </select>
+          </div>
+          <div class="form-group" id="cfg-seña-group">
+            <label>Porcentaje de seña (%)</label>
+            <input type="number" id="cfg-porcentaje-seña" min="1" max="100" placeholder="30">
+          </div>
+          <div class="form-group">
+            <label>Alias / CBU para transferencia</label>
+            <input type="text" id="cfg-alias" placeholder="Ej: salon.feliz.mp">
+          </div>
+          <div class="form-group full">
+            <label>Mensaje de pago (se muestra al cliente)</label>
+            <textarea id="cfg-mensaje-pago" placeholder="Ej: Para confirmar tu reserva, enviá el comprobante de la seña al WhatsApp..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODALES -->
+
+<!-- Modal Ítem de Menú -->
+<div class="modal-overlay" id="modal-menu">
+  <div class="modal">
+    <div class="modal-title" id="modal-menu-title">Nuevo ítem de menú</div>
+    <input type="hidden" id="menu-item-id">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nombre del ítem</label>
+        <input type="text" id="mi-nombre" placeholder="Ej: Sandwiches de miga">
+      </div>
+      <div class="form-group full">
+        <label>Descripción (opcional)</label>
+        <textarea id="mi-descripcion" placeholder="Descripción breve"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Precio base (para cantidad base de niños)</label>
+        <input type="number" id="mi-precio-base" min="0" step="100" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Precio por niño extra</label>
+        <input type="number" id="mi-precio-extra" min="0" step="100" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>URL de imagen (opcional)</label>
+        <input type="url" id="mi-imagen" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>Orden de aparición</label>
+        <input type="number" id="mi-orden" min="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <div class="toggle-wrap">
+          <button class="toggle on" id="mi-activo" onclick="toggleBtn(this)"></button>
+          <span id="mi-activo-label">Activo</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-menu')">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarMenuItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Juego -->
+<div class="modal-overlay" id="modal-juego">
+  <div class="modal">
+    <div class="modal-title" id="modal-juego-title">Nuevo juego / adicional</div>
+    <input type="hidden" id="juego-id">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Nombre</label>
+        <input type="text" id="j-nombre" placeholder="Ej: Cama elástica">
+      </div>
+      <div class="form-group full">
+        <label>Descripción (opcional)</label>
+        <textarea id="j-descripcion"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Precio fijo</label>
+        <input type="number" id="j-precio-fijo" min="0" step="100" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Precio por niño</label>
+        <input type="number" id="j-precio-nino" min="0" step="100" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>URL de imagen (opcional)</label>
+        <input type="url" id="j-imagen" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>Orden</label>
+        <input type="number" id="j-orden" min="0" value="0">
+      </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <div class="toggle-wrap">
+          <button class="toggle on" id="j-activo" onclick="toggleBtn(this)"></button>
+          <span id="j-activo-label">Activo</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-juego')">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarJuego()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Horario -->
+<div class="modal-overlay" id="modal-horario">
+  <div class="modal">
+    <div class="modal-title">Nuevo horario disponible</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Día de la semana</label>
+        <select id="h-dia">
+          <option value="0">Domingo</option>
+          <option value="1">Lunes</option>
+          <option value="2">Martes</option>
+          <option value="3">Miércoles</option>
+          <option value="4">Jueves</option>
+          <option value="5">Viernes</option>
+          <option value="6">Sábado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Hora de inicio</label>
+        <input type="time" id="h-inicio" value="15:00">
+      </div>
+      <div class="form-group">
+        <label>Hora de fin</label>
+        <input type="time" id="h-fin" value="20:00">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-horario')">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarHorario()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Fecha Bloqueada -->
+<div class="modal-overlay" id="modal-bloqueo">
+  <div class="modal">
+    <div class="modal-title">Bloquear fecha</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Fecha</label>
+        <input type="date" id="b-fecha">
+      </div>
+      <div class="form-group">
+        <label>Hora inicio (opcional — vacío = día entero)</label>
+        <input type="time" id="b-inicio">
+      </div>
+      <div class="form-group">
+        <label>Hora fin (opcional)</label>
+        <input type="time" id="b-fin">
+      </div>
+      <div class="form-group full">
+        <label>Motivo (opcional)</label>
+        <input type="text" id="b-motivo" placeholder="Ej: Vacaciones, evento privado...">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bloqueo')">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarBloqueo()">Bloquear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reserva Manual -->
+<div class="modal-overlay" id="modal-reserva">
+  <div class="modal">
+    <div class="modal-title">Nueva reserva manual</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="r-fecha">
+      </div>
+      <div class="form-group">
+        <label>Hora inicio</label>
+        <input type="time" id="r-inicio" value="15:00">
+      </div>
+      <div class="form-group">
+        <label>Hora fin</label>
+        <input type="time" id="r-fin" value="20:00">
+      </div>
+      <div class="form-group">
+        <label>Cantidad de niños</label>
+        <input type="number" id="r-ninos" min="1" value="20">
+      </div>
+      <div class="form-group full">
+        <label>Nombre del festejado/a</label>
+        <input type="text" id="r-festejado" placeholder="Nombre del niño/a">
+      </div>
+      <div class="form-group">
+        <label>Nombre del cliente</label>
+        <input type="text" id="r-cliente-nombre">
+      </div>
+      <div class="form-group">
+        <label>Email del cliente</label>
+        <input type="email" id="r-cliente-email">
+      </div>
+      <div class="form-group">
+        <label>Teléfono</label>
+        <input type="text" id="r-cliente-tel">
+      </div>
+      <div class="form-group">
+        <label>Precio salón</label>
+        <input type="number" id="r-precio-salon" min="0" step="100" value="0">
+      </div>
+      <div class="form-group">
+        <label>Precio menú</label>
+        <input type="number" id="r-precio-menu" min="0" step="100" value="0">
+      </div>
+      <div class="form-group">
+        <label>Precio juegos</label>
+        <input type="number" id="r-precio-juegos" min="0" step="100" value="0">
+      </div>
+      <div class="form-group">
+        <label>Precio total</label>
+        <input type="number" id="r-precio-total" min="0" step="100" value="0">
+      </div>
+      <div class="form-group full">
+        <label>Observaciones</label>
+        <textarea id="r-observaciones"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reserva')">Cancelar</button>
+      <button class="btn btn-accent" onclick="guardarReservaManual()">Guardar reserva</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Reserva -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal">
+    <div class="modal-title">Detalle de reserva</div>
+    <div id="detalle-content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const API = 'https://reserva-aulas.onrender.com/quefiestaapp';
+let TOKEN = localStorage.getItem('qfa_token') || '';
+let SLUG  = localStorage.getItem('qfa_slug') || '';
+let SALON_NOMBRE = localStorage.getItem('qfa_nombre') || '';
+
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = () => {
+  document.getElementById('dashboard-fecha').textContent = new Date().toLocaleDateString('es-AR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  document.getElementById('cfg-modalidad-cobro').addEventListener('change', toggleSeñaGroup);
+
+  // Sync color pickers
+  ['primario','secundario'].forEach(c => {
+    const picker = document.getElementById(`cfg-color-${c}`);
+    const hex = document.getElementById(`cfg-color-${c}-hex`);
+    picker.addEventListener('input', () => hex.value = picker.value);
+    hex.addEventListener('input', () => { if(/^#[0-9a-f]{6}$/i.test(hex.value)) picker.value = hex.value; });
+  });
+
+  if (TOKEN && SLUG) {
+    showApp();
+  }
+};
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin() {
+  const slug = document.getElementById('login-slug').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!slug || !password) return;
+
+  try {
+    const res = await fetch(`${API}/admin/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({slug, password})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Error');
+
+    TOKEN = data.token;
+    SLUG  = data.slug;
+    SALON_NOMBRE = data.nombre;
+    localStorage.setItem('qfa_token', TOKEN);
+    localStorage.setItem('qfa_slug', SLUG);
+    localStorage.setItem('qfa_nombre', SALON_NOMBRE);
+
+    showApp();
+  } catch(e) {
+    const err = document.getElementById('login-error');
+    err.style.display = 'block';
+    err.textContent = e.message;
+  }
+}
+
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('sidebar-salon-name').textContent = SALON_NOMBRE;
+  cargarDashboard();
+}
+
+function logout() {
+  TOKEN = ''; SLUG = ''; SALON_NOMBRE = '';
+  localStorage.removeItem('qfa_token');
+  localStorage.removeItem('qfa_slug');
+  localStorage.removeItem('qfa_nombre');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+// ============================================================
+// NAVEGACIÓN
+// ============================================================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  const loaders = {
+    dashboard: cargarDashboard,
+    reservas: cargarReservas,
+    menu: cargarMenu,
+    juegos: cargarJuegos,
+    horarios: cargarHorarios,
+    bloqueadas: cargarBloqueadas,
+    configuracion: cargarConfiguracion
+  };
+  if (loaders[name]) loaders[name]();
+}
+
+// ============================================================
+// API HELPERS
+// ============================================================
+async function api(method, path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-token': TOKEN
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (res.status === 401) { logout(); return null; }
+  return res;
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function cargarDashboard() {
+  const res = await api('GET', `/admin/${SLUG}/reservas`);
+  if (!res) return;
+  const reservas = await res.json();
+
+  const hoy = new Date().toISOString().split('T')[0];
+  const pendientes = reservas.filter(r => r.estado === 'pendiente').length;
+  const mesActual = new Date().toISOString().slice(0,7);
+  const confirmadas = reservas.filter(r => r.estado === 'confirmada' && r.fecha?.startsWith(mesActual)).length;
+
+  document.getElementById('stat-pendientes').textContent = pendientes;
+  document.getElementById('stat-confirmadas').textContent = confirmadas;
+  document.getElementById('stat-total').textContent = reservas.length;
+
+  const proximas = reservas
+    .filter(r => r.fecha >= hoy && ['pendiente','confirmada'].includes(r.estado))
+    .sort((a,b) => a.fecha.localeCompare(b.fecha))
+    .slice(0, 8);
+
+  const tbody = document.getElementById('proximas-tbody');
+  if (!proximas.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">🎈</div><div class="empty-state-text">No hay próximas reservas</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = proximas.map(r => `
+    <tr>
+      <td>${formatFecha(r.fecha)}</td>
+      <td>${r.hora_inicio?.slice(0,5)} - ${r.hora_fin?.slice(0,5)}</td>
+      <td>${r.cliente_nombre}</td>
+      <td>${r.nombre_festejado || '—'}</td>
+      <td>${r.cantidad_ninos}</td>
+      <td>${formatPrecio(r.precio_total)}</td>
+      <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ============================================================
+// RESERVAS
+// ============================================================
+async function cargarReservas() {
+  const filtro = document.getElementById('filtro-estado')?.value || '';
+  const res = await api('GET', `/admin/${SLUG}/reservas`);
+  if (!res) return;
+  let reservas = await res.json();
+  if (filtro) reservas = reservas.filter(r => r.estado === filtro);
+  reservas.sort((a,b) => b.fecha?.localeCompare(a.fecha));
+
+  const tbody = document.getElementById('reservas-tbody');
+  if (!reservas.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">No hay reservas</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = reservas.map(r => `
+    <tr>
+      <td>${formatFecha(r.fecha)}</td>
+      <td>${r.hora_inicio?.slice(0,5)}</td>
+      <td>
+        <div>${r.cliente_nombre}</div>
+        <div style="font-size:12px;color:var(--text2)">${r.cliente_email}</div>
+      </td>
+      <td>${r.nombre_festejado || '—'}</td>
+      <td>${r.cantidad_ninos}</td>
+      <td>${formatPrecio(r.precio_total)}</td>
+      <td>
+        <span style="font-size:12px;color:${r.seña_pagada ? 'var(--accent3)' : 'var(--accent2)'}">
+          ${r.seña_pagada ? '✓ Pagada' : '⏳ Pendiente'}
+        </span>
+      </td>
+      <td><span class="badge badge-${r.estado}">${r.estado}</span></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-ghost" onclick="verDetalleReserva('${r.id}')">👁</button>
+          ${r.estado === 'pendiente' ? `<button class="btn btn-sm btn-success" onclick="cambiarEstadoReserva('${r.id}','confirmada')">✓</button>` : ''}
+          ${r.estado !== 'cancelada' && r.estado !== 'realizada' ? `<button class="btn btn-sm btn-danger" onclick="cambiarEstadoReserva('${r.id}','cancelada')">✗</button>` : ''}
+          ${r.estado === 'confirmada' ? `<button class="btn btn-sm btn-ghost" onclick="cambiarEstadoReserva('${r.id}','realizada')">🎉</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function cambiarEstadoReserva(id, estado) {
+  const res = await api('PATCH', `/admin/${SLUG}/reservas/${id}`, {estado});
+  if (res?.ok) { toast('Estado actualizado', 'success'); cargarReservas(); }
+  else toast('Error al actualizar', 'error');
+}
+
+async function verDetalleReserva(id) {
+  const res = await api('GET', `/admin/${SLUG}/reservas`);
+  const reservas = await res.json();
+  const r = reservas.find(x => x.id === id);
+  if (!r) return;
+
+  const menu = Array.isArray(r.menu_seleccionado) ? r.menu_seleccionado : [];
+  const juegos = Array.isArray(r.juegos_seleccionados) ? r.juegos_seleccionados : [];
+
+  document.getElementById('detalle-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;">
+      <div><strong>Fecha:</strong> ${formatFecha(r.fecha)}</div>
+      <div><strong>Horario:</strong> ${r.hora_inicio?.slice(0,5)} - ${r.hora_fin?.slice(0,5)}</div>
+      <div><strong>Cliente:</strong> ${r.cliente_nombre}</div>
+      <div><strong>Email:</strong> ${r.cliente_email}</div>
+      <div><strong>Teléfono:</strong> ${r.cliente_telefono || '—'}</div>
+      <div><strong>Festejado/a:</strong> ${r.nombre_festejado || '—'}</div>
+      <div><strong>Niños:</strong> ${r.cantidad_ninos}</div>
+      <div><strong>Estado:</strong> <span class="badge badge-${r.estado}">${r.estado}</span></div>
+      <div><strong>Precio salón:</strong> ${formatPrecio(r.precio_salon)}</div>
+      <div><strong>Precio menú:</strong> ${formatPrecio(r.precio_menu)}</div>
+      <div><strong>Precio juegos:</strong> ${formatPrecio(r.precio_juegos)}</div>
+      <div><strong>Total:</strong> ${formatPrecio(r.precio_total)}</div>
+      <div><strong>Seña:</strong> ${formatPrecio(r.monto_seña)} ${r.seña_pagada ? '✓' : '⏳'}</div>
+      <div><strong>Modalidad:</strong> ${r.modalidad_cobro || '—'}</div>
+    </div>
+    ${menu.length ? `<div style="margin-top:16px;"><strong>Menú:</strong> ${menu.map(m=>m.nombre).join(', ')}</div>` : ''}
+    ${juegos.length ? `<div style="margin-top:8px;"><strong>Juegos:</strong> ${juegos.map(j=>j.nombre).join(', ')}</div>` : ''}
+    ${r.observaciones ? `<div style="margin-top:8px;"><strong>Observaciones:</strong> ${r.observaciones}</div>` : ''}
+    <div style="margin-top:16px;display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSeñaPagada('${r.id}', ${!r.seña_pagada})">
+        ${r.seña_pagada ? 'Marcar seña NO pagada' : 'Marcar seña como pagada'}
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTotalPagado('${r.id}', ${!r.total_pagado})">
+        ${r.total_pagado ? 'Marcar total NO pagado' : 'Marcar total pagado'}
+      </button>
+    </div>
+  `;
+  openModal('modal-detalle');
+}
+
+async function toggleSeñaPagada(id, valor) {
+  await api('PATCH', `/admin/${SLUG}/reservas/${id}`, {seña_pagada: valor});
+  closeModal('modal-detalle');
+  toast('Actualizado', 'success');
+  cargarReservas();
+}
+
+async function toggleTotalPagado(id, valor) {
+  await api('PATCH', `/admin/${SLUG}/reservas/${id}`, {total_pagado: valor});
+  closeModal('modal-detalle');
+  toast('Actualizado', 'success');
+  cargarReservas();
+}
+
+function openModalReservaManual() { openModal('modal-reserva'); }
+
+async function guardarReservaManual() {
+  const body = {
+    fecha: document.getElementById('r-fecha').value,
+    hora_inicio: document.getElementById('r-inicio').value,
+    hora_fin: document.getElementById('r-fin').value,
+    cantidad_ninos: parseInt(document.getElementById('r-ninos').value),
+    nombre_festejado: document.getElementById('r-festejado').value,
+    cliente_nombre: document.getElementById('r-cliente-nombre').value,
+    cliente_email: document.getElementById('r-cliente-email').value,
+    cliente_telefono: document.getElementById('r-cliente-tel').value,
+    precio_salon: parseFloat(document.getElementById('r-precio-salon').value) || 0,
+    precio_menu: parseFloat(document.getElementById('r-precio-menu').value) || 0,
+    precio_juegos: parseFloat(document.getElementById('r-precio-juegos').value) || 0,
+    precio_total: parseFloat(document.getElementById('r-precio-total').value) || 0,
+    observaciones: document.getElementById('r-observaciones').value,
+    menu_seleccionado: [],
+    juegos_seleccionados: []
+  };
+
+  if (!body.fecha || !body.cliente_nombre || !body.cliente_email) {
+    toast('Completá los campos obligatorios', 'error'); return;
+  }
+
+  const res = await api('POST', `/admin/${SLUG}/reservas`, body);
+  if (res?.ok) {
+    toast('Reserva creada', 'success');
+    closeModal('modal-reserva');
+    cargarReservas();
+  } else {
+    const data = await res?.json();
+    toast(data?.detail || 'Error al crear reserva', 'error');
+  }
+}
+
+// ============================================================
+// MENÚ
+// ============================================================
+async function cargarMenu() {
+  const res = await api('GET', `/admin/${SLUG}/menu`);
+  if (!res) return;
+  const items = await res.json();
+  const grid = document.getElementById('menu-grid');
+
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🍕</div><div class="empty-state-text">No hay ítems de menú. ¡Agregá el primero!</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(item => `
+    <div class="item-card">
+      <div class="item-card-img">${item.imagen_url ? `<img src="${item.imagen_url}" style="width:100%;height:100%;object-fit:cover;">` : '🍕'}</div>
+      <div class="item-card-body">
+        <div class="item-card-name">${item.nombre}</div>
+        ${item.descripcion ? `<div class="item-card-desc">${item.descripcion}</div>` : ''}
+        <div class="item-card-price">
+          Base: ${formatPrecio(item.precio_base)} · Extra/niño: ${formatPrecio(item.precio_por_nino_extra)}
+        </div>
+        <div style="margin-top:6px;">
+          <span class="badge ${item.activo ? 'badge-confirmada' : 'badge-cancelada'}">${item.activo ? 'Activo' : 'Inactivo'}</span>
+        </div>
+        <div class="item-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editarMenuItem(${JSON.stringify(item).replace(/"/g,'&quot;')})">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarMenuItem('${item.id}')">🗑</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModalMenuItem(item) {
+  document.getElementById('modal-menu-title').textContent = item ? 'Editar ítem' : 'Nuevo ítem de menú';
+  document.getElementById('menu-item-id').value = item?.id || '';
+  document.getElementById('mi-nombre').value = item?.nombre || '';
+  document.getElementById('mi-descripcion').value = item?.descripcion || '';
+  document.getElementById('mi-precio-base').value = item?.precio_base || 0;
+  document.getElementById('mi-precio-extra').value = item?.precio_por_nino_extra || 0;
+  document.getElementById('mi-imagen').value = item?.imagen_url || '';
+  document.getElementById('mi-orden').value = item?.orden ?? 0;
+  const toggle = document.getElementById('mi-activo');
+  toggle.className = 'toggle ' + (item?.activo !== false ? 'on' : '');
+  document.getElementById('mi-activo-label').textContent = item?.activo !== false ? 'Activo' : 'Inactivo';
+  openModal('modal-menu');
+}
+
+function editarMenuItem(item) { openModalMenuItem(item); }
+
+async function guardarMenuItem() {
+  const id = document.getElementById('menu-item-id').value;
+  const body = {
+    nombre: document.getElementById('mi-nombre').value,
+    descripcion: document.getElementById('mi-descripcion').value,
+    precio_base: parseFloat(document.getElementById('mi-precio-base').value) || 0,
+    precio_por_nino_extra: parseFloat(document.getElementById('mi-precio-extra').value) || 0,
+    imagen_url: document.getElementById('mi-imagen').value || null,
+    orden: parseInt(document.getElementById('mi-orden').value) || 0,
+    activo: document.getElementById('mi-activo').classList.contains('on')
+  };
+
+  if (!body.nombre) { toast('El nombre es obligatorio', 'error'); return; }
+
+  const res = id
+    ? await api('PUT', `/admin/${SLUG}/menu/${id}`, body)
+    : await api('POST', `/admin/${SLUG}/menu`, body);
+
+  if (res?.ok) {
+    toast(id ? 'Ítem actualizado' : 'Ítem creado', 'success');
+    closeModal('modal-menu');
+    cargarMenu();
+  } else {
+    toast('Error al guardar', 'error');
+  }
+}
+
+async function eliminarMenuItem(id) {
+  if (!confirm('¿Eliminar este ítem?')) return;
+  const res = await api('DELETE', `/admin/${SLUG}/menu/${id}`);
+  if (res?.ok) { toast('Ítem eliminado', 'success'); cargarMenu(); }
+  else toast('Error al eliminar', 'error');
+}
+
+// ============================================================
+// JUEGOS
+// ============================================================
+async function cargarJuegos() {
+  const res = await api('GET', `/admin/${SLUG}/juegos`);
+  if (!res) return;
+  const juegos = await res.json();
+  const grid = document.getElementById('juegos-grid');
+
+  if (!juegos.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🎪</div><div class="empty-state-text">No hay juegos. ¡Agregá el primero!</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = juegos.map(j => `
+    <div class="item-card">
+      <div class="item-card-img">${j.imagen_url ? `<img src="${j.imagen_url}" style="width:100%;height:100%;object-fit:cover;">` : '🎪'}</div>
+      <div class="item-card-body">
+        <div class="item-card-name">${j.nombre}</div>
+        ${j.descripcion ? `<div class="item-card-desc">${j.descripcion}</div>` : ''}
+        <div class="item-card-price">
+          ${j.precio_fijo > 0 ? `Fijo: ${formatPrecio(j.precio_fijo)}` : ''}
+          ${j.precio_fijo > 0 && j.precio_por_nino > 0 ? ' · ' : ''}
+          ${j.precio_por_nino > 0 ? `Por niño: ${formatPrecio(j.precio_por_nino)}` : ''}
+        </div>
+        <div style="margin-top:6px;">
+          <span class="badge ${j.activo ? 'badge-confirmada' : 'badge-cancelada'}">${j.activo ? 'Activo' : 'Inactivo'}</span>
+        </div>
+        <div class="item-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editarJuego(${JSON.stringify(j).replace(/"/g,'&quot;')})">✏️ Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminarJuego('${j.id}')">🗑</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModalJuego(juego) {
+  document.getElementById('modal-juego-title').textContent = juego ? 'Editar juego' : 'Nuevo juego / adicional';
+  document.getElementById('juego-id').value = juego?.id || '';
+  document.getElementById('j-nombre').value = juego?.nombre || '';
+  document.getElementById('j-descripcion').value = juego?.descripcion || '';
+  document.getElementById('j-precio-fijo').value = juego?.precio_fijo || 0;
+  document.getElementById('j-precio-nino').value = juego?.precio_por_nino || 0;
+  document.getElementById('j-imagen').value = juego?.imagen_url || '';
+  document.getElementById('j-orden').value = juego?.orden ?? 0;
+  const toggle = document.getElementById('j-activo');
+  toggle.className = 'toggle ' + (juego?.activo !== false ? 'on' : '');
+  document.getElementById('j-activo-label').textContent = juego?.activo !== false ? 'Activo' : 'Inactivo';
+  openModal('modal-juego');
+}
+
+function editarJuego(j) { openModalJuego(j); }
+
+async function guardarJuego() {
+  const id = document.getElementById('juego-id').value;
+  const body = {
+    nombre: document.getElementById('j-nombre').value,
+    descripcion: document.getElementById('j-descripcion').value,
+    precio_fijo: parseFloat(document.getElementById('j-precio-fijo').value) || 0,
+    precio_por_nino: parseFloat(document.getElementById('j-precio-nino').value) || 0,
+    imagen_url: document.getElementById('j-imagen').value || null,
+    orden: parseInt(document.getElementById('j-orden').value) || 0,
+    activo: document.getElementById('j-activo').classList.contains('on')
+  };
+
+  if (!body.nombre) { toast('El nombre es obligatorio', 'error'); return; }
+
+  const res = id
+    ? await api('PUT', `/admin/${SLUG}/juegos/${id}`, body)
+    : await api('POST', `/admin/${SLUG}/juegos`, body);
+
+  if (res?.ok) {
+    toast(id ? 'Juego actualizado' : 'Juego creado', 'success');
+    closeModal('modal-juego');
+    cargarJuegos();
+  } else toast('Error al guardar', 'error');
+}
+
+async function eliminarJuego(id) {
+  if (!confirm('¿Eliminar este juego?')) return;
+  const res = await api('DELETE', `/admin/${SLUG}/juegos/${id}`);
+  if (res?.ok) { toast('Juego eliminado', 'success'); cargarJuegos(); }
+  else toast('Error al eliminar', 'error');
+}
+
+// ============================================================
+// HORARIOS
+// ============================================================
+async function cargarHorarios() {
+  const res = await api('GET', `/admin/${SLUG}/horarios`);
+  if (!res) return;
+  const horarios = await res.json();
+  const list = document.getElementById('horarios-list');
+
+  if (!horarios.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🕐</div><div class="empty-state-text">No hay horarios configurados. ¡Agregá el primero!</div></div>`;
+    return;
+  }
+
+  list.innerHTML = horarios.map(h => `
+    <div class="horario-item">
+      <div>
+        <strong>${DIAS[h.dia_semana]}</strong>
+        <span style="margin-left:12px;color:var(--text2)">${h.hora_inicio?.slice(0,5)} — ${h.hora_fin?.slice(0,5)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="badge ${h.activo ? 'badge-confirmada' : 'badge-cancelada'}">${h.activo ? 'Activo' : 'Inactivo'}</span>
+        <button class="btn btn-danger btn-sm" onclick="eliminarHorario('${h.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModalHorario() { openModal('modal-horario'); }
+
+async function guardarHorario() {
+  const body = {
+    dia_semana: parseInt(document.getElementById('h-dia').value),
+    hora_inicio: document.getElementById('h-inicio').value,
+    hora_fin: document.getElementById('h-fin').value,
+    activo: true
+  };
+
+  const res = await api('POST', `/admin/${SLUG}/horarios`, body);
+  if (res?.ok) {
+    toast('Horario agregado', 'success');
+    closeModal('modal-horario');
+    cargarHorarios();
+  } else toast('Error al guardar', 'error');
+}
+
+async function eliminarHorario(id) {
+  if (!confirm('¿Eliminar este horario?')) return;
+  const res = await api('DELETE', `/admin/${SLUG}/horarios/${id}`);
+  if (res?.ok) { toast('Horario eliminado', 'success'); cargarHorarios(); }
+  else toast('Error al eliminar', 'error');
+}
+
+// ============================================================
+// FECHAS BLOQUEADAS
+// ============================================================
+async function cargarBloqueadas() {
+  const res = await api('GET', `/admin/${SLUG}/fechas-bloqueadas`);
+  if (!res) return;
+  const fechas = await res.json();
+  const tbody = document.getElementById('bloqueadas-tbody');
+
+  if (!fechas.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-text">No hay fechas bloqueadas</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = fechas.map(f => `
+    <tr>
+      <td>${formatFecha(f.fecha)}</td>
+      <td>${f.hora_inicio ? `${f.hora_inicio?.slice(0,5)} - ${f.hora_fin?.slice(0,5)}` : 'Día completo'}</td>
+      <td>${f.motivo || '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="eliminarBloqueo('${f.id}')">🗑 Desbloquear</button></td>
+    </tr>
+  `).join('');
+}
+
+function openModalBloqueo() { openModal('modal-bloqueo'); }
+
+async function guardarBloqueo() {
+  const body = {
+    fecha: document.getElementById('b-fecha').value,
+    hora_inicio: document.getElementById('b-inicio').value || null,
+    hora_fin: document.getElementById('b-fin').value || null,
+    motivo: document.getElementById('b-motivo').value || null
+  };
+
+  if (!body.fecha) { toast('Seleccioná una fecha', 'error'); return; }
+
+  const res = await api('POST', `/admin/${SLUG}/fechas-bloqueadas`, body);
+  if (res?.ok) {
+    toast('Fecha bloqueada', 'success');
+    closeModal('modal-bloqueo');
+    cargarBloqueadas();
+  } else toast('Error al guardar', 'error');
+}
+
+async function eliminarBloqueo(id) {
+  const res = await api('DELETE', `/admin/${SLUG}/fechas-bloqueadas/${id}`);
+  if (res?.ok) { toast('Fecha desbloqueada', 'success'); cargarBloqueadas(); }
+  else toast('Error al desbloquear', 'error');
+}
+
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+async function cargarConfiguracion() {
+  const res = await api('GET', `/admin/${SLUG}/configuracion`);
+  if (!res) return;
+  const cfg = await res.json();
+
+  document.getElementById('cfg-nombre-visible').value = cfg.nombre_visible || '';
+  document.getElementById('cfg-whatsapp').value = cfg.whatsapp || '';
+  document.getElementById('cfg-email-contacto').value = cfg.email_contacto || '';
+  document.getElementById('cfg-direccion').value = cfg.direccion || '';
+  document.getElementById('cfg-logo-url').value = cfg.logo_url || '';
+  document.getElementById('cfg-portada-url').value = cfg.imagen_portada_url || '';
+  document.getElementById('cfg-color-primario').value = cfg.color_primario || '#6C3FC5';
+  document.getElementById('cfg-color-primario-hex').value = cfg.color_primario || '#6C3FC5';
+  document.getElementById('cfg-color-secundario').value = cfg.color_secundario || '#F9A8D4';
+  document.getElementById('cfg-color-secundario-hex').value = cfg.color_secundario || '#F9A8D4';
+  document.getElementById('cfg-capacidad').value = cfg.capacidad_maxima || 80;
+  document.getElementById('cfg-ninos-base').value = cfg.ninos_base || 20;
+  document.getElementById('cfg-precio-salon').value = cfg.precio_base_salon || 0;
+  document.getElementById('cfg-modalidad-cobro').value = cfg.modalidad_cobro || 'seña_transferencia_resto_efectivo';
+  document.getElementById('cfg-porcentaje-seña').value = cfg.porcentaje_seña || 30;
+  document.getElementById('cfg-alias').value = cfg.alias_transferencia || '';
+  document.getElementById('cfg-mensaje-pago').value = cfg.mensaje_pago || '';
+  toggleSeñaGroup();
+}
+
+function toggleSeñaGroup() {
+  const modalidad = document.getElementById('cfg-modalidad-cobro').value;
+  const group = document.getElementById('cfg-seña-group');
+  group.style.display = modalidad.includes('seña') ? 'flex' : 'none';
+}
+
+async function guardarConfiguracion() {
+  const body = {
+    nombre_visible: document.getElementById('cfg-nombre-visible').value || null,
+    whatsapp: document.getElementById('cfg-whatsapp').value || null,
+    email_contacto: document.getElementById('cfg-email-contacto').value || null,
+    direccion: document.getElementById('cfg-direccion').value || null,
+    logo_url: document.getElementById('cfg-logo-url').value || null,
+    imagen_portada_url: document.getElementById('cfg-portada-url').value || null,
+    color_primario: document.getElementById('cfg-color-primario-hex').value || null,
+    color_secundario: document.getElementById('cfg-color-secundario-hex').value || null,
+    capacidad_maxima: parseInt(document.getElementById('cfg-capacidad').value) || null,
+    ninos_base: parseInt(document.getElementById('cfg-ninos-base').value) || null,
+    precio_base_salon: parseFloat(document.getElementById('cfg-precio-salon').value) || null,
+    modalidad_cobro: document.getElementById('cfg-modalidad-cobro').value || null,
+    porcentaje_seña: parseInt(document.getElementById('cfg-porcentaje-seña').value) || null,
+    alias_transferencia: document.getElementById('cfg-alias').value || null,
+    mensaje_pago: document.getElementById('cfg-mensaje-pago').value || null,
+  };
+
+  const res = await api('PATCH', `/admin/${SLUG}/configuracion`, body);
+  if (res?.ok) {
+    toast('Configuración guardada', 'success');
+    SALON_NOMBRE = body.nombre_visible || SALON_NOMBRE;
+    document.getElementById('sidebar-salon-name').textContent = SALON_NOMBRE;
+    localStorage.setItem('qfa_nombre', SALON_NOMBRE);
+  } else toast('Error al guardar', 'error');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function toggleBtn(btn) {
+  btn.classList.toggle('on');
+  const label = document.getElementById(btn.id + '-label');
+  if (label) label.textContent = btn.classList.contains('on') ? 'Activo' : 'Inactivo';
+}
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function formatFecha(f) {
+  if (!f) return '—';
+  const [y,m,d] = f.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function formatPrecio(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + Number(n).toLocaleString('es-AR');
+}
+
+// Cerrar modales con click fuera
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>
