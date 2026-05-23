@@ -19,10 +19,12 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Request
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr
+import httpx
+import uuid
 
 # ============================================================
 # CONFIGURACIÓN
@@ -36,6 +38,8 @@ QFA_DB_PASSWORD = os.environ.get("QFA_DB_PASSWORD", "")
 QFA_JWT_SECRET  = os.environ.get("QFA_JWT_SECRET", "qfa_secret_cambiar_en_produccion")
 QFA_SUPERADMIN_PASSWORD = os.environ.get("QFA_SUPERADMIN_PASSWORD", "qfaSuperAdmin2026!")
 QFA_RESEND_API_KEY = os.environ.get("QFA_RESEND_API_KEY", "")
+QFA_SUPABASE_URL = os.environ.get("QFA_SUPABASE_URL", "https://yvcrgauscaghtfltvhbc.supabase.co")
+QFA_SUPABASE_SERVICE_KEY = os.environ.get("QFA_SUPABASE_SERVICE_KEY", "")
 
 # Pool de conexiones
 qfa_pool = None
@@ -988,6 +992,51 @@ async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, a
         return {"ok": True}
     finally:
         release_db(db)
+
+
+# ============================================================
+# SUBIDA DE IMÁGENES — Supabase Storage (bucket: qfa-imagenes)
+# ============================================================
+
+@qfa_app.post("/admin/{slug}/imagen")
+async def subir_imagen(slug: str, file: UploadFile = File(...), auth=Depends(get_admin_token)):
+    """Sube una imagen a Supabase Storage y devuelve la URL pública."""
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+
+    # Validar tipo de archivo
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Solo se permiten imágenes")
+
+    # Validar tamaño (máx 5MB)
+    contenido = await file.read()
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="La imagen no puede superar 5MB")
+
+    # Generar nombre único
+    extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    nombre_archivo = f"{slug}/{uuid.uuid4()}.{extension}"
+
+    # Subir a Supabase Storage
+    url_upload = f"{QFA_SUPABASE_URL}/storage/v1/object/qfa-imagenes/{nombre_archivo}"
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            url_upload,
+            content=contenido,
+            headers={
+                "Authorization": f"Bearer {QFA_SUPABASE_SERVICE_KEY}",
+                "Content-Type": content_type,
+            }
+        )
+
+    if response.status_code not in (200, 201):
+        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {response.text}")
+
+    # URL pública
+    url_publica = f"{QFA_SUPABASE_URL}/storage/v1/object/public/qfa-imagenes/{nombre_archivo}"
+    return {"url": url_publica}
 
 
 # ============================================================
