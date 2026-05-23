@@ -808,12 +808,30 @@ select option { background: var(--surface2); }
             <input type="text" id="cfg-direccion">
           </div>
           <div class="form-group">
-            <label>URL del logo</label>
-            <input type="url" id="cfg-logo-url" placeholder="https://...">
+            <label>Logo</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="url" id="cfg-logo-url" placeholder="https://... o subí desde tu ordenador" style="flex:1">
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+                📁 Subir
+                <input type="file" accept="image/*" style="display:none" onchange="subirImagen(this,'cfg-logo-url','cfg-logo-preview','cfg-logo-img')">
+              </label>
+            </div>
+            <div id="cfg-logo-preview" style="margin-top:8px;display:none;">
+              <img id="cfg-logo-img" style="max-height:60px;border-radius:8px;border:1px solid var(--border);">
+            </div>
           </div>
           <div class="form-group">
-            <label>URL imagen de portada</label>
-            <input type="url" id="cfg-portada-url" placeholder="https://...">
+            <label>Imagen de portada</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="url" id="cfg-portada-url" placeholder="https://... o subí desde tu ordenador" style="flex:1">
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+                📁 Subir
+                <input type="file" accept="image/*" style="display:none" onchange="subirImagen(this,'cfg-portada-url','cfg-portada-preview','cfg-portada-img')">
+              </label>
+            </div>
+            <div id="cfg-portada-preview" style="margin-top:8px;display:none;">
+              <img id="cfg-portada-img" style="max-height:100px;border-radius:8px;border:1px solid var(--border);">
+            </div>
           </div>
         </div>
       </div>
@@ -911,9 +929,18 @@ select option { background: var(--surface2); }
         <label>Precio por niño extra</label>
         <input type="number" id="mi-precio-extra" min="0" step="100" placeholder="0">
       </div>
-      <div class="form-group">
-        <label>URL de imagen (opcional)</label>
-        <input type="url" id="mi-imagen" placeholder="https://...">
+      <div class="form-group full">
+        <label>Imagen (opcional)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="url" id="mi-imagen" placeholder="https://... o subí desde tu ordenador" style="flex:1">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+            📁 Subir
+            <input type="file" accept="image/*" style="display:none" onchange="subirImagen(this,'mi-imagen','mi-imagen-preview','mi-imagen-img')">
+          </label>
+        </div>
+        <div id="mi-imagen-preview" style="margin-top:8px;display:none;">
+          <img id="mi-imagen-img" style="max-height:80px;border-radius:8px;border:1px solid var(--border);">
+        </div>
       </div>
       <div class="form-group">
         <label>Orden de aparición</label>
@@ -957,8 +984,17 @@ select option { background: var(--surface2); }
         <input type="number" id="j-precio-nino" min="0" step="100" placeholder="0">
       </div>
       <div class="form-group">
-        <label>URL de imagen (opcional)</label>
-        <input type="url" id="j-imagen" placeholder="https://...">
+        <label>Imagen (opcional)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="url" id="j-imagen" placeholder="https://... o subí desde tu ordenador" style="flex:1">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+            📁 Subir
+            <input type="file" accept="image/*" style="display:none" onchange="subirImagen(this,'j-imagen','j-imagen-preview','j-imagen-img')">
+          </label>
+        </div>
+        <div id="j-imagen-preview" style="margin-top:8px;display:none;">
+          <img id="j-imagen-img" style="max-height:80px;border-radius:8px;border:1px solid var(--border);">
+        </div>
       </div>
       <div class="form-group">
         <label>Orden</label>
@@ -1789,6 +1825,56 @@ function formatFecha(f) {
 function formatPrecio(n) {
   if (!n && n !== 0) return '—';
   return '$' + Number(n).toLocaleString('es-AR');
+}
+
+
+// ============================================================
+// SUBIDA DE IMÁGENES
+// ============================================================
+async function subirImagen(input, campoId, previewId, imgId) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Validar tamaño máximo 5MB
+  if (file.size > 5 * 1024 * 1024) {
+    toast('La imagen no puede superar 5MB', 'error');
+    input.value = '';
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  toast('Subiendo imagen...', 'success');
+
+  try {
+    const res = await fetch(`${API}/admin/${SLUG}/imagen`, {
+      method: 'POST',
+      headers: { 'x-admin-token': TOKEN },
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      toast(err.detail || 'Error al subir imagen', 'error');
+      return;
+    }
+
+    const data = await res.json();
+    document.getElementById(campoId).value = data.url;
+
+    // Mostrar preview
+    const preview = document.getElementById(previewId);
+    const img = document.getElementById(imgId);
+    if (preview && img) {
+      img.src = data.url;
+      preview.style.display = 'block';
+    }
+
+    toast('Imagen subida correctamente', 'success');
+  } catch(e) {
+    toast('Error al subir imagen', 'error');
+  }
 }
 
 // Cerrar modales con click fuera
