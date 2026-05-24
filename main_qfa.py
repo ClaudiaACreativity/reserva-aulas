@@ -26,11 +26,13 @@ from pydantic import BaseModel, EmailStr
 import httpx
 import uuid
 
+import resend
+
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
-QFA_DB_HOST     = os.environ.get("QFA_DB_HOST", "aws-0-us-east-1.pooler.supabase.com")
+QFA_DB_HOST     = os.environ.get("QFA_DB_HOST", "aws-1-us-east-1.pooler.supabase.com")
 QFA_DB_PORT     = int(os.environ.get("QFA_DB_PORT", "5432"))
 QFA_DB_NAME     = os.environ.get("QFA_DB_NAME", "postgres")
 QFA_DB_USER     = os.environ.get("QFA_DB_USER", "postgres.yvcrgauscaghtfltvhbc")
@@ -66,6 +68,208 @@ async def get_qfa_db():
 
 def release_db(db):
     asyncio.ensure_future(qfa_pool.release(db))
+
+# ============================================================
+# EMAILS — via Resend desde hola@gestionateia.com
+# ============================================================
+
+def enviar_email_qfa(destinatario: str, asunto: str, cuerpo_html: str):
+    """Envía un email desde hola@gestionateia.com via Resend."""
+    try:
+        resend.api_key = QFA_RESEND_API_KEY
+        resend.Emails.send({
+            "from": "QueFiestaApp · GestionaTeIA <hola@gestionateia.com>",
+            "to": destinatario,
+            "subject": asunto,
+            "html": cuerpo_html
+        })
+    except Exception as e:
+        print(f"[QFA EMAIL] Error enviando a {destinatario}: {e}")
+
+
+def email_confirmacion_reserva(
+    cliente_nombre: str,
+    cliente_email: str,
+    salon_nombre: str,
+    fecha: str,
+    hora_inicio: str,
+    hora_fin: str,
+    cantidad_ninos: int,
+    nombre_festejado: str,
+    menu_seleccionado: list,
+    juegos_seleccionados: list,
+    precio_total: float,
+    monto_seña: float,
+    modalidad_cobro: str,
+    alias_transferencia: str,
+    mensaje_pago: str,
+    whatsapp_salon: str
+):
+    """Email de confirmación de reserva al cliente."""
+
+    # Formatear precio
+    def fmt(n): return f"${int(n):,}".replace(",", ".")
+
+    # Armar detalle de menú
+    menu_html = ""
+    if menu_seleccionado:
+        items = "".join([f"<li style='margin-bottom:4px;'>✓ {m['nombre']}</li>" for m in menu_seleccionado])
+        menu_html = f"<div style='margin:12px 0;'><strong>Menú seleccionado:</strong><ul style='margin:8px 0 0 16px;color:#4A5568;'>{items}</ul></div>"
+
+    # Armar detalle de juegos
+    juegos_html = ""
+    if juegos_seleccionados:
+        items = "".join([f"<li style='margin-bottom:4px;'>✓ {j['nombre']}</li>" for j in juegos_seleccionados])
+        juegos_html = f"<div style='margin:12px 0;'><strong>Juegos y adicionales:</strong><ul style='margin:8px 0 0 16px;color:#4A5568;'>{items}</ul></div>"
+
+    # Info de pago
+    pago_html = ""
+    if modalidad_cobro and modalidad_cobro != "mercadopago":
+        seña_info = f"<p style='margin:8px 0;'>💰 <strong>Seña a abonar: {fmt(monto_seña)}</strong></p>" if monto_seña > 0 else ""
+        alias_info = f"<p style='margin:8px 0;'>🏦 Alias / CBU: <strong>{alias_transferencia}</strong></p>" if alias_transferencia else ""
+        mensaje_info = f"<p style='margin:12px 0;color:#4A5568;'>{mensaje_pago}</p>" if mensaje_pago else ""
+        pago_html = f"""
+        <div style='background:#FFF9E6;border:1px solid #FFD93D;border-radius:10px;padding:16px;margin:20px 0;'>
+            <p style='margin:0 0 8px;font-weight:bold;color:#2C3E50;'>💳 Instrucciones de pago</p>
+            {seña_info}{alias_info}{mensaje_info}
+        </div>"""
+
+    # WhatsApp
+    wa_html = ""
+    if whatsapp_salon:
+        wa_html = f"<p style='margin:8px 0;'>📱 WhatsApp del salón: <a href='https://wa.me/{whatsapp_salon}' style='color:#71D997;'>{whatsapp_salon}</a></p>"
+
+    festejado_html = f"<p style='margin:8px 0;'>🎂 Festejado/a: <strong>{nombre_festejado}</strong></p>" if nombre_festejado else ""
+
+    html = f"""
+    <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>
+        <div style='background:linear-gradient(135deg,#ff6b6b,#ffd93d);padding:32px;border-radius:12px 12px 0 0;text-align:center;'>
+            <div style='font-family:Georgia,serif;font-size:28px;font-weight:900;color:white;'>🎉 ¡Solicitud recibida!</div>
+        </div>
+        <div style='background:#F9F9FB;padding:28px;border-radius:0 0 12px 12px;'>
+            <p style='font-size:15px;color:#2C3E50;'>Hola <strong>{cliente_nombre}</strong>,</p>
+            <p style='color:#4A5568;line-height:1.7;'>
+                Tu solicitud de reserva en <strong>{salon_nombre}</strong> fue recibida correctamente.
+                A continuación el resumen:
+            </p>
+
+            <div style='background:white;border:1px solid #E2E8F0;border-radius:10px;padding:20px;margin:20px 0;'>
+                <p style='margin:0 0 12px;font-weight:bold;color:#2C3E50;font-size:15px;'>📋 Detalle de tu reserva</p>
+                <p style='margin:8px 0;'>📅 <strong>Fecha:</strong> {fecha}</p>
+                <p style='margin:8px 0;'>🕐 <strong>Horario:</strong> {hora_inicio[:5]} - {hora_fin[:5]}</p>
+                <p style='margin:8px 0;'>👶 <strong>Cantidad de niños:</strong> {cantidad_ninos}</p>
+                {festejado_html}
+                {menu_html}
+                {juegos_html}
+                <div style='border-top:2px solid #E2E8F0;margin-top:16px;padding-top:16px;'>
+                    <p style='margin:0;font-size:18px;font-weight:bold;color:#ff6b6b;'>
+                        Total estimado: {fmt(precio_total)}
+                    </p>
+                </div>
+            </div>
+
+            {pago_html}
+            {wa_html}
+
+            <p style='color:#4A5568;font-size:14px;line-height:1.6;margin-top:20px;'>
+                El salón revisará tu solicitud y comprobante de pago a la brevedad.
+                Una vez confirmado, recibirás un email de confirmación.
+            </p>
+
+            <div style='text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0;'>
+                <p style='font-size:12px;color:#999;margin:0;'>
+                    Un producto de
+                    <strong style='font-family:Arial;'>
+                        <span style='color:#2C3E50;'>Gestiona</span><span style='color:#FF8000;'>Te</span><span style='color:#71D997;'>IA</span>
+                    </strong>
+                    · <a href='https://gestionateia.com' style='color:#999;'>gestionateia.com</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    """
+
+    enviar_email_qfa(cliente_email, f"Solicitud de reserva recibida — {salon_nombre}", html)
+
+
+def email_bienvenida_tenant_qfa(
+    nombre_salon: str,
+    email_admin: str,
+    slug: str,
+    password: str,
+    trial_hasta: str
+):
+    """Email de bienvenida al nuevo tenant con sus datos de acceso."""
+
+    url_admin = f"https://quefiestaapp.gestionateia.com/admin.html"
+    url_publica = f"https://quefiestaapp.gestionateia.com?salon={slug}"
+
+    html = f"""
+    <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>
+        <div style='background:#1a1a2e;padding:32px;border-radius:12px 12px 0 0;text-align:center;'>
+            <div style='font-family:Georgia,serif;font-size:26px;font-weight:900;'>
+                <span style='color:#ffffff;'>¡Bienvenido a </span><span style='color:#ff6b6b;'>Que</span><span style='color:#ffd93d;'>Fiesta</span><span style='color:#71D997;'>App</span><span style='color:#ffffff;'>!</span>
+            </div>
+        </div>
+        <div style='background:#F9F9FB;padding:28px;border-radius:0 0 12px 12px;'>
+            <p style='font-size:15px;color:#2C3E50;'>Hola <strong>{nombre_salon}</strong>,</p>
+            <p style='color:#4A5568;line-height:1.7;'>
+                Tu cuenta en <strong>QueFiestaApp</strong> fue creada exitosamente.
+                Tenés <strong>30 días de prueba gratuita</strong> hasta el <strong>{trial_hasta}</strong>.
+            </p>
+
+            <div style='background:white;border:2px solid #ff6b6b;border-radius:10px;padding:20px;margin:24px 0;'>
+                <p style='margin:0 0 12px;font-weight:bold;color:#2C3E50;font-size:15px;'>🔑 Tus datos de acceso</p>
+                <table style='width:100%;border-collapse:collapse;'>
+                    <tr>
+                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;width:140px;'>Panel admin:</td>
+                        <td style='padding:8px 0;'>
+                            <a href='{url_admin}' style='color:#ff6b6b;font-weight:bold;font-size:14px;'>{url_admin}</a>
+                        </td>
+                    </tr>
+                    <tr style='background:#f9f9fb;'>
+                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Tu ID de salón:</td>
+                        <td style='padding:8px 0;color:#2C3E50;font-weight:bold;font-family:monospace;font-size:15px;'>{slug}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Contraseña:</td>
+                        <td style='padding:8px 0;color:#2C3E50;font-weight:bold;font-family:monospace;font-size:15px;'>{password}</td>
+                    </tr>
+                    <tr style='background:#f9f9fb;'>
+                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Tu página pública:</td>
+                        <td style='padding:8px 0;'>
+                            <a href='{url_publica}' style='color:#ff6b6b;font-weight:bold;font-size:14px;'>{url_publica}</a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <p style='color:#E74C3C;font-size:13px;font-weight:bold;'>
+                ⚠️ Por seguridad, te recomendamos cambiar tu contraseña desde el panel admin después del primer ingreso.
+            </p>
+
+            <div style='text-align:center;margin-top:24px;'>
+                <a href='{url_admin}'
+                   style='background:#ff6b6b;color:white;padding:14px 32px;border-radius:50px;
+                          text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;'>
+                    Ir al panel de administración →
+                </a>
+            </div>
+
+            <div style='text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0;'>
+                <p style='font-size:12px;color:#999;margin:0;'>
+                    Un producto de
+                    <strong style='font-family:Arial;'>
+                        <span style='color:#2C3E50;'>Gestiona</span><span style='color:#FF8000;'>Te</span><span style='color:#71D997;'>IA</span>
+                    </strong>
+                    · <a href='https://gestionateia.com/soporte' style='color:#999;'>Soporte</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    """
+
+    enviar_email_qfa(email_admin, f"¡Bienvenido a QueFiestaApp! — Tus datos de acceso", html)
 
 # ============================================================
 # APP FASTAPI
@@ -462,7 +666,8 @@ async def crear_reserva(slug: str, data: ReservaCreate):
     try:
         tenant = await db.fetchrow("""
             SELECT id, nombre_visible, nombre, modalidad_cobro, porcentaje_seña,
-                   email_contacto, ninos_base, precio_base_salon
+                   email_contacto, ninos_base, precio_base_salon,
+                   alias_transferencia, mensaje_pago, whatsapp
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
         """, slug)
@@ -520,7 +725,28 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             data.observaciones
         )
 
-        # TODO: enviar email de confirmación con Resend
+        # Enviar email de confirmación al cliente
+        try:
+            email_confirmacion_reserva(
+                cliente_nombre=data.cliente_nombre,
+                cliente_email=data.cliente_email,
+                salon_nombre=tenant["nombre_visible"] or tenant["nombre"],
+                fecha=data.fecha,
+                hora_inicio=data.hora_inicio,
+                hora_fin=data.hora_fin,
+                cantidad_ninos=data.cantidad_ninos,
+                nombre_festejado=data.nombre_festejado or "",
+                menu_seleccionado=data.menu_seleccionado,
+                juegos_seleccionados=data.juegos_seleccionados,
+                precio_total=data.precio_total,
+                monto_seña=monto_seña,
+                modalidad_cobro=tenant["modalidad_cobro"],
+                alias_transferencia=tenant["alias_transferencia"] or "",
+                mensaje_pago=tenant["mensaje_pago"] or "",
+                whatsapp_salon=tenant["whatsapp"] or ""
+            )
+        except Exception as e:
+            print(f"[QFA EMAIL RESERVA] Error: {e}")
 
         return {
             "ok": True,
@@ -1246,9 +1472,21 @@ async def superadmin_crear_tenant(data: TenantCreate, auth=Depends(get_superadmi
         tenant = await db.fetchrow("""
             INSERT INTO qfa_tenants (nombre, slug, email_admin, password_hash, nombre_visible, trial_hasta)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, slug, nombre
+            RETURNING id, slug, nombre, nombre_visible
         """, data.nombre, data.slug, data.email_admin, password_hash,
             data.nombre_visible or data.nombre, trial_hasta)
+
+        # Enviar email de bienvenida con datos de acceso
+        try:
+            email_bienvenida_tenant_qfa(
+                nombre_salon=data.nombre_visible or data.nombre,
+                email_admin=data.email_admin,
+                slug=data.slug,
+                password=data.password,
+                trial_hasta=str(trial_hasta)
+            )
+        except Exception as e:
+            print(f"[QFA EMAIL BIENVENIDA] Error: {e}")
 
         return {"ok": True, "tenant": dict(tenant)}
     except asyncpg.UniqueViolationError:
