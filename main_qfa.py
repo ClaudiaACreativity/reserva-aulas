@@ -995,6 +995,73 @@ async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, a
 
 
 # ============================================================
+# SUBIDA DE COMPROBANTE DE PAGO (público — lo sube el cliente)
+# ============================================================
+
+@qfa_app.post("/{slug}/comprobante/{reserva_id}")
+async def subir_comprobante(slug: str, reserva_id: str, file: UploadFile = File(...)):
+    """El cliente sube el comprobante de transferencia al confirmar la reserva."""
+
+    # Validar tipo de archivo (imagen o PDF)
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/") and content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Solo se permiten imágenes o PDF")
+
+    # Validar tamaño (máx 5MB)
+    contenido = await file.read()
+    if len(contenido) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo no puede superar 5MB")
+
+    # Verificar que la reserva existe y pertenece al salón
+    db = await get_qfa_db()
+    try:
+        tenant = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Salón no encontrado")
+
+        reserva = await db.fetchrow(
+            "SELECT id FROM qfa_reservas WHERE id = $1 AND tenant_id = $2",
+            reserva_id, tenant["id"]
+        )
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+        # Generar nombre único
+        extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+        nombre_archivo = f"comprobantes/{slug}/{reserva_id}.{extension}"
+
+        # Subir a Supabase Storage
+        url_upload = f"{QFA_SUPABASE_URL}/storage/v1/object/qfa-imagenes/{nombre_archivo}"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url_upload,
+                content=contenido,
+                headers={
+                    "Authorization": f"Bearer {QFA_SUPABASE_SERVICE_KEY}",
+                    "Content-Type": content_type,
+                }
+            )
+
+        if response.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail="Error al subir comprobante")
+
+        # URL pública
+        url_publica = f"{QFA_SUPABASE_URL}/storage/v1/object/public/qfa-imagenes/{nombre_archivo}"
+
+        # Actualizar la reserva con la URL del comprobante
+        await db.execute(
+            "UPDATE qfa_reservas SET comprobante_url = $1, updated_at = NOW() WHERE id = $2",
+            url_publica, reserva_id
+        )
+
+        return {"ok": True, "url": url_publica}
+
+    finally:
+        release_db(db)
+
+
+# ============================================================
 # COMBOS / OFERTAS
 # ============================================================
 
