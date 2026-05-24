@@ -1232,6 +1232,25 @@ async def superadmin_registrar_suscripcion(data: SuscripcionCreate, auth=Depends
         release_db(db)
 
 
+@qfa_app.delete("/superadmin/tenants/{tenant_id}")
+async def superadmin_eliminar_tenant(tenant_id: str, auth=Depends(get_superadmin_token)):
+    """Elimina un tenant y todos sus datos en cascada (irreversible)."""
+    db = await get_qfa_db()
+    try:
+        # Verificar que existe
+        tenant = await db.fetchrow("SELECT id, nombre FROM qfa_tenants WHERE id = $1", tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Salón no encontrado")
+
+        # Eliminar — CASCADE borra automáticamente: menu_items, juegos, horarios,
+        # fechas_bloqueadas, reservas, pagos, suscripciones, combos
+        await db.execute("DELETE FROM qfa_tenants WHERE id = $1", tenant_id)
+
+        return {"ok": True, "eliminado": tenant["nombre"]}
+    finally:
+        release_db(db)
+
+
 @qfa_app.get("/superadmin/stats")
 async def superadmin_stats(auth=Depends(get_superadmin_token)):
     db = await get_qfa_db()
