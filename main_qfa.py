@@ -995,6 +995,116 @@ async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, a
 
 
 # ============================================================
+# COMBOS / OFERTAS
+# ============================================================
+
+class ComboCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    precio_cerrado: float
+    imagen_url: Optional[str] = None
+    activo: bool = True
+    orden: int = 0
+
+class ComboUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    precio_cerrado: Optional[float] = None
+    imagen_url: Optional[str] = None
+    activo: Optional[bool] = None
+    orden: Optional[int] = None
+
+
+@qfa_app.get("/{slug}/combos")
+async def get_combos_publico(slug: str):
+    """Combos activos para mostrar al cliente antes del presupuestador."""
+    db = await get_qfa_db()
+    try:
+        tenant = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Salón no encontrado")
+
+        combos = await db.fetch("""
+            SELECT id, nombre, descripcion, precio_cerrado, imagen_url, orden
+            FROM qfa_combos
+            WHERE tenant_id = $1 AND activo = TRUE
+            ORDER BY orden ASC, nombre ASC
+        """, tenant["id"])
+
+        return [dict(c) for c in combos]
+    finally:
+        release_db(db)
+
+
+@qfa_app.get("/admin/{slug}/combos")
+async def admin_get_combos(slug: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        combos = await db.fetch("""
+            SELECT * FROM qfa_combos
+            WHERE tenant_id = $1
+            ORDER BY orden ASC, nombre ASC
+        """, auth["tenant_id"])
+        return [dict(c) for c in combos]
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/admin/{slug}/combos")
+async def admin_crear_combo(slug: str, data: ComboCreate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        combo = await db.fetchrow("""
+            INSERT INTO qfa_combos
+                (tenant_id, nombre, descripcion, precio_cerrado, imagen_url, activo, orden)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        """, auth["tenant_id"], data.nombre, data.descripcion,
+            data.precio_cerrado, data.imagen_url, data.activo, data.orden)
+        return dict(combo)
+    finally:
+        release_db(db)
+
+
+@qfa_app.put("/admin/{slug}/combos/{combo_id}")
+async def admin_actualizar_combo(slug: str, combo_id: str, data: ComboUpdate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        campos = {k: v for k, v in data.dict().items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
+        combo = await db.fetchrow(f"""
+            UPDATE qfa_combos SET {sets}, updated_at = NOW()
+            WHERE id = $1 AND tenant_id = $2
+            RETURNING *
+        """, combo_id, auth["tenant_id"], *list(campos.values()))
+        if not combo:
+            raise HTTPException(status_code=404, detail="Combo no encontrado")
+        return dict(combo)
+    finally:
+        release_db(db)
+
+
+@qfa_app.delete("/admin/{slug}/combos/{combo_id}")
+async def admin_eliminar_combo(slug: str, combo_id: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        await db.execute("DELETE FROM qfa_combos WHERE id = $1 AND tenant_id = $2", combo_id, auth["tenant_id"])
+        return {"ok": True}
+    finally:
+        release_db(db)
+
+
+# ============================================================
 # SUBIDA DE IMÁGENES — Supabase Storage (bucket: qfa-imagenes)
 # ============================================================
 
