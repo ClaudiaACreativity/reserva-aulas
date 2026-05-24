@@ -425,6 +425,7 @@ class ConfiguracionUpdate(BaseModel):
     porcentaje_seña: Optional[int] = None
     alias_transferencia: Optional[str] = None
     mensaje_pago: Optional[str] = None
+    politica_cancelacion: Optional[str] = None
 
 class TenantCreate(BaseModel):
     nombre: str
@@ -462,7 +463,7 @@ async def get_salon_publico(slug: str):
                    logo_url, favicon_url, imagen_portada_url, imagenes_galeria,
                    direccion, whatsapp, email_contacto, redes_sociales,
                    ninos_base, precio_base_salon, capacidad_maxima,
-                   modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago,
+                   modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
