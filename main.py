@@ -140,7 +140,7 @@ async def enviar_email_aviso_vencimiento(email: str, nombre_tenant: str, dias: i
                <b>{fecha_str}</b> (en {dias} día{'s' if dias > 1 else ''}).</p>
             <p>Para renovar, ingresá a la landing y realizá el pago de tu plan.</p>
             <div style="margin:24px 0; text-align:center">
-                <a href="https://reservatuespacio.com/landing.html"
+                <a href="https://reservatuespacio.com/"
                    style="background:#71D997; color:#2C3E50; padding:12px 28px;
                           border-radius:50px; text-decoration:none; font-weight:bold">
                     Renovar ahora →
@@ -180,7 +180,7 @@ async def enviar_email_cuenta_bloqueada(email: str, nombre_tenant: str, fecha_ve
                y tu cuenta fue suspendida temporalmente.</p>
             <p><b>Tus datos están seguros.</b> Para reactivar tu cuenta, realizá el pago de renovación:</p>
             <div style="margin:24px 0; text-align:center">
-                <a href="https://reservatuespacio.com/landing.html"
+                <a href="https://reservatuespacio.com/"
                    style="background:#71D997; color:#2C3E50; padding:12px 28px;
                           border-radius:50px; text-decoration:none; font-weight:bold">
                     Reactivar cuenta →
@@ -2805,7 +2805,7 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
             },
             "back_urls": {
                 "success": f"https://reservatuespacio.com/pago-exitoso.html?tenant={datos.tenant_id}&plan={datos.plan_id}",
-                "failure": f"https://reservatuespacio.com/landing.html?pago=fallido",
+                "failure": f"https://reservatuespacio.com/?pago=fallido",
                 "pending": f"https://reservatuespacio.com/pago-pendiente.html?tenant={datos.tenant_id}"
             },
             "auto_return": "approved",
