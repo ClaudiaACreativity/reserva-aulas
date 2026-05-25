@@ -7,5 +7,5 @@ openpyxl
 bcrypt
 httpx
 slowapi
-PyJWT==2.8.0
+PyJWT>=2.8.0
 python-multipart
