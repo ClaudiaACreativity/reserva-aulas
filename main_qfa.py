@@ -778,14 +778,24 @@ async def admin_login(data: LoginRequest):
         if not tenant:
             raise HTTPException(status_code=401, detail="Salón no encontrado")
 
-        if not verify_password(data.password, tenant["password_hash"]):
-            raise HTTPException(status_code=401, detail="Contraseña incorrecta")
-
         # Verificar suscripción
         hoy = date.today()
         trial_ok = tenant["trial_hasta"] and tenant["trial_hasta"] >= hoy
         if not tenant["suscripcion_activa"] and not trial_ok:
             raise HTTPException(status_code=403, detail="Suscripción inactiva. Contactá a GestionaTeIA.")
+
+        # Verificar contraseña — primero usuario principal, luego usuarios adicionales
+        if verify_password(data.password, tenant["password_hash"]):
+            # Login con usuario principal (slug + password)
+            pass
+        else:
+            # Buscar en usuarios adicionales por email = data.slug (campo reutilizado como email)
+            usuario_adicional = await db.fetchrow("""
+                SELECT id, password_hash FROM qfa_admin_usuarios
+                WHERE tenant_id = $1 AND email = $2 AND activo = TRUE
+            """, tenant["id"], data.slug)
+            if not usuario_adicional or not verify_password(data.password, usuario_adicional["password_hash"]):
+                raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
         token = create_token(str(tenant["id"]), tenant["slug"])
 
@@ -1198,6 +1208,69 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
         t["imagenes_galeria"] = json.loads(t["imagenes_galeria"]) if isinstance(t["imagenes_galeria"], str) else (t["imagenes_galeria"] or [])
         t["redes_sociales"] = json.loads(t["redes_sociales"]) if isinstance(t["redes_sociales"], str) else (t["redes_sociales"] or {})
         return t
+    finally:
+        release_db(db)
+
+
+class AdminUsuarioCreate(BaseModel):
+    nombre: str
+    email: str
+    password: str
+
+
+@qfa_app.get("/admin/{slug}/usuarios")
+async def admin_get_usuarios(slug: str, auth=Depends(get_admin_token)):
+    """Lista los usuarios admin adicionales del salón."""
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        usuarios = await db.fetch("""
+            SELECT id, nombre, email, activo, created_at::text
+            FROM qfa_admin_usuarios
+            WHERE tenant_id = $1
+            ORDER BY created_at ASC
+        """, auth["tenant_id"])
+        return [dict(u) for u in usuarios]
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/admin/{slug}/usuarios")
+async def admin_crear_usuario(slug: str, data: AdminUsuarioCreate, auth=Depends(get_admin_token)):
+    """Crea un usuario admin adicional para el salón."""
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+
+    if len(data.password) < 8:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 8 caracteres")
+
+    db = await get_qfa_db()
+    try:
+        password_hash = hash_password(data.password)
+        usuario = await db.fetchrow("""
+            INSERT INTO qfa_admin_usuarios (tenant_id, nombre, email, password_hash)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, nombre, email, activo, created_at::text
+        """, auth["tenant_id"], data.nombre, data.email, password_hash)
+        return dict(usuario)
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(status_code=409, detail="Ya existe un usuario con ese email")
+    finally:
+        release_db(db)
+
+
+@qfa_app.delete("/admin/{slug}/usuarios/{usuario_id}")
+async def admin_eliminar_usuario(slug: str, usuario_id: str, auth=Depends(get_admin_token)):
+    """Elimina un usuario admin adicional."""
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        await db.execute("""
+            DELETE FROM qfa_admin_usuarios WHERE id = $1 AND tenant_id = $2
+        """, usuario_id, auth["tenant_id"])
+        return {"ok": True}
     finally:
         release_db(db)
 
