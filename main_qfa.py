@@ -1202,6 +1202,41 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
         release_db(db)
 
 
+class CambioPasswordRequest(BaseModel):
+    password_actual: str
+    password_nueva: str
+
+
+@qfa_app.post("/admin/{slug}/cambiar-password")
+async def admin_cambiar_password(slug: str, data: CambioPasswordRequest, auth=Depends(get_admin_token)):
+    """El admin del salón cambia su propia contraseña."""
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+
+    if len(data.password_nueva) < 8:
+        raise HTTPException(status_code=400, detail="La nueva contraseña debe tener al menos 8 caracteres")
+
+    db = await get_qfa_db()
+    try:
+        tenant = await db.fetchrow(
+            "SELECT password_hash FROM qfa_tenants WHERE id = $1", auth["tenant_id"]
+        )
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant no encontrado")
+
+        if not verify_password(data.password_actual, tenant["password_hash"]):
+            raise HTTPException(status_code=401, detail="La contraseña actual es incorrecta")
+
+        nuevo_hash = hash_password(data.password_nueva)
+        await db.execute(
+            "UPDATE qfa_tenants SET password_hash = $1, updated_at = NOW() WHERE id = $2",
+            nuevo_hash, auth["tenant_id"]
+        )
+        return {"ok": True, "mensaje": "Contraseña actualizada correctamente"}
+    finally:
+        release_db(db)
+
+
 @qfa_app.patch("/admin/{slug}/configuracion")
 async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, auth=Depends(get_admin_token)):
     if auth["slug"] != slug:
