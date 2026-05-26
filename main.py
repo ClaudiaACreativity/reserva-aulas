@@ -140,7 +140,7 @@ async def enviar_email_aviso_vencimiento(email: str, nombre_tenant: str, dias: i
                <b>{fecha_str}</b> (en {dias} día{'s' if dias > 1 else ''}).</p>
             <p>Para renovar, ingresá a la landing y realizá el pago de tu plan.</p>
             <div style="margin:24px 0; text-align:center">
-                <a href="https://reservatuespacio.com/"
+                <a href="https://reservatuespacio.com/landing.html"
                    style="background:#71D997; color:#2C3E50; padding:12px 28px;
                           border-radius:50px; text-decoration:none; font-weight:bold">
                     Renovar ahora →
@@ -180,7 +180,7 @@ async def enviar_email_cuenta_bloqueada(email: str, nombre_tenant: str, fecha_ve
                y tu cuenta fue suspendida temporalmente.</p>
             <p><b>Tus datos están seguros.</b> Para reactivar tu cuenta, realizá el pago de renovación:</p>
             <div style="margin:24px 0; text-align:center">
-                <a href="https://reservatuespacio.com/"
+                <a href="https://reservatuespacio.com/landing.html"
                    style="background:#71D997; color:#2C3E50; padding:12px 28px;
                           border-radius:50px; text-decoration:none; font-weight:bold">
                     Reactivar cuenta →
@@ -1273,7 +1273,215 @@ async def actualizar_horario(request: Request, dia_semana: int, datos: HorarioUp
     finally:
         await release_db(db)
 
-@app.get("/edificios")
+
+# ============================================================
+# TURNOS FIJOS — CRUD para admin + endpoint público
+# ============================================================
+
+class TurnoFijoCreate(BaseModel):
+    dia_semana: int
+    hora_inicio: str
+    hora_fin: str
+    activo: bool = True
+
+class TurnoFijoUpdate(BaseModel):
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
+    activo: Optional[bool] = None
+
+
+@app.get("/turnos-fijos")
+async def listar_turnos_fijos_publico(request: Request):
+    """Devuelve los turnos fijos activos del tenant para mostrar en el panel de reservas."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        turnos = await db.fetch(
+            """SELECT id, dia_semana, hora_inicio::text, hora_fin::text, activo
+               FROM turnos_fijos
+               WHERE tenant_id = $1 AND activo = TRUE
+               ORDER BY dia_semana, hora_inicio""",
+            tenant["id"]
+        )
+        return [dict(t) for t in turnos]
+    finally:
+        await release_db(db)
+
+
+@app.get("/turnos-fijos/disponibilidad")
+async def turnos_disponibilidad(request: Request, fecha: str):
+    """
+    Devuelve los turnos fijos del día con estado: libre o reservado.
+    También incluye las reservas libres (sin turno fijo) para ese día.
+    """
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        fecha_obj = date.fromisoformat(fecha)
+        dia_semana = fecha_obj.weekday()
+        # Convertir de Python (0=lunes) a nuestra convención (0=domingo)
+        dia_js = (dia_semana + 1) % 7
+
+        # Turnos fijos del día
+        turnos = await db.fetch(
+            """SELECT id, hora_inicio::text, hora_fin::text
+               FROM turnos_fijos
+               WHERE tenant_id = $1 AND dia_semana = $2 AND activo = TRUE
+               ORDER BY hora_inicio""",
+            tenant["id"], dia_js
+        )
+
+        # Reservas confirmadas/pendientes del día
+        reservas = await db.fetch(
+            """SELECT r.hora_inicio::text, r.hora_fin::text,
+                      COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre,
+                      COALESCE(u.email, r.invitado_email) as cliente_email,
+                      r.estado, r.id as reserva_id,
+                      a.nombre as espacio_nombre
+               FROM reservas r
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
+               LEFT JOIN aulas a ON r.aula_id = a.id
+               WHERE r.tenant_id = $1
+               AND r.fecha = $2
+               AND r.estado NOT IN ('cancelada', 'expirada')
+               ORDER BY r.hora_inicio""",
+            tenant["id"], fecha_obj
+        )
+
+        reservas_dict = [dict(r) for r in reservas]
+
+        # Para cada turno fijo, verificar si está ocupado
+        resultado_turnos = []
+        for t in turnos:
+            turno_ocupado = next(
+                (r for r in reservas_dict
+                 if r["hora_inicio"][:5] == t["hora_inicio"][:5]),
+                None
+            )
+            resultado_turnos.append({
+                "id": str(t["id"]),
+                "hora_inicio": t["hora_inicio"][:5],
+                "hora_fin": t["hora_fin"][:5],
+                "libre": turno_ocupado is None,
+                "reserva": turno_ocupado
+            })
+
+        return {
+            "fecha": fecha,
+            "dia_semana": dia_js,
+            "turnos_fijos": resultado_turnos,
+            "reservas_libres": reservas_dict
+        }
+    finally:
+        await release_db(db)
+
+
+@app.get("/admin/turnos-fijos")
+async def admin_listar_turnos_fijos(request: Request):
+    """Lista todos los turnos fijos del tenant para el panel admin."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant_admin(request, db)
+        turnos = await db.fetch(
+            """SELECT id, dia_semana, hora_inicio::text, hora_fin::text, activo
+               FROM turnos_fijos
+               WHERE tenant_id = $1
+               ORDER BY dia_semana, hora_inicio""",
+            tenant["id"]
+        )
+        return [dict(t) for t in turnos]
+    finally:
+        await release_db(db)
+
+
+@app.post("/admin/turnos-fijos")
+async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
+    """Crea un turno fijo."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant_admin(request, db)
+        turno = await db.fetchrow(
+            """INSERT INTO turnos_fijos (tenant_id, dia_semana, hora_inicio, hora_fin, activo)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo""",
+            tenant["id"], datos.dia_semana, datos.hora_inicio, datos.hora_fin, datos.activo
+        )
+        return dict(turno)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+
+@app.patch("/admin/turnos-fijos/{turno_id}")
+async def admin_actualizar_turno_fijo(request: Request, turno_id: str, datos: TurnoFijoUpdate):
+    """Actualiza un turno fijo."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant_admin(request, db)
+        campos = {k: v for k, v in datos.dict().items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
+        turno = await db.fetchrow(
+            f"""UPDATE turnos_fijos SET {sets}
+                WHERE id = $1 AND tenant_id = $2
+                RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo""",
+            turno_id, tenant["id"], *list(campos.values())
+        )
+        if not turno:
+            raise HTTPException(status_code=404, detail="Turno no encontrado")
+        return dict(turno)
+    finally:
+        await release_db(db)
+
+
+@app.delete("/admin/turnos-fijos/{turno_id}")
+async def admin_eliminar_turno_fijo(request: Request, turno_id: str):
+    """Elimina un turno fijo."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant_admin(request, db)
+        await db.execute(
+            "DELETE FROM turnos_fijos WHERE id = $1 AND tenant_id = $2",
+            turno_id, tenant["id"]
+        )
+        return {"ok": True}
+    finally:
+        await release_db(db)
+
+
+@app.get("/admin/agenda")
+async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
+    """
+    Panel visual semanal/mensual para el admin.
+    Devuelve todos los turnos del período con info del cliente y estado.
+    """
+    db = await get_db()
+    try:
+        tenant = await get_tenant_admin(request, db)
+        reservas = await db.fetch(
+            """SELECT r.id, r.fecha::text, r.hora_inicio::text, r.hora_fin::text,
+                      r.estado, r.observaciones,
+                      COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre,
+                      COALESCE(u.email, r.invitado_email) as cliente_email,
+                      COALESCE(u.whatsapp::text, r.invitado_whatsapp) as cliente_whatsapp,
+                      a.nombre as espacio_nombre,
+                      r.monto, r.mp_payment_id
+               FROM reservas r
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
+               LEFT JOIN aulas a ON r.aula_id = a.id
+               WHERE r.tenant_id = $1
+               AND r.fecha BETWEEN $2 AND $3
+               AND r.estado NOT IN ('cancelada', 'expirada')
+               ORDER BY r.fecha, r.hora_inicio""",
+            tenant["id"], fecha_inicio, fecha_fin
+        )
+        return [dict(r) for r in reservas]
+    finally:
+        await release_db(db)
+
+
 async def listar_edificios(request: Request):
     db = await get_db()
     try:
@@ -2805,7 +3013,7 @@ async def crear_preferencia_mp(request: Request, datos: MPPreferenciaCreate):
             },
             "back_urls": {
                 "success": f"https://reservatuespacio.com/pago-exitoso.html?tenant={datos.tenant_id}&plan={datos.plan_id}",
-                "failure": f"https://reservatuespacio.com/?pago=fallido",
+                "failure": f"https://reservatuespacio.com/landing.html?pago=fallido",
                 "pending": f"https://reservatuespacio.com/pago-pendiente.html?tenant={datos.tenant_id}"
             },
             "auto_return": "approved",
