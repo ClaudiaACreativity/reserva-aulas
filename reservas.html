@@ -8,6 +8,14 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --color-primario: #1B4F8A;
+            --color-secundario: #71D997;
+            --color-primario-dark: #163f6e;
+            --color-primario-light: rgba(27,79,138,0.1);
+            --color-secundario-light: rgba(113,217,151,0.15);
+        }
+
         body {
             font-family: Arial, sans-serif;
             background: #f0f4f8;
@@ -15,7 +23,7 @@
         }
 
         header {
-            background: #2C3E50;
+            background: var(--color-primario);
             color: white;
             padding: 20px 40px;
             display: flex;
@@ -44,10 +52,10 @@
 
         .card h2 {
             font-size: 18px;
-            color: #2C3E50;
+            color: var(--color-primario);
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #71D997;
+            border-bottom: 2px solid var(--color-secundario);
         }
 
         .espacios-grid {
@@ -66,16 +74,16 @@
         }
 
         .espacio-card:hover {
-            border-color: #2C3E50;
+            border-color: var(--color-primario);
             background: #f0f4f8;
         }
 
         .espacio-card.seleccionada {
-            border-color: #2C3E50;
+            border-color: var(--color-primario);
             background: #e8f0fb;
         }
 
-        .espacio-card h3 { font-size: 16px; color: #2C3E50; }
+        .espacio-card h3 { font-size: 16px; color: var(--color-primario); }
         .espacio-card p { font-size: 13px; color: #888; margin-top: 5px; }
 
         .form-grid {
@@ -106,7 +114,7 @@
         }
 
         .form-group input:focus, .form-group select:focus {
-            border-color: #2C3E50;
+            border-color: var(--color-primario);
         }
 
         .form-group.full { grid-column: 1 / -1; }
@@ -121,8 +129,8 @@
             transition: background 0.2s;
         }
 
-        .btn-primary { background: #2C3E50; color: white; }
-        .btn-primary:hover { background: #1a252f; }
+        .btn-primary { background: var(--color-primario); color: white; }
+        .btn-primary:hover { background: var(--color-primario-dark); }
         .btn-danger { background: #e74c3c; color: white; font-size: 13px; padding: 7px 14px; }
         .btn-danger:hover { background: #c0392b; }
 
@@ -134,7 +142,7 @@
             display: none;
         }
 
-        .mensaje.exito { background: #d5f0e0; color: #1a5c36; border: 1px solid #a8dbbe; }
+        .mensaje.exito { background: #d5f0e0; color: var(--color-primario); border: 1px solid #a8dbbe; }
         .mensaje.error { background: #fdedec; color: #c0392b; border: 1px solid #f5b7b1; }
 
         table {
@@ -144,7 +152,7 @@
         }
 
         th {
-            background: #2C3E50;
+            background: var(--color-primario);
             color: white;
             padding: 12px 15px;
             text-align: left;
@@ -164,7 +172,7 @@
             font-weight: bold;
         }
 
-        .badge-activa { background: #d5f0e0; color: #1a5c36; }
+        .badge-activa { background: #d5f0e0; color: var(--color-primario); }
         .badge-cancelada { background: #fdedec; color: #c0392b; }
         .badge-pending_payment { background: #fff3cd; color: #856404; }
         .badge-expirada { background: #f0f0f0; color: #666; }
@@ -174,17 +182,189 @@
 
         .card-admin h2 { color: #7d3c98; border-bottom-color: #d7bde2; }
 
-        /* CALENDARIO */
-        .cal-tabla { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 12px; }
-        .cal-tabla th { background: #2C3E50; color: white; padding: 8px 6px; font-size: 12px; text-align: center; }
-        .cal-tabla td { border: 1px solid #e0e8f0; padding: 4px; text-align: center; height: 45px; }
-        .cal-reserva { background: #2C3E50; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
-        .cal-reserva-pending { background: #e67e22; color: white; border-radius: 4px; padding: 3px 5px; font-size: 11px; }
-        .cal-libre { background: #d5f0e0; color: #1a5c36; border-radius: 4px; padding: 3px 5px; font-size: 11px; cursor: pointer; }
-        .cal-libre:hover { background: #a8dbbe; }
-        .cal-libre-cell { cursor: pointer; }
-        .cal-libre-cell:hover { background: #f0fdf4; }
-        .cal-reserva-cell { background: #eef2fb; }
+        /* CALENDARIO REDISEÑADO */
+        .cal-wrap { overflow-x: auto; border-radius: 12px; }
+        .cal-tabla { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 500px; font-size: 13px; }
+        
+        .cal-tabla th {
+            background: var(--color-primario);
+            color: white;
+            padding: 12px 8px;
+            font-size: 12px;
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        
+        .cal-tabla th:first-child { border-radius: 12px 0 0 0; width: 65px; }
+        .cal-tabla th:last-child { border-radius: 0 12px 0 0; }
+        
+        .cal-tabla td {
+            border: 1px solid #e8f0f8;
+            padding: 0;
+            text-align: center;
+            height: 52px;
+            vertical-align: middle;
+            transition: background 0.15s;
+        }
+        
+        .cal-hora-cell {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--color-primario);
+            background: var(--color-primario-light);
+            border-right: 2px solid var(--color-primario-light);
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+        
+        /* Celda libre */
+        .cal-libre-cell {
+            cursor: pointer;
+            background: #f8fff9;
+        }
+        .cal-libre-cell:hover { background: #d5f0e0; }
+        .cal-libre-cell:hover .cal-libre-inner { opacity: 1; }
+        
+        .cal-libre-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 4px;
+            opacity: 0;
+            transition: opacity 0.15s;
+            color: var(--color-primario);
+            font-size: 11px;
+            font-weight: 600;
+            gap: 3px;
+        }
+        
+        /* Celda reservada */
+        .cal-reserva-cell { background: #f0f4ff; cursor: default; }
+        
+        .cal-reserva-inner {
+            background: linear-gradient(135deg, var(--color-primario), var(--color-primario-dark));
+            color: white;
+            border-radius: 6px;
+            padding: 5px 6px;
+            font-size: 10px;
+            line-height: 1.4;
+            margin: 3px;
+            text-align: left;
+        }
+        
+        .cal-reserva-pending-inner {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+            color: white;
+            border-radius: 6px;
+            padding: 5px 6px;
+            font-size: 10px;
+            line-height: 1.4;
+            margin: 3px;
+            text-align: left;
+        }
+        
+        /* Celda cerrada/pasada */
+        .cal-cerrada { background: #f5f6f8; }
+        .cal-pasada { background: #f8f8f8; }
+        
+        /* Columna de hoy */
+        .cal-hoy-header { background: var(--color-secundario) !important; filter: brightness(0.85); }
+        .cal-hoy-cell { background: var(--color-secundario-light); }
+        .cal-hoy-cell.cal-libre-cell:hover { background: #c8f0d8; }
+
+        /* CALENDARIO TURNOS FIJOS */
+        .turnos-cal-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .turno-bloque {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .turno-bloque.libre {
+            background: linear-gradient(135deg, #e8f7ee, #f0fff4);
+            border-color: var(--color-secundario);
+        }
+
+        .turno-bloque.libre:hover {
+            background: linear-gradient(135deg, var(--color-secundario), var(--color-secundario));
+            border-color: var(--color-secundario);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(113,217,151,0.3);
+        }
+
+        .turno-bloque.libre:hover .turno-hora { color: white; }
+        .turno-bloque.libre:hover .turno-estado { color: white; }
+
+        .turno-bloque.ocupado {
+            background: #fff5f5;
+            border-color: #ffb3b3;
+            cursor: not-allowed;
+            opacity: 0.85;
+        }
+
+        .turno-bloque.seleccionado {
+            background: linear-gradient(135deg, var(--color-primario), var(--color-primario-dark));
+            border-color: var(--color-primario);
+        }
+
+        .turno-bloque.seleccionado .turno-hora,
+        .turno-bloque.seleccionado .turno-estado { color: white; }
+
+        .turno-dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .turno-hora {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--color-primario);
+            flex: 1;
+        }
+
+        .turno-hora.ocupado { color: #c0392b; }
+
+        .turno-estado {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .turno-cliente {
+            font-size: 12px;
+            color: #666;
+            font-style: italic;
+        }
+
+        /* FORMULARIO TURNO */
+        .turno-seleccionado-banner {
+            background: linear-gradient(135deg, var(--color-primario), var(--color-primario-dark));
+            color: white;
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .turno-seleccionado-banner .icon { font-size: 24px; }
+        .turno-seleccionado-banner strong { display: block; font-size: 16px; }
 
         /* RESPONSIVE MOBILE */
         @media (max-width: 600px) {
@@ -222,7 +402,7 @@
 
         .banner-horarios .banner-label {
             font-weight: bold;
-            color: #71D997;
+            color: var(--color-secundario);
             margin-right: 4px;
         }
 
@@ -255,12 +435,12 @@
 
         .turno-chip.libre {
             background: #e8f7ee;
-            border-color: #71D997;
+            border-color: var(--color-secundario);
             color: #1a6b3a;
         }
 
         .turno-chip.libre:hover {
-            background: #71D997;
+            background: var(--color-secundario);
             color: white;
             transform: translateY(-2px);
         }
@@ -274,8 +454,8 @@
         }
 
         .turno-chip.seleccionado {
-            background: #2C3E50;
-            border-color: #2C3E50;
+            background: var(--color-primario);
+            border-color: var(--color-primario);
             color: white;
         }
 
@@ -316,7 +496,7 @@
                 <button class="btn btn-primary" onclick="cambiarFechaTurnos(-1)">◀</button>
                 <span id="titulo-turnos" style="font-weight:bold;font-size:15px;min-width:160px;text-align:center;"></span>
                 <button class="btn btn-primary" onclick="cambiarFechaTurnos(1)">▶</button>
-                <button class="btn" onclick="cambiarFechaTurnos(0)" style="background:#e0e8f0;color:#2C3E50;">Hoy</button>
+                <button class="btn" onclick="cambiarFechaTurnos(0)" style="background:#e0e8f0;color:var(--color-primario);">Hoy</button>
             </div>
         </div>
         <p style="font-size:13px;color:#888;margin-bottom:8px;">
@@ -342,9 +522,9 @@
                 <button class="btn btn-primary" onclick="navegarCalendario(0)">Hoy</button>
                 <div style="display:flex; gap:5px; margin-left:10px;">
                     <button class="btn" id="btn-dia" onclick="cambiarVista('dia')"
-                        style="background:#1B4F8A; color:white;">Día</button>
+                        style="background:var(--color-primario); color:white;">Día</button>
                     <button class="btn" id="btn-semana" onclick="cambiarVista('semana')"
-                        style="background:#e0e8f0; color:#1B4F8A;">Semana</button>
+                        style="background:#e0e8f0; color:var(--color-primario);">Semana</button>
                 </div>
             </div>
         </div>
@@ -368,12 +548,22 @@
     </div>
 
     <!-- SECCIÓN 2: NUEVA RESERVA -->
-    <div class="card">
-        <h2>Nueva reserva</h2>
+    <div class="card" id="card-nueva-reserva">
+        <h2 id="titulo-nueva-reserva">Nueva reserva</h2>
+
+        <!-- Banner turno seleccionado (solo Caso B) -->
+        <div class="turno-seleccionado-banner" id="banner-turno-seleccionado" style="display:none;">
+            <div class="icon">🕐</div>
+            <div>
+                <strong id="banner-turno-texto">Turno seleccionado</strong>
+                <span style="opacity:0.8;font-size:13px;">Completá tus datos para confirmar la reserva</span>
+            </div>
+            <button onclick="deseleccionarTurno()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;">✕ Cambiar</button>
+        </div>
 
         <!-- Info pago y política -->
         <div id="info-pago-reserva" style="display:none; margin-bottom:20px; border-radius:8px; overflow:hidden; border:1px solid #e0e8f0">
-            <div id="info-modalidad" style="display:none; padding:12px 16px; background:#2C3E50; color:white; font-size:14px; font-weight:bold"></div>
+            <div id="info-modalidad" style="display:none; padding:12px 16px; background:var(--color-primario); color:white; font-size:14px; font-weight:bold"></div>
             <div id="info-politica" style="display:none; padding:14px 16px; background:#fff8e8; border-top:none">
                 <p style="font-size:12px; font-weight:bold; color:#7d5200; margin:0 0 6px; text-transform:uppercase; letter-spacing:0.5px">Política de cancelación y reembolso</p>
                 <p id="info-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
@@ -398,17 +588,17 @@
                 <label>Tu WhatsApp <span style="color:#888; font-weight:400; font-size:12px">(con código de área, sin 0 ni 15)</span></label>
                 <input type="tel" id="usuario-whatsapp" placeholder="Ej: 3492123456">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="grupo-fecha">
                 <label>Fecha</label>
                 <input type="date" id="fecha" onchange="cargarRecursosDisponibles()">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="grupo-hora-inicio">
                 <label>Hora de inicio</label>
                 <select id="hora-inicio" onchange="cargarRecursosDisponibles()" style="padding:10px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px; outline:none; background:white">
                     <option value="">-- Seleccioná --</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="grupo-hora-fin">
                 <label>Hora de fin</label>
                 <select id="hora-fin" onchange="cargarRecursosDisponibles()" style="padding:10px 12px; border:1px solid #ccc; border-radius:6px; font-size:14px; outline:none; background:white">
                     <option value="">-- Seleccioná --</option>
@@ -468,16 +658,16 @@ if (!TENANT_SLUG) {
         <div style="font-family:Arial,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f8fafc; margin:0; padding:24px; box-sizing:border-box">
             <div style="text-align:center; max-width:480px">
                 <div style="font-size:48px; margin-bottom:24px">📅</div>
-                <h1 style="color:#2C3E50; font-size:24px; margin-bottom:12px">Sistema de reservas</h1>
+                <h1 style="color:var(--color-primario); font-size:24px; margin-bottom:12px">Sistema de reservas</h1>
                 <p style="color:#666; font-size:15px; line-height:1.7; margin-bottom:32px">
                     Para acceder al sistema de reservas de tu organización,<br>
                     usá la URL que te proporcionamos.
                 </p>
                 <div style="background:#fff; border:1.5px solid #e0e8f0; border-radius:12px; padding:20px 28px; margin-bottom:32px">
                     <p style="color:#888; font-size:12px; margin:0 0 8px 0; text-transform:uppercase; letter-spacing:1px; font-weight:600">Ejemplo</p>
-                    <p style="color:#2C3E50; font-size:16px; font-weight:700; margin:0">reservatuespacio.com/<span style="color:#71D997">nombre-de-tu-organizacion</span></p>
+                    <p style="color:var(--color-primario); font-size:16px; font-weight:700; margin:0">reservatuespacio.com/<span style="color:var(--color-secundario)">nombre-de-tu-organizacion</span></p>
                 </div>
-                <a href="/" style="color:#71D997; font-size:14px; text-decoration:none; font-weight:600">← Volver al inicio</a>
+                <a href="/" style="color:var(--color-secundario); font-size:14px; text-decoration:none; font-weight:600">← Volver al inicio</a>
             </div>
         </div>
     `;
@@ -577,14 +767,17 @@ async function renderDia(aulas, horarios) {
 
     if (!config || !config.habilitado) {
         document.getElementById('calendario-container').innerHTML =
-            '<p class="empty">No hay disponibilidad este día</p>';
+            `<div style="text-align:center;padding:40px;color:#aaa;">
+                <div style="font-size:36px;margin-bottom:12px;">🚫</div>
+                <div style="font-size:15px;">Este día el establecimiento no tiene disponibilidad</div>
+            </div>`;
         return;
     }
 
     const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${hoy}&fecha_fin=${hoy}`);
     const reservas = await resReservas.json();
 
-    // Generar franjas horarias de 1 hora
+    // Generar franjas horarias de 1 hora — TODOS los horarios, sin cortar por hora actual
     const horaAp = parseInt(config.hora_apertura.slice(0,2));
     const horaCi = parseInt(config.hora_cierre.slice(0,2));
     const franjas = [];
@@ -592,18 +785,26 @@ async function renderDia(aulas, horarios) {
         franjas.push(h.toString().padStart(2,'0') + ':00');
     }
 
-    let html = '<table class="cal-tabla"><thead><tr>';
-    html += '<th style="width:70px">Horario</th>';
+    const esHoy = hoy === formatFecha(new Date());
+
+    let html = `<div class="cal-wrap"><table class="cal-tabla"><thead><tr>`;
+    html += `<th style="width:65px;">Horario</th>`;
     aulas.forEach(a => html += `<th>${a.nombre}</th>`);
-    html += '</tr></thead><tbody>';
+    html += `</tr></thead><tbody>`;
 
     franjas.forEach(franja => {
         const horaNum = parseInt(franja.slice(0,2));
-        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
+        const ahora = new Date();
+        const fechaFranja = new Date(fechaBase);
+        fechaFranja.setHours(horaNum, 0, 0, 0);
+        const esPasado = esHoy && fechaFranja < ahora;
+
+        html += `<tr>`;
+        html += `<td class="cal-hora-cell">${franja}</td>`;
 
         aulas.forEach(aula => {
             const res = reservas.find(r =>
-                r.aula_id === aula.id &&
+                (r.aula_id === aula.id || r.espacio_id === aula.id) &&
                 parseInt(r.hora_inicio.slice(0,2)) <= horaNum &&
                 parseInt(r.hora_fin.slice(0,2)) > horaNum
             );
@@ -611,27 +812,25 @@ async function renderDia(aulas, horarios) {
             if (res) {
                 const esPending = res.estado === 'pending_payment';
                 html += `<td class="cal-reserva-cell">
-                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
-                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
+                    <div class="${esPending ? 'cal-reserva-pending-inner' : 'cal-reserva-inner'}">
+                        ${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || '—'}<br>
+                        <span style="opacity:0.8">${res.hora_inicio.slice(0,5)}–${res.hora_fin.slice(0,5)}</span>
+                    </div>
+                </td>`;
+            } else if (esPasado) {
+                html += `<td class="cal-pasada" title="Horario pasado">
+                    <span style="color:#ccc;font-size:18px;">·</span>
                 </td>`;
             } else {
-                const ahora = new Date();
-                const fechaFranja = new Date(fechaBase);
-                fechaFranja.setHours(horaNum, 0, 0);
-                const pasado = fechaFranja < ahora;
-                if (pasado) {
-                    html += `<td style="background:#f5f5f5"></td>`;
-                } else {
-                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${aula.id}','${aula.nombre}','${hoy}','${franja}')">
-                        <div class="cal-libre">+ Reservar</div>
-                    </td>`;
-                }
+                html += `<td class="cal-libre-cell" onclick="precargarReserva('${aula.id}','${aula.nombre.replace(/'/g,"\'")}','${hoy}','${franja}')">
+                    <div class="cal-libre-inner">＋ Reservar</div>
+                </td>`;
             }
         });
-        html += '</tr>';
+        html += `</tr>`;
     });
 
-    html += '</tbody></table>';
+    html += `</tbody></table></div>`;
     document.getElementById('calendario-container').innerHTML = html;
 }
 
@@ -640,63 +839,67 @@ async function renderSemana(aulas, horarios) {
     const aulaNombre = document.getElementById('select-aula-semana').selectedOptions[0]?.text || '';
 
     const lunes = getLunes(fechaBase);
-    const sabado = new Date(lunes);
-    sabado.setDate(sabado.getDate() + 5);
+    const domingo = new Date(lunes);
+    domingo.setDate(domingo.getDate() + 6);
 
     document.getElementById('titulo-calendario').textContent =
-        `${aulaNombre} — ${lunes.getDate()} ${MESES[lunes.getMonth()]} al ${sabado.getDate()} ${MESES[sabado.getMonth()]}`;
+        `${aulaNombre} — ${lunes.getDate()} ${MESES[lunes.getMonth()]} al ${domingo.getDate()} ${MESES[domingo.getMonth()]}`;
 
-    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(sabado)}`);
+    const resReservas = await apiFetch(`${API}/reservas/calendario?fecha_inicio=${formatFecha(lunes)}&fecha_fin=${formatFecha(domingo)}`);
     const reservas = await resReservas.json();
     const resAula = reservas.filter(r => r.espacio_id === espacioId || r.aula_id === espacioId);
 
-    // Calcular horario máximo de la semana
-    let horaMin = 7, horaMax = 20;
+    let horaMin = 24, horaMax = 0;
     horarios.forEach(h => {
         if (h.habilitado && h.hora_apertura) horaMin = Math.min(horaMin, parseInt(h.hora_apertura.slice(0,2)));
         if (h.habilitado && h.hora_cierre) horaMax = Math.max(horaMax, parseInt(h.hora_cierre.slice(0,2)));
     });
+    if (horaMin === 24) horaMin = 7;
+    if (horaMax === 0) horaMax = 20;
 
+    // Generar 7 días (lunes a domingo)
     const dias = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
         const d = new Date(lunes);
         d.setDate(d.getDate() + i);
         dias.push(d);
     }
 
-    let html = '<table class="cal-tabla"><thead><tr><th style="width:70px">Horario</th>';
+    const hoyStr = formatFecha(new Date());
+
+    let html = `<div class="cal-wrap"><table class="cal-tabla"><thead><tr>`;
+    html += `<th style="width:65px;">Horario</th>`;
     dias.forEach(d => {
-        const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
-        const config = horarios.find(h => h.dia_semana === diaSemana);
+        const diaSemana = d.getDay();
+        const diaIdx = diaSemana === 0 ? 6 : diaSemana - 1;
+        const config = horarios.find(h => h.dia_semana === diaIdx);
         const cerrado = !config || !config.habilitado;
-        const esHoy = formatFecha(d) === formatFecha(new Date());
-        html += `<th style="${cerrado ? 'background:#888' : ''} ${esHoy ? 'background:#2980b9' : ''}">
-            ${DIAS[diaSemana]}<br>${d.getDate()}/${d.getMonth()+1}
+        const esHoy = formatFecha(d) === hoyStr;
+        html += `<th class="${esHoy ? 'cal-hoy-header' : ''}" style="${cerrado ? 'background:#607080;' : ''}">
+            ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][diaSemana]}<br>
+            <span style="font-size:14px;font-weight:800;">${d.getDate()}</span>
+            ${cerrado ? '<br><span style="font-size:9px;opacity:0.7;">cerrado</span>' : ''}
         </th>`;
     });
-    html += '</tr></thead><tbody>';
+    html += `</tr></thead><tbody>`;
 
     for (let h = horaMin; h < horaMax; h++) {
         const franja = h.toString().padStart(2,'0') + ':00';
-        html += `<tr><td style="font-weight:bold; font-size:12px; text-align:center; background:#f8fafc; color:#1B4F8A">${franja}</td>`;
+        html += `<tr><td class="cal-hora-cell">${franja}</td>`;
 
         dias.forEach(d => {
-            const diaSemana = d.getDay() === 0 ? 6 : d.getDay() - 1;
-            const config = horarios.find(h2 => h2.dia_semana === diaSemana);
+            const diaSemana = d.getDay();
+            const diaIdx = diaSemana === 0 ? 6 : diaSemana - 1;
+            const config = horarios.find(hc => hc.dia_semana === diaIdx);
             const cerrado = !config || !config.habilitado;
             const fechaStr = formatFecha(d);
+            const esHoy = fechaStr === hoyStr;
 
-            if (cerrado) {
-                html += `<td style="background:#f0f0f0"></td>`;
-                return;
-            }
+            if (cerrado) { html += `<td class="cal-cerrada"></td>`; return; }
 
             const horaApDia = parseInt(config.hora_apertura.slice(0,2));
             const horaCiDia = parseInt(config.hora_cierre.slice(0,2));
-            if (h < horaApDia || h >= horaCiDia) {
-                html += `<td style="background:#f0f0f0"></td>`;
-                return;
-            }
+            if (h < horaApDia || h >= horaCiDia) { html += `<td class="cal-cerrada"></td>`; return; }
 
             const res = resAula.find(r =>
                 r.fecha === fechaStr &&
@@ -706,52 +909,104 @@ async function renderSemana(aulas, horarios) {
 
             if (res) {
                 const esPending = res.estado === 'pending_payment';
-                html += `<td class="cal-reserva-cell">
-                    <div class="${esPending ? 'cal-reserva-pending' : 'cal-reserva'}">${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || ""}<br>
-                    <small>${res.hora_inicio.slice(0,5)}-${res.hora_fin.slice(0,5)}</small></div>
+                html += `<td class="cal-reserva-cell ${esHoy ? 'cal-hoy-cell' : ''}">
+                    <div class="${esPending ? 'cal-reserva-pending-inner' : 'cal-reserva-inner'}">
+                        ${esPending ? '⏳' : '🔒'} ${res.usuario_nombre || '—'}<br>
+                        <span style="opacity:0.8">${res.hora_inicio.slice(0,5)}–${res.hora_fin.slice(0,5)}</span>
+                    </div>
                 </td>`;
             } else {
                 const ahora = new Date();
                 const fechaFranja = new Date(d);
-                fechaFranja.setHours(h, 0, 0);
-                const pasado = fechaFranja < ahora;
-                if (pasado) {
-                    html += `<td style="background:#f5f5f5"></td>`;
+                fechaFranja.setHours(h, 0, 0, 0);
+                const esPasado = fechaFranja < ahora;
+                if (esPasado) {
+                    html += `<td class="cal-pasada ${esHoy ? 'cal-hoy-cell' : ''}">
+                        <span style="color:#ddd;font-size:18px;">·</span>
+                    </td>`;
                 } else {
-                    html += `<td class="cal-libre-cell" onclick="precargarReserva('${espacioId}','${aulaNombre}','${fechaStr}','${franja}')">
-                        <div class="cal-libre">+ Reservar</div>
+                    html += `<td class="cal-libre-cell ${esHoy ? 'cal-hoy-cell' : ''}"
+                        onclick="precargarReserva('${espacioId}','${aulaNombre.replace(/'/g,"\'")}','${fechaStr}','${franja}')">
+                        <div class="cal-libre-inner">＋</div>
                     </td>`;
                 }
             }
         });
-        html += '</tr>';
+        html += `</tr>`;
     }
 
-    html += '</tbody></table>';
+    html += `</tbody></table></div>`;
     document.getElementById('calendario-container').innerHTML = html;
 }
 
+// ===== CASO A: Precargar desde calendario libre =====
 function precargarReserva(espacioId, aulaNombre, fecha, hora) {
+    // Modo libre — mostrar todos los campos
+    modoTurnoFijo = false;
+    document.getElementById('grupo-fecha').style.display = '';
+    document.getElementById('grupo-hora-inicio').style.display = '';
+    document.getElementById('grupo-hora-fin').style.display = '';
+    document.getElementById('banner-turno-seleccionado').style.display = 'none';
+
     document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
-    const cards = document.querySelectorAll('.espacio-card');
-    cards.forEach(c => {
-        if (c.querySelector('h3').textContent === aulaNombre) {
+    document.querySelectorAll('.espacio-card').forEach(c => {
+        if (c.querySelector('h3') && c.querySelector('h3').textContent === aulaNombre) {
             c.classList.add('seleccionada');
         }
     });
-    document.getElementById('espacio-id').value = aulaId;
-    document.getElementById('espacio-nombre').value = aulaNombre;
+    if (document.getElementById('espacio-id')) document.getElementById('espacio-id').value = espacioId;
+    if (document.getElementById('espacio-nombre')) document.getElementById('espacio-nombre').value = aulaNombre;
     document.getElementById('fecha').value = fecha;
     if (hora) {
         const sel = document.getElementById('hora-inicio');
-        // Si el valor existe en el select lo selecciona, sino agrega opción
         let found = false;
         for (let opt of sel.options) { if (opt.value === hora) { found = true; break; } }
         if (!found) { const opt = new Option(hora, hora); sel.add(opt); }
         sel.value = hora;
         cargarRecursosDisponibles();
     }
-    document.getElementById('fecha').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('card-nueva-reserva').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===== CASO B: Seleccionar turno fijo =====
+let modoTurnoFijo = false;
+let turnoFijoSeleccionado = null;
+
+function seleccionarTurno(fecha, horaInicio, horaFin, espacioId) {
+    modoTurnoFijo = true;
+    turnoFijoSeleccionado = { fecha, horaInicio, horaFin, espacioId };
+
+    // Ocultar campos de fecha/hora
+    document.getElementById('grupo-fecha').style.display = 'none';
+    document.getElementById('grupo-hora-inicio').style.display = 'none';
+    document.getElementById('grupo-hora-fin').style.display = 'none';
+
+    // Mostrar banner del turno
+    const fechaObj = new Date(fecha + 'T00:00:00');
+    const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const textoFecha = `${DIAS_N[fechaObj.getDay()]} ${fechaObj.getDate()} de ${MESES_N[fechaObj.getMonth()]}`;
+
+    document.getElementById('banner-turno-texto').textContent =
+        `${textoFecha} · ${horaInicio} a ${horaFin}`;
+    document.getElementById('banner-turno-seleccionado').style.display = 'flex';
+
+    // Marcar turno como seleccionado
+    document.querySelectorAll('.turno-bloque').forEach(b => b.classList.remove('seleccionado'));
+    if (event?.currentTarget) event.currentTarget.classList.add('seleccionado');
+
+    // Scroll al formulario
+    document.getElementById('card-nueva-reserva').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function deseleccionarTurno() {
+    modoTurnoFijo = false;
+    turnoFijoSeleccionado = null;
+    document.getElementById('grupo-fecha').style.display = '';
+    document.getElementById('grupo-hora-inicio').style.display = '';
+    document.getElementById('grupo-hora-fin').style.display = '';
+    document.getElementById('banner-turno-seleccionado').style.display = 'none';
+    document.querySelectorAll('.turno-bloque').forEach(b => b.classList.remove('seleccionado'));
 }
 // ===== CARGAR AULAS =====
 async function poblarSelectsHora(horarios) {
@@ -868,6 +1123,20 @@ async function elegirMetodoPago(metodo) {
 }
 
 async function crearReserva() {
+    // Si hay turno fijo seleccionado, pre-completar los campos
+    if (modoTurnoFijo && turnoFijoSeleccionado) {
+        document.getElementById('fecha').value = turnoFijoSeleccionado.fecha;
+        const selInicio = document.getElementById('hora-inicio');
+        const selFin = document.getElementById('hora-fin');
+        // Agregar opciones si no existen
+        for (const [sel, val] of [[selInicio, turnoFijoSeleccionado.horaInicio],[selFin, turnoFijoSeleccionado.horaFin]]) {
+            let found = false;
+            for (let opt of sel.options) { if (opt.value === val) { found = true; break; } }
+            if (!found) sel.add(new Option(val, val));
+            sel.value = val;
+        }
+    }
+    
     const espacioId = document.getElementById('espacio-id').value;
     const nombre = document.getElementById('usuario-nombre').value.trim();
     const email = document.getElementById('usuario-email').value.trim();
@@ -1091,7 +1360,7 @@ async function cargarRecursosDisponibles() {
         document.getElementById('recursos-container').style.display = 'block';
         document.getElementById('recursos-lista').innerHTML = recursos.map(r => `
             <div style="background:#f8fafc; border:1px solid #e0e8f0; border-radius:8px; padding:12px 16px; min-width:160px">
-                <div style="font-weight:bold; color:#2C3E50; font-size:14px; margin-bottom:6px">${r.nombre}</div>
+                <div style="font-weight:bold; color:var(--color-primario); font-size:14px; margin-bottom:6px">${r.nombre}</div>
                 <div style="font-size:12px; color:#888; margin-bottom:8px">Disponibles: ${r.disponibles} de ${r.cantidad_total}</div>
                 ${r.disponibles > 0 ? `
                 <div style="display:flex; align-items:center; gap:8px">
@@ -1321,6 +1590,22 @@ function svgIcono(red, color) {
 }
 
 // ===== TENANT =====
+function aplicarColoresTenant(colorPrimario, colorSecundario) {
+    if (!colorPrimario && !colorSecundario) return;
+    const root = document.documentElement;
+
+    if (colorPrimario) {
+        root.style.setProperty('--color-primario', colorPrimario);
+        // Generar versión oscura (aproximada)
+        root.style.setProperty('--color-primario-dark', colorPrimario + 'dd');
+        root.style.setProperty('--color-primario-light', colorPrimario + '18');
+    }
+    if (colorSecundario) {
+        root.style.setProperty('--color-secundario', colorSecundario);
+        root.style.setProperty('--color-secundario-light', colorSecundario + '25');
+    }
+}
+
 async function cargarTenant() {
     try {
         const res = await apiFetch(`${API}/tenant`);
@@ -1346,7 +1631,9 @@ async function cargarTenant() {
             link.href = tenant.favicon_url;
         }
 
-        // Colores
+        // Colores — aplicar como variables CSS globales
+        aplicarColoresTenant(tenant.color_primario, tenant.color_secundario);
+
         if (tenant.color_primario) {
             document.querySelectorAll('header').forEach(h => h.style.background = tenant.color_primario);
             // Aplicar color de texto con contraste automático
@@ -1424,6 +1711,89 @@ async function cargarTenant() {
 }
 
 // Iniciar — despertar servidor primero
+// ===== BANNER HORARIOS =====
+async function cargarBannerHorarios() {
+    try {
+        const res = await apiFetch(`${API}/horarios`);
+        if (!res.ok) return;
+        const horarios = await res.json();
+        const habilitados = horarios.filter(h => h.habilitado && h.hora_apertura && h.hora_cierre);
+        if (!habilitados.length) return;
+
+        const DIAS_C = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        const banner = document.getElementById('banner-horarios');
+        const texto = document.getElementById('banner-texto');
+
+        const grupos = {};
+        habilitados.forEach(h => {
+            const key = `${h.hora_apertura.slice(0,5)}-${h.hora_cierre.slice(0,5)}`;
+            if (!grupos[key]) grupos[key] = { dias: [], ap: h.hora_apertura.slice(0,5), ci: h.hora_cierre.slice(0,5) };
+            grupos[key].dias.push(h.dia_semana);
+        });
+
+        texto.innerHTML = Object.values(grupos).map(g =>
+            `<span style="background:rgba(255,255,255,0.15);border-radius:6px;padding:3px 10px;margin:2px;display:inline-block;">
+                ${g.dias.map(d => DIAS_C[d]).join(', ')} · ${g.ap} a ${g.ci}
+            </span>`
+        ).join(' ');
+
+        banner.style.display = 'flex';
+    } catch(e) {}
+}
+
+// ===== TURNOS FIJOS PÚBLICOS (Caso B) =====
+let fechaTurnos = new Date();
+
+function cambiarFechaTurnos(dir) {
+    if (dir === 0) fechaTurnos = new Date();
+    else fechaTurnos.setDate(fechaTurnos.getDate() + dir);
+    cargarTurnosFijosPublico();
+}
+
+async function cargarTurnosFijosPublico() {
+    const fechaStr = fechaTurnos.toISOString().split('T')[0];
+    const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES_N = ['enero','feb.','mar.','abr.','may.','jun.','jul.','ago.','sep.','oct.','nov.','dic.'];
+
+    const titulo = document.getElementById('titulo-turnos');
+    if (titulo) titulo.textContent =
+        `${DIAS_N[fechaTurnos.getDay()]} ${fechaTurnos.getDate()} de ${MESES_N[fechaTurnos.getMonth()]}`;
+
+    try {
+        const res = await apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${fechaStr}`);
+        if (!res.ok) {
+            document.getElementById('card-turnos-fijos').style.display = 'none';
+            return;
+        }
+        const data = await res.json();
+
+        if (!data.turnos_fijos || !data.turnos_fijos.length) {
+            document.getElementById('card-turnos-fijos').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('card-turnos-fijos').style.display = 'block';
+
+        const grid = document.getElementById('turnos-grid');
+        grid.innerHTML = data.turnos_fijos.map(t => `
+            <div class="turno-bloque ${t.libre ? 'libre' : 'ocupado'}"
+                 ${t.libre ? `onclick="seleccionarTurno('${fechaStr}','${t.hora_inicio}','${t.hora_fin}','')"` : ''}>
+                <div class="turno-dot" style="background:${t.libre ? '#71D997' : '#ffb3b3'}"></div>
+                <div style="flex:1;">
+                    <div class="turno-hora ${t.libre ? '' : 'ocupado'}">
+                        ${t.hora_inicio} — ${t.hora_fin}
+                    </div>
+                    ${!t.libre && t.reserva ? `<div class="turno-cliente">Reservado</div>` : ''}
+                </div>
+                <div class="turno-estado">${t.libre ? '✓ Disponible' : '✗ Ocupado'}</div>
+            </div>
+        `).join('');
+
+    } catch(e) {
+        document.getElementById('card-turnos-fijos').style.display = 'none';
+    }
+}
+
 async function iniciar() {
     try {
         await apiFetch(`${API}/`);
@@ -1435,6 +1805,8 @@ async function iniciar() {
     cargarTenant();
     cargarEspacios();
     verificarReservaPendiente();
+    cargarBannerHorarios();
+    cargarTurnosFijosPublico();
     cargarBannerHorarios();
     cargarTurnosFijosPublico();
     // Poblar selects de hora con horarios del tenant
@@ -1558,9 +1930,9 @@ iniciar();
 </script>
 
 
-<footer style="background:#2C3E50; color:white; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:auto">
+<footer style="background:var(--color-primario); color:white; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:auto">
     <a href="https://reservatuespacio.com/" style="text-decoration:none; font-family:'Montserrat',Arial,sans-serif; font-weight:800; font-size:18px; color:white; letter-spacing:-0.3px">
-        Reserva<span style="color:#C8D8D0">Tu</span><span style="color:#71D997">Espacio</span>
+        Reserva<span style="color:#C8D8D0">Tu</span><span style="color:var(--color-secundario)">Espacio</span>
     </a>
     <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
         <a href="https://reservatuespacio.com/faq-usuarios.html" style="font-size:12px; color:rgba(255,255,255,0.6); text-decoration:none; font-weight:500" onmouseover="this.style.color='#71D997'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">FAQ Usuarios</a>
@@ -1572,7 +1944,7 @@ iniciar();
        style="display:flex; align-items:center; gap:6px; text-decoration:none; opacity:0.7; transition:opacity 0.2s"
        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
         <span style="font-size:11px; color:rgba(255,255,255,0.5); font-weight:500">Un producto de</span>
-        <span style="font-family:'Montserrat',Arial,sans-serif; font-weight:800; font-size:14px; color:white">Gestiona<span style="color:#FF8000">Te</span><span style="color:#71D997">IA</span></span>
+        <span style="font-family:'Montserrat',Arial,sans-serif; font-weight:800; font-size:14px; color:white">Gestiona<span style="color:#FF8000">Te</span><span style="color:var(--color-secundario)">IA</span></span>
     </a>
 </footer>
 
@@ -1580,9 +1952,9 @@ iniciar();
 <!-- Modal política de cancelación -->
 <div id="modal-politica" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div style="background:white; border-radius:12px; padding:30px; max-width:500px; width:100%; max-height:90vh; overflow-y:auto">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">Confirmación de reserva</h3>
+        <h3 style="color:var(--color-primario); margin-bottom:6px; font-size:18px">Confirmación de reserva</h3>
         <p style="font-size:13px; color:#888; margin-bottom:20px">Revisá los detalles antes de confirmar</p>
-        <div id="modal-modalidad" style="font-size:14px; background:#f0f4f8; padding:14px; border-radius:8px; margin-bottom:16px; color:#2C3E50; font-weight:bold; border-left:4px solid #2C3E50"></div>
+        <div id="modal-modalidad" style="font-size:14px; background:#f0f4f8; padding:14px; border-radius:8px; margin-bottom:16px; color:var(--color-primario); font-weight:bold; border-left:4px solid #2C3E50"></div>
         <div style="background:#fff8e8; border-left:4px solid #e67e22; border-radius:0 8px 8px 0; padding:14px; margin-bottom:20px">
             <p style="font-size:13px; font-weight:bold; color:#7d5200; margin-bottom:6px">Política de cancelación y reembolso</p>
             <p id="modal-politica-texto" style="font-size:13px; color:#7d5200; line-height:1.7; margin:0"></p>
@@ -1590,23 +1962,23 @@ iniciar();
         <p style="font-size:13px; color:#888; margin-bottom:20px">Al confirmar aceptás estas condiciones.</p>
         <div style="display:flex; gap:10px; justify-content:flex-end">
             <button onclick="cerrarModalPolitica()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
-            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:#2C3E50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
+            <button onclick="confirmarReservaConPolitica()" style="padding:10px 20px; background:var(--color-primario); color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Acepto y confirmo →</button>
         </div>
     </div>
 </div><!-- Modal transferencia -->
 <div id="modal-transferencia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">💸 Pago por transferencia</h3>
+        <h3 style="color:var(--color-primario); margin-bottom:6px; font-size:18px">💸 Pago por transferencia</h3>
         <p style="font-size:13px; color:#888; margin-bottom:20px">Realizá el pago y luego confirmá tu reserva</p>
         <div style="background:#e8f8f0; border-left:4px solid #71D997; border-radius:0 8px 8px 0; padding:16px; margin-bottom:16px">
             <p style="font-size:13px; font-weight:bold; color:#1a5c36; margin-bottom:4px">Alias / CBU</p>
-            <p id="modal-transferencia-alias" style="font-size:18px; font-weight:bold; color:#2C3E50; margin:0; letter-spacing:1px"></p>
+            <p id="modal-transferencia-alias" style="font-size:18px; font-weight:bold; color:var(--color-primario); margin:0; letter-spacing:1px"></p>
         </div>
         <p id="modal-transferencia-mensaje" style="font-size:13px; color:#555; margin-bottom:20px; line-height:1.6"></p>
         <p style="font-size:12px; color:#aaa; margin-bottom:20px">Al confirmar, tu reserva queda registrada. El administrador verificará el pago.</p>
         <div style="display:flex; gap:10px; justify-content:flex-end">
             <button onclick="cerrarModalTransferencia()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
-            <button onclick="confirmarReservaTransferencia()" style="padding:10px 20px; background:#71D997; color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Confirmar reserva →</button>
+            <button onclick="confirmarReservaTransferencia()" style="padding:10px 20px; background:var(--color-secundario); color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Confirmar reserva →</button>
         </div>
     </div>
 </div>
@@ -1614,7 +1986,7 @@ iniciar();
 <!-- Modal elegir método de pago -->
 <div id="modal-metodo-pago" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
-        <h3 style="color:#2C3E50; margin-bottom:6px; font-size:18px">¿Cómo querés pagar?</h3>
+        <h3 style="color:var(--color-primario); margin-bottom:6px; font-size:18px">¿Cómo querés pagar?</h3>
         <p style="font-size:13px; color:#888; margin-bottom:24px">Elegí el método de pago para confirmar tu reserva</p>
         <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px">
             <button onclick="elegirMetodoPago('mp')"
