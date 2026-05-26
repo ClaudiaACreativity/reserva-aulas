@@ -1400,11 +1400,17 @@ async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
+        # Convertir strings a objetos time para asyncpg
+        from datetime import time as time_type
+        def parse_time(t):
+            h, m = map(int, t.split(':')[:2])
+            return time_type(h, m)
+
         turno = await db.fetchrow(
             """INSERT INTO turnos_fijos (tenant_id, dia_semana, hora_inicio, hora_fin, activo)
                VALUES ($1, $2, $3, $4, $5)
                RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo""",
-            tenant["id"], datos.dia_semana, datos.hora_inicio, datos.hora_fin, datos.activo
+            tenant["id"], datos.dia_semana, parse_time(datos.hora_inicio), parse_time(datos.hora_fin), datos.activo
         )
         return dict(turno)
     except Exception as e:
@@ -1419,9 +1425,19 @@ async def admin_actualizar_turno_fijo(request: Request, turno_id: str, datos: Tu
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
+        from datetime import time as time_type
+        def parse_time(t):
+            h, m = map(int, t.split(':')[:2])
+            return time_type(h, m)
+
         campos = {k: v for k, v in datos.dict().items() if v is not None}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        # Convertir strings de hora a time
+        if 'hora_inicio' in campos and isinstance(campos['hora_inicio'], str):
+            campos['hora_inicio'] = parse_time(campos['hora_inicio'])
+        if 'hora_fin' in campos and isinstance(campos['hora_fin'], str):
+            campos['hora_fin'] = parse_time(campos['hora_fin'])
         sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
         turno = await db.fetchrow(
             f"""UPDATE turnos_fijos SET {sets}

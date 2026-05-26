@@ -371,21 +371,36 @@
     <!-- PANEL HORARIOS -->
     <div class="panel" id="panel-horarios">
         <div class="card">
-            <h2>Horario de apertura</h2>
+            <h2>Configuración de disponibilidad</h2>
             <p style="font-size:13px;color:#888;margin-bottom:16px;">
-                Configurá los días y franjas horarias en que tu establecimiento está abierto. 
-                Este horario se muestra como banner en tu página de reservas.
+                Elegí cómo querés que tus clientes reserven: definiendo el horario en que estás disponible (reserva libre) 
+                o cargando turnos fijos predefinidos. Podés usar uno u otro.
             </p>
+
+            <div style="display:flex;gap:10px;margin-bottom:20px;">
+                <button id="btn-modo-horario" class="btn btn-primary" onclick="setModo('horario')" style="font-size:13px;">
+                    📅 Horarios disponibles
+                </button>
+                <button id="btn-modo-turno" class="btn" onclick="setModo('turno')" style="font-size:13px;background:#e0e8f0;color:#2C3E50;">
+                    🕐 Turnos fijos
+                </button>
+            </div>
+
+            <div id="seccion-horarios">
+                <p style="font-size:13px;color:#888;margin-bottom:12px;">
+                    Definí de qué hora a qué hora estás disponible cada día. Tus clientes podrán reservar libremente dentro de esas franjas.
+                </p>
             <div id="tabla-horarios"><p class="empty">Cargando...</p></div>
             <div class="mensaje" id="mensaje-horarios"></div>
         </div>
 
-        <div class="card" style="margin-top:20px;">
-            <h2>Turnos fijos <span style="font-size:13px;font-weight:normal;color:#888;">(opcional)</span></h2>
-            <p style="font-size:13px;color:#888;margin-bottom:16px;">
-                Si querés que tus clientes elijan entre turnos predefinidos (ej: 9:00-11:00, 11:30-13:30), 
-                cargalos acá. Si no cargás turnos, los clientes pueden reservar libremente dentro del horario de apertura.
-            </p>
+            </div><!-- /seccion-horarios -->
+
+            <div id="seccion-turnos" style="display:none;">
+                <p style="font-size:13px;color:#888;margin-bottom:16px;">
+                    Cargá los turnos predefinidos. Tus clientes verán qué turnos están libres y cuáles ocupados, 
+                    y podrán elegir uno con un clic.
+                </p>
 
             <div style="display:grid;grid-template-columns:auto auto auto auto;gap:10px;align-items:end;margin-bottom:16px;max-width:500px;">
                 <div>
@@ -415,6 +430,7 @@
 
             <div id="lista-turnos-fijos"><p class="empty">Cargando...</p></div>
             <div class="mensaje" id="mensaje-turnos"></div>
+            </div><!-- /seccion-turnos -->
         </div>
     </div>
 
@@ -2277,6 +2293,31 @@ function mostrarMensaje(id, texto, tipo) {
     el.className = `mensaje ${tipo}`;
     el.style.display = 'block';
     setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ===== MODO HORARIO / TURNOS =====
+function setModo(modo) {
+    const secHorario = document.getElementById('seccion-horarios');
+    const secTurno = document.getElementById('seccion-turnos');
+    const btnHorario = document.getElementById('btn-modo-horario');
+    const btnTurno = document.getElementById('btn-modo-turno');
+
+    if (modo === 'horario') {
+        secHorario.style.display = 'block';
+        secTurno.style.display = 'none';
+        btnHorario.style.background = '#2C3E50';
+        btnHorario.style.color = 'white';
+        btnTurno.style.background = '#e0e8f0';
+        btnTurno.style.color = '#2C3E50';
+    } else {
+        secHorario.style.display = 'none';
+        secTurno.style.display = 'block';
+        btnTurno.style.background = '#2C3E50';
+        btnTurno.style.color = 'white';
+        btnHorario.style.background = '#e0e8f0';
+        btnHorario.style.color = '#2C3E50';
+        cargarTurnosFijos();
+    }
 }
 
 // ===== TURNOS FIJOS =====
