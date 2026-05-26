@@ -159,6 +159,36 @@
         .horario-row:last-child { border-bottom: none; }
         .horario-row label { font-weight: bold; font-size: 14px; }
 
+        /* AGENDA Y TURNOS FIJOS */
+        .agenda-dia {
+            background: #f9f9fb;
+            border: 1px solid #e0e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .agenda-dia-titulo {
+            font-weight: bold; font-size: 13px; color: #2C3E50;
+            margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e0e8f0;
+        }
+        .agenda-turno {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; font-size: 13px;
+        }
+        .agenda-turno.libre { background: #e8f7ee; border: 1px solid #b8e6c8; }
+        .agenda-turno.ocupado { background: #fff3e0; border: 1px solid #ffd0a0; }
+        .agenda-turno.reserva-libre { background: #e8f0ff; border: 1px solid #b0c8ff; }
+        .agenda-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .agenda-hora { font-weight: bold; min-width: 110px; color: #2C3E50; }
+        .agenda-cliente { color: #4A5568; flex: 1; }
+
+        .turno-fijo-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: #f9f9fb; border: 1px solid #e0e8f0;
+            border-radius: 8px; margin-bottom: 8px; font-size: 14px;
+        }
+        .turno-fijo-row .dia-nombre { font-weight: bold; min-width: 100px; color: #2C3E50; }
+
         /* RESPONSIVE MOBILE */
         @media (max-width: 700px) {
             header { padding: 14px 16px; }
@@ -210,6 +240,7 @@
     <div class="tab" onclick="cambiarTab('espacios', this)">🏢 Espacios</div>
     <div class="tab" onclick="cambiarTab('usuarios', this)">👤 Usuarios</div>
     <div class="tab" onclick="cambiarTab('horarios', this)">🕐 Horarios</div>
+    <div class="tab" onclick="cambiarTab('agenda', this)">📆 Agenda</div>
     <div class="tab" onclick="cambiarTab('fechas', this)">📅 Fechas bloqueadas</div>
     <div class="tab" onclick="cambiarTab('perfil', this)">👤 Mi perfil</div>
     <div class="tab" onclick="cambiarTab('personalizacion', this)">🎨 Personalización</div>
@@ -340,9 +371,69 @@
     <!-- PANEL HORARIOS -->
     <div class="panel" id="panel-horarios">
         <div class="card">
-            <h2>Configuración de horarios por día</h2>
+            <h2>Horario de apertura</h2>
+            <p style="font-size:13px;color:#888;margin-bottom:16px;">
+                Configurá los días y franjas horarias en que tu establecimiento está abierto. 
+                Este horario se muestra como banner en tu página de reservas.
+            </p>
             <div id="tabla-horarios"><p class="empty">Cargando...</p></div>
             <div class="mensaje" id="mensaje-horarios"></div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h2>Turnos fijos <span style="font-size:13px;font-weight:normal;color:#888;">(opcional)</span></h2>
+            <p style="font-size:13px;color:#888;margin-bottom:16px;">
+                Si querés que tus clientes elijan entre turnos predefinidos (ej: 9:00-11:00, 11:30-13:30), 
+                cargalos acá. Si no cargás turnos, los clientes pueden reservar libremente dentro del horario de apertura.
+            </p>
+
+            <div style="display:grid;grid-template-columns:auto auto auto auto;gap:10px;align-items:end;margin-bottom:16px;max-width:500px;">
+                <div>
+                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Día</label>
+                    <select id="turno-dia" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                        <option value="0">Domingo</option>
+                        <option value="1">Lunes</option>
+                        <option value="2">Martes</option>
+                        <option value="3">Miércoles</option>
+                        <option value="4">Jueves</option>
+                        <option value="5">Viernes</option>
+                        <option value="6">Sábado</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Inicio</label>
+                    <input type="time" id="turno-inicio" value="09:00" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                </div>
+                <div>
+                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Fin</label>
+                    <input type="time" id="turno-fin" value="11:00" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                </div>
+                <button class="btn btn-primary" onclick="agregarTurnoFijo()" style="padding:8px 16px;font-size:13px;">
+                    + Agregar
+                </button>
+            </div>
+
+            <div id="lista-turnos-fijos"><p class="empty">Cargando...</p></div>
+            <div class="mensaje" id="mensaje-turnos"></div>
+        </div>
+    </div>
+
+    <!-- PANEL AGENDA -->
+    <div class="panel" id="panel-agenda">
+        <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+                <h2 style="margin:0;">Agenda visual</h2>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <button class="btn" onclick="cambiarVistaSemana(-1)" style="padding:6px 14px;">‹ Anterior</button>
+                    <span id="agenda-titulo" style="font-weight:bold;font-size:15px;min-width:200px;text-align:center;"></span>
+                    <button class="btn" onclick="cambiarVistaSemana(1)" style="padding:6px 14px;">Siguiente ›</button>
+                    <select id="agenda-modo" onchange="cargarAgenda()" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;">
+                        <option value="semana">Vista semanal</option>
+                        <option value="mes">Vista mensual</option>
+                    </select>
+                </div>
+            </div>
+            <div id="agenda-contenido"><p class="empty">Cargando...</p></div>
         </div>
     </div>
 
@@ -881,6 +972,9 @@ function cambiarTab(panel, el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
     document.getElementById(`panel-${panel}`).classList.add('activo');
     el.classList.add('activo');
+
+    if (panel === 'horarios') cargarTurnosFijos();
+    if (panel === 'agenda') cargarAgenda();
 }
 
 // ===== CARGAR TODO =====
@@ -894,6 +988,7 @@ function cargarTodo() {
     cargarEspacios();
     cargarUsuarios();
     cargarHorarios();
+    cargarTurnosFijos();
     cargarFechasBloqueadas();
     cargarPerfil();
     cargarPersonalizacion();
@@ -2182,6 +2277,256 @@ function mostrarMensaje(id, texto, tipo) {
     el.className = `mensaje ${tipo}`;
     el.style.display = 'block';
     setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ===== TURNOS FIJOS =====
+const DIAS_NOMBRES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+async function cargarTurnosFijos() {
+    try {
+        const res = await apiFetch(`${API}/admin/turnos-fijos`);
+        const turnos = await res.json();
+        const lista = document.getElementById('lista-turnos-fijos');
+
+        if (!turnos.length) {
+            lista.innerHTML = '<p class="empty">No hay turnos fijos configurados. Los clientes podrán reservar libremente.</p>';
+            return;
+        }
+
+        // Agrupar por día
+        const porDia = {};
+        turnos.forEach(t => {
+            if (!porDia[t.dia_semana]) porDia[t.dia_semana] = [];
+            porDia[t.dia_semana].push(t);
+        });
+
+        lista.innerHTML = Object.entries(porDia).sort(([a],[b]) => a-b).map(([dia, ts]) => `
+            <div style="margin-bottom:12px;">
+                <div style="font-weight:bold;font-size:13px;color:#2C3E50;margin-bottom:6px;">${DIAS_NOMBRES[dia]}</div>
+                ${ts.map(t => `
+                    <div class="turno-fijo-row">
+                        <div class="dia-nombre" style="min-width:auto;font-weight:normal;">
+                            🕐 ${t.hora_inicio.slice(0,5)} — ${t.hora_fin.slice(0,5)}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:12px;color:${t.activo ? '#27ae60' : '#e74c3c'};">
+                                ${t.activo ? '● Activo' : '● Inactivo'}
+                            </span>
+                            <button class="btn" style="padding:4px 10px;font-size:12px;" 
+                                onclick="toggleTurno('${t.id}', ${!t.activo})">
+                                ${t.activo ? 'Desactivar' : 'Activar'}
+                            </button>
+                            <button class="btn" style="padding:4px 10px;font-size:12px;background:#e74c3c;color:white;" 
+                                onclick="eliminarTurno('${t.id}')">
+                                🗑
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+    } catch(e) {
+        document.getElementById('lista-turnos-fijos').innerHTML = '<p class="empty">Error al cargar turnos</p>';
+    }
+}
+
+async function agregarTurnoFijo() {
+    const dia = parseInt(document.getElementById('turno-dia').value);
+    const inicio = document.getElementById('turno-inicio').value;
+    const fin = document.getElementById('turno-fin').value;
+
+    if (!inicio || !fin) { alert('Completá hora de inicio y fin'); return; }
+    if (inicio >= fin) { alert('La hora de fin debe ser posterior a la de inicio'); return; }
+
+    try {
+        const res = await apiFetch(`${API}/admin/turnos-fijos`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ dia_semana: dia, hora_inicio: inicio, hora_fin: fin })
+        });
+        if (res.ok) {
+            mostrarMensaje('mensaje-turnos', '✅ Turno agregado correctamente', 'exito');
+            cargarTurnosFijos();
+        } else {
+            const data = await res.json();
+            mostrarMensaje('mensaje-turnos', '❌ ' + (data.detail || 'Error'), 'error');
+        }
+    } catch(e) {
+        mostrarMensaje('mensaje-turnos', '❌ Error al guardar', 'error');
+    }
+}
+
+async function toggleTurno(id, activo) {
+    try {
+        await apiFetch(`${API}/admin/turnos-fijos/${id}`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ activo })
+        });
+        cargarTurnosFijos();
+    } catch(e) { alert('Error al actualizar turno'); }
+}
+
+async function eliminarTurno(id) {
+    if (!confirm('¿Eliminar este turno?')) return;
+    try {
+        await apiFetch(`${API}/admin/turnos-fijos/${id}`, { method: 'DELETE' });
+        mostrarMensaje('mensaje-turnos', '✅ Turno eliminado', 'exito');
+        cargarTurnosFijos();
+    } catch(e) { alert('Error al eliminar'); }
+}
+
+// ===== AGENDA VISUAL =====
+let agendaFechaBase = new Date();
+
+function cambiarVistaSemana(delta) {
+    const modo = document.getElementById('agenda-modo').value;
+    if (modo === 'semana') {
+        agendaFechaBase.setDate(agendaFechaBase.getDate() + delta * 7);
+    } else {
+        agendaFechaBase.setMonth(agendaFechaBase.getMonth() + delta);
+    }
+    cargarAgenda();
+}
+
+async function cargarAgenda() {
+    const modo = document.getElementById('agenda-modo').value;
+    const hoy = new Date(agendaFechaBase);
+
+    let fechaInicio, fechaFin;
+
+    if (modo === 'semana') {
+        const diaSemana = hoy.getDay();
+        const lunes = new Date(hoy);
+        lunes.setDate(hoy.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1));
+        const domingo = new Date(lunes);
+        domingo.setDate(lunes.getDate() + 6);
+        fechaInicio = lunes.toISOString().split('T')[0];
+        fechaFin = domingo.toISOString().split('T')[0];
+        document.getElementById('agenda-titulo').textContent =
+            `Semana del ${formatFechaCorta(fechaInicio)} al ${formatFechaCorta(fechaFin)}`;
+    } else {
+        const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+        fechaInicio = primerDia.toISOString().split('T')[0];
+        fechaFin = ultimoDia.toISOString().split('T')[0];
+        const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                       'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        document.getElementById('agenda-titulo').textContent =
+            `${meses[hoy.getMonth()]} ${hoy.getFullYear()}`;
+    }
+
+    const contenedor = document.getElementById('agenda-contenido');
+    contenedor.innerHTML = '<p class="empty">Cargando agenda...</p>';
+
+    try {
+        const res = await apiFetch(`${API}/admin/agenda?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
+        const reservas = await res.json();
+
+        // Cargar turnos fijos para cruzar
+        const resTurnos = await apiFetch(`${API}/admin/turnos-fijos`);
+        const turnosFijos = await resTurnos.json();
+
+        // Generar días del período
+        const dias = [];
+        let d = new Date(fechaInicio + 'T00:00:00');
+        const fin = new Date(fechaFin + 'T00:00:00');
+        while (d <= fin) {
+            dias.push(d.toISOString().split('T')[0]);
+            d.setDate(d.getDate() + 1);
+        }
+
+        if (!dias.length) {
+            contenedor.innerHTML = '<p class="empty">No hay datos para este período</p>';
+            return;
+        }
+
+        contenedor.innerHTML = dias.map(fecha => {
+            const reservasDia = reservas.filter(r => r.fecha === fecha);
+            const fechaObj = new Date(fecha + 'T00:00:00');
+            const diaSemana = fechaObj.getDay();
+            const turnosDia = turnosFijos.filter(t => t.dia_semana == diaSemana && t.activo);
+
+            if (!reservasDia.length && !turnosDia.length) return '';
+
+            const fechaLabel = fechaObj.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
+            const esHoy = fecha === new Date().toISOString().split('T')[0];
+
+            // Construir lista de slots
+            const slots = [];
+
+            // Turnos fijos del día
+            turnosDia.forEach(t => {
+                const reserva = reservasDia.find(r => r.hora_inicio.slice(0,5) === t.hora_inicio.slice(0,5));
+                slots.push({
+                    hora_inicio: t.hora_inicio.slice(0,5),
+                    hora_fin: t.hora_fin.slice(0,5),
+                    tipo: reserva ? 'ocupado' : 'libre',
+                    reserva: reserva || null,
+                    esTurnoFijo: true
+                });
+            });
+
+            // Reservas libres (sin turno fijo coincidente)
+            reservasDia.forEach(r => {
+                const yaCubierta = turnosDia.some(t => t.hora_inicio.slice(0,5) === r.hora_inicio.slice(0,5));
+                if (!yaCubierta) {
+                    slots.push({
+                        hora_inicio: r.hora_inicio.slice(0,5),
+                        hora_fin: r.hora_fin.slice(0,5),
+                        tipo: 'reserva-libre',
+                        reserva: r,
+                        esTurnoFijo: false
+                    });
+                }
+            });
+
+            slots.sort((a,b) => a.hora_inicio.localeCompare(b.hora_inicio));
+
+            if (!slots.length) return '';
+
+            return `
+                <div class="agenda-dia" ${esHoy ? 'style="border-color:#71D997;border-width:2px;"' : ''}>
+                    <div class="agenda-dia-titulo">
+                        ${esHoy ? '📍 ' : ''}${fechaLabel}
+                    </div>
+                    ${slots.map(s => `
+                        <div class="agenda-turno ${s.tipo}">
+                            <div class="agenda-dot" style="background:${
+                                s.tipo === 'libre' ? '#71D997' :
+                                s.tipo === 'ocupado' ? '#e67e22' : '#4A90D9'
+                            }"></div>
+                            <div class="agenda-hora">${s.hora_inicio} — ${s.hora_fin}</div>
+                            <div class="agenda-cliente">
+                                ${s.tipo === 'libre'
+                                    ? '<span style="color:#27ae60;font-style:italic;">Disponible</span>'
+                                    : `<strong>${s.reserva?.cliente_nombre || '—'}</strong>
+                                       ${s.reserva?.espacio_nombre ? `<span style="color:#888;font-size:12px;"> · ${s.reserva.espacio_nombre}</span>` : ''}
+                                       ${s.reserva?.cliente_email ? `<div style="font-size:11px;color:#888;">${s.reserva.cliente_email}</div>` : ''}`
+                                }
+                            </div>
+                            ${s.reserva ? `
+                                <span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${
+                                    s.reserva.estado === 'activa' ? '#e8f7ee' : '#fff3e0'
+                                };color:${
+                                    s.reserva.estado === 'activa' ? '#27ae60' : '#e67e22'
+                                };">${s.reserva.estado}</span>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }).join('') || '<p class="empty">No hay reservas ni turnos en este período</p>';
+
+    } catch(e) {
+        contenedor.innerHTML = '<p class="empty">Error al cargar la agenda</p>';
+        console.error(e);
+    }
+}
+
+function formatFechaCorta(fecha) {
+    const [y,m,d] = fecha.split('-');
+    return `${d}/${m}`;
 }
 </script>
 
