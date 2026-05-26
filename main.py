@@ -1381,7 +1381,7 @@ async def admin_listar_turnos_fijos(request: Request):
     """Lista todos los turnos fijos del tenant para el panel admin."""
     db = await get_db()
     try:
-        tenant = await get_tenant_admin(request, db)
+        tenant = await get_tenant(request, db)
         turnos = await db.fetch(
             """SELECT id, dia_semana, hora_inicio::text, hora_fin::text, activo
                FROM turnos_fijos
@@ -1399,7 +1399,7 @@ async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
     """Crea un turno fijo."""
     db = await get_db()
     try:
-        tenant = await get_tenant_admin(request, db)
+        tenant = await get_tenant(request, db)
         turno = await db.fetchrow(
             """INSERT INTO turnos_fijos (tenant_id, dia_semana, hora_inicio, hora_fin, activo)
                VALUES ($1, $2, $3, $4, $5)
@@ -1418,7 +1418,7 @@ async def admin_actualizar_turno_fijo(request: Request, turno_id: str, datos: Tu
     """Actualiza un turno fijo."""
     db = await get_db()
     try:
-        tenant = await get_tenant_admin(request, db)
+        tenant = await get_tenant(request, db)
         campos = {k: v for k, v in datos.dict().items() if v is not None}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
@@ -1441,7 +1441,7 @@ async def admin_eliminar_turno_fijo(request: Request, turno_id: str):
     """Elimina un turno fijo."""
     db = await get_db()
     try:
-        tenant = await get_tenant_admin(request, db)
+        tenant = await get_tenant(request, db)
         await db.execute(
             "DELETE FROM turnos_fijos WHERE id = $1 AND tenant_id = $2",
             turno_id, tenant["id"]
@@ -1459,13 +1459,13 @@ async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
     """
     db = await get_db()
     try:
-        tenant = await get_tenant_admin(request, db)
+        tenant = await get_tenant(request, db)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha::text, r.hora_inicio::text, r.hora_fin::text,
                       r.estado, r.observaciones,
                       COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre,
                       COALESCE(u.email, r.invitado_email) as cliente_email,
-                      COALESCE(u.whatsapp::text, r.invitado_whatsapp) as cliente_whatsapp,
+                      COALESCE(u.whatsapp, r.invitado_whatsapp) as cliente_whatsapp,
                       a.nombre as espacio_nombre,
                       r.monto, r.mp_payment_id
                FROM reservas r
