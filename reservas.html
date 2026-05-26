@@ -205,6 +205,83 @@
             footer { padding: 16px; flex-direction: column; text-align: center; gap: 8px; }
             #header-contacto { flex-direction: column; gap: 6px; }
         }
+
+        /* BANNER HORARIOS */
+        .banner-horarios {
+            background: linear-gradient(135deg, #2C3E50, #1a2b38);
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            flex-wrap: wrap;
+        }
+
+        .banner-horarios .banner-icono { font-size: 18px; }
+
+        .banner-horarios .banner-label {
+            font-weight: bold;
+            color: #71D997;
+            margin-right: 4px;
+        }
+
+        .banner-dia {
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 13px;
+            margin: 2px;
+        }
+
+        /* PANEL TURNOS */
+        .turnos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .turno-chip {
+            padding: 12px 14px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .turno-chip.libre {
+            background: #e8f7ee;
+            border-color: #71D997;
+            color: #1a6b3a;
+        }
+
+        .turno-chip.libre:hover {
+            background: #71D997;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .turno-chip.ocupado {
+            background: #fee;
+            border-color: #e74c3c;
+            color: #c0392b;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .turno-chip.seleccionado {
+            background: #2C3E50;
+            border-color: #2C3E50;
+            color: white;
+        }
+
+        .turno-hora { font-size: 15px; }
+        .turno-sub { font-size: 11px; font-weight: normal; margin-top: 3px; opacity: 0.8; }
+
     </style>
 </head>
 <body>
@@ -223,7 +300,36 @@
     <img id="foto-establecimiento" src="" alt="Foto del establecimiento" style="display:none; width:100%; max-height:220px; object-fit:cover">
 </div>
 
+<!-- BANNER HORARIOS DE APERTURA -->
+<div class="banner-horarios" id="banner-horarios" style="display:none;">
+    <span class="banner-icono">🕐</span>
+    <span><span class="banner-label">Horarios:</span><span id="banner-texto">Cargando...</span></span>
+</div>
+
 <div class="container">
+
+    <!-- SECCIÓN 0: TURNOS FIJOS (si están configurados) -->
+    <div class="card" id="card-turnos-fijos" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+            <h2 style="margin:0;border:none;padding:0;">Turnos disponibles</h2>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button class="btn btn-primary" onclick="cambiarFechaTurnos(-1)">◀</button>
+                <span id="titulo-turnos" style="font-weight:bold;font-size:15px;min-width:160px;text-align:center;"></span>
+                <button class="btn btn-primary" onclick="cambiarFechaTurnos(1)">▶</button>
+                <button class="btn" onclick="cambiarFechaTurnos(0)" style="background:#e0e8f0;color:#2C3E50;">Hoy</button>
+            </div>
+        </div>
+        <p style="font-size:13px;color:#888;margin-bottom:8px;">
+            Hacé clic en un turno libre para pre-completar el formulario de reserva.
+        </p>
+        <div class="turnos-grid" id="turnos-grid">
+            <p class="empty">Cargando turnos...</p>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#888;">
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#e8f7ee;border:2px solid #71D997;border-radius:3px;display:inline-block;"></span>Libre</span>
+            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#fee;border:2px solid #e74c3c;border-radius:3px;display:inline-block;"></span>Ocupado</span>
+        </div>
+    </div>
 
     <!-- SECCIÓN 0: CALENDARIO -->
     <div class="card">
@@ -1329,6 +1435,8 @@ async function iniciar() {
     cargarTenant();
     cargarEspacios();
     verificarReservaPendiente();
+    cargarBannerHorarios();
+    cargarTurnosFijosPublico();
     // Poblar selects de hora con horarios del tenant
     try {
         const resH = await apiFetch(`${API}/horarios`);
@@ -1341,6 +1449,109 @@ async function iniciar() {
     } catch(e) { poblarSelectsHora([]); }
     cargarFechasBloqueadas();
     renderCalendario();
+}
+
+// ===== BANNER HORARIOS =====
+async function cargarBannerHorarios() {
+    try {
+        const res = await apiFetch(`${API}/horarios`);
+        if (!res.ok) return;
+        const horarios = await res.json();
+        const habilitados = horarios.filter(h => h.habilitado && h.hora_apertura && h.hora_cierre);
+        if (!habilitados.length) return;
+
+        const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        const banner = document.getElementById('banner-horarios');
+        const texto = document.getElementById('banner-texto');
+
+        // Agrupar días con mismo horario
+        const grupos = {};
+        habilitados.forEach(h => {
+            const key = `${h.hora_apertura.slice(0,5)}-${h.hora_cierre.slice(0,5)}`;
+            if (!grupos[key]) grupos[key] = { dias: [], apertura: h.hora_apertura.slice(0,5), cierre: h.hora_cierre.slice(0,5) };
+            grupos[key].dias.push(h.dia_semana);
+        });
+
+        texto.innerHTML = Object.values(grupos).map(g =>
+            `<span class="banner-dia">${g.dias.map(d => DIAS[d]).join(', ')} · ${g.apertura} a ${g.cierre}</span>`
+        ).join(' ');
+
+        banner.style.display = 'flex';
+    } catch(e) { console.log('Error banner horarios:', e); }
+}
+
+// ===== TURNOS FIJOS PÚBLICOS =====
+let fechaTurnos = new Date();
+
+function cambiarFechaTurnos(dir) {
+    if (dir === 0) fechaTurnos = new Date();
+    else fechaTurnos.setDate(fechaTurnos.getDate() + dir);
+    cargarTurnosFijosPublico();
+}
+
+async function cargarTurnosFijosPublico() {
+    const fechaStr = fechaTurnos.toISOString().split('T')[0];
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+    document.getElementById('titulo-turnos').textContent =
+        `${DIAS[fechaTurnos.getDay()]} ${fechaTurnos.getDate()} de ${MESES_N[fechaTurnos.getMonth()]}`;
+
+    try {
+        const res = await apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${fechaStr}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const card = document.getElementById('card-turnos-fijos');
+        const grid = document.getElementById('turnos-grid');
+
+        if (!data.turnos_fijos || !data.turnos_fijos.length) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = 'block';
+
+        grid.innerHTML = data.turnos_fijos.map(t => `
+            <div class="turno-chip ${t.libre ? 'libre' : 'ocupado'}"
+                 ${t.libre ? `onclick="seleccionarTurno('${fechaStr}', '${t.hora_inicio}', '${t.hora_fin}')"` : ''}>
+                <div class="turno-hora">${t.hora_inicio} — ${t.hora_fin}</div>
+                <div class="turno-sub">${t.libre ? '✓ Disponible' : '✗ Reservado'}</div>
+            </div>
+        `).join('');
+
+    } catch(e) {
+        document.getElementById('card-turnos-fijos').style.display = 'none';
+    }
+}
+
+function seleccionarTurno(fecha, horaInicio, horaFin) {
+    // Pre-completar el formulario de nueva reserva
+    const fechaInput = document.getElementById('fecha');
+    const horaInicioInput = document.getElementById('hora_inicio');
+    const horaFinInput = document.getElementById('hora_fin');
+
+    if (fechaInput) fechaInput.value = fecha;
+    if (horaInicioInput) horaInicioInput.value = horaInicio;
+    if (horaFinInput) horaFinInput.value = horaFin;
+
+    // Marcar el turno como seleccionado
+    document.querySelectorAll('.turno-chip').forEach(c => c.classList.remove('seleccionado'));
+    event.currentTarget.classList.add('seleccionado');
+
+    // Scroll al formulario de reserva
+    const formReserva = document.querySelector('.card h2');
+    if (formReserva) {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(c => {
+            if (c.querySelector('h2') && c.querySelector('h2').textContent.includes('Nueva reserva')) {
+                c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
+    // Disparar carga de disponibilidad
+    if (typeof cargarRecursosDisponibles === 'function') cargarRecursosDisponibles();
 }
 
 iniciar();
