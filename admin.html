@@ -1050,6 +1050,16 @@ function cargarTodo() {
     cargarPerfil();
     cargarPersonalizacion();
     cargarTicketsTenant();
+
+    // Auto-refresh cada 30 segundos: reservas y estadísticas
+    setInterval(() => {
+        cargarReservas();
+        cargarAdminStats();
+        // Si la agenda está visible, también actualizarla
+        if (document.getElementById('panel-agenda')?.classList.contains('activo')) {
+            cargarAgenda();
+        }
+    }, 30000);
     cargarFacturacionConfig();
 }
 
