@@ -529,7 +529,7 @@
 
     <!-- SECCIÓN 0: TURNOS FIJOS (si están configurados) -->
     <div class="card" id="card-turnos-fijos" style="display:none;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
             <h2 style="margin:0;border:none;padding:0;">Turnos disponibles</h2>
             <div style="display:flex;align-items:center;gap:8px;">
                 <button class="btn btn-primary" onclick="navegarTurnos(-1)">◀</button>
@@ -538,10 +538,13 @@
                 <button class="btn" onclick="navegarTurnos(0)" style="background:var(--color-secundario);color:white;">Hoy</button>
             </div>
         </div>
-        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+        <p style="font-size:13px;color:#888;margin-bottom:12px;">
             Hacé clic en un turno <span style="color:green;font-weight:bold;">verde</span> para reservarlo.
             Los turnos en <span style="color:#e74c3c;font-weight:bold;">rojo</span> ya están ocupados.
         </p>
+        <!-- Tabs de espacios (se generan dinámicamente) -->
+        <div id="turnos-espacios-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <!-- Grilla semanal (se reemplaza al cambiar de tab) -->
         <div class="turnos-semana-wrap">
             <div id="turnos-semana-grid" class="turnos-semana-grid">
                 <p class="empty">Cargando turnos...</p>
@@ -1259,7 +1262,10 @@ async function crearReserva() {
     }
 
     // Leer valores DESPUÉS de haberlos seteado
-    const espacioId = document.getElementById('espacio-id').value;
+    // En modo turno fijo, el espacio viene del turno seleccionado (no del selector de espacios)
+    const espacioId = (modoTurnoFijo && turnoFijoSeleccionado?.espacioId)
+        ? turnoFijoSeleccionado.espacioId
+        : document.getElementById('espacio-id').value;
     const nombre = document.getElementById('usuario-nombre').value.trim();
     const email = document.getElementById('usuario-email').value.trim();
     const whatsapp = document.getElementById('usuario-whatsapp').value.trim();
@@ -1913,6 +1919,7 @@ async function cargarBannerHorarios() {
 
 // ===== TURNOS FIJOS PÚBLICOS (Caso B) — VISTA SEMANAL =====
 let fechaTurnos = new Date();
+let _espacioActivoTurnos = null; // aula_id del tab activo
 
 function navegarTurnos(dir) {
     if (dir === 0) {
@@ -1920,13 +1927,80 @@ function navegarTurnos(dir) {
     } else {
         fechaTurnos.setDate(fechaTurnos.getDate() + dir * 7);
     }
-    cargarTurnosFijosPublico();
+    renderGrillaTurnos(_espacioActivoTurnos);
 }
 
 async function cargarTurnosFijosPublico() {
-    // Usar getLunes() que ya existe y funciona correctamente
-    const lunes = getLunes(fechaTurnos);
+    // Obtener todos los espacios que tienen turnos fijos
+    const resTurnos = await apiFetch(`${API}/turnos-fijos`);
+    if (!resTurnos.ok) {
+        document.getElementById('card-turnos-fijos').style.display = 'none';
+        document.getElementById('card-calendario').style.display = 'block';
+        return;
+    }
+    const turnos = await resTurnos.json();
+    if (!turnos || turnos.length === 0) {
+        document.getElementById('card-turnos-fijos').style.display = 'none';
+        document.getElementById('card-calendario').style.display = 'block';
+        return;
+    }
 
+    // Extraer espacios únicos con turnos (preservar orden de aparición)
+    const espaciosMap = {};
+    turnos.forEach(t => {
+        if (t.aula_id && !espaciosMap[t.aula_id]) {
+            espaciosMap[t.aula_id] = t.aula_id;
+        }
+    });
+    const espaciosIds = Object.keys(espaciosMap);
+
+    // Obtener nombres de espacios
+    const resEspacios = await apiFetch(`${API}/espacios`);
+    const espacios = resEspacios.ok ? await resEspacios.json() : [];
+    const espaciosConTurnos = espacios.filter(e => espaciosIds.includes(e.id));
+
+    // Construir tabs
+    const tabsEl = document.getElementById('turnos-espacios-tabs');
+    if (espaciosConTurnos.length <= 1) {
+        tabsEl.style.display = 'none';
+    } else {
+        tabsEl.style.display = 'flex';
+        tabsEl.innerHTML = espaciosConTurnos.map((e, i) => `
+            <button id="tab-espacio-${e.id}"
+                onclick="cambiarTabEspacio('${e.id}')"
+                style="padding:8px 16px;border-radius:20px;border:2px solid var(--color-primario);
+                       background:${i === 0 ? 'var(--color-primario)' : 'white'};
+                       color:${i === 0 ? 'white' : 'var(--color-primario)'};
+                       cursor:pointer;font-size:13px;font-weight:bold;transition:all 0.2s;">
+                ${e.nombre}
+            </button>
+        `).join('');
+    }
+
+    // Activar primer espacio
+    const primerEspacio = espaciosConTurnos[0];
+    _espacioActivoTurnos = primerEspacio ? primerEspacio.id : null;
+
+    document.getElementById('card-turnos-fijos').style.display = 'block';
+    const calCard = document.getElementById('card-calendario');
+    if (calCard) calCard.style.display = 'none';
+
+    await renderGrillaTurnos(_espacioActivoTurnos);
+}
+
+function cambiarTabEspacio(aulaId) {
+    _espacioActivoTurnos = aulaId;
+    // Actualizar estilos de tabs
+    document.querySelectorAll('[id^="tab-espacio-"]').forEach(btn => {
+        const isActive = btn.id === `tab-espacio-${aulaId}`;
+        btn.style.background = isActive ? 'var(--color-primario)' : 'white';
+        btn.style.color = isActive ? 'white' : 'var(--color-primario)';
+    });
+    renderGrillaTurnos(aulaId);
+}
+
+async function renderGrillaTurnos(aulaId) {
+    const lunes = getLunes(fechaTurnos);
     const DIAS_N = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const MESES_N = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
@@ -1937,49 +2011,25 @@ async function cargarTurnosFijosPublico() {
         `${lunes.getDate()} ${MESES_N[lunes.getMonth()]} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()]}`;
 
     const hoyStr = toLocalISOString(new Date());
+    const grid = document.getElementById('turnos-semana-grid');
+    grid.innerHTML = '<p class="empty">Cargando...</p>';
 
     try {
-        // Buscar si hay turnos fijos configurados — chequear con el primer día
-        const testRes = await apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${toLocalISOString(lunes)}`);
-        if (!testRes.ok) {
-            document.getElementById('card-turnos-fijos').style.display = 'none';
-            document.getElementById('card-calendario').style.display = 'block';
-            return;
-        }
-        const testData = await testRes.json();
-
-        // Si no hay turnos fijos en ningún día de la semana, ocultar panel
-        // Cargar todos los 7 días en paralelo
         const promesas = [];
         for (let i = 0; i < 7; i++) {
-            // Crear cada día desde lunes en hora local — nunca mutar lunes
             const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
             const fechaDia = toLocalISOString(dia);
+            const url = `${API}/turnos-fijos/disponibilidad?fecha=${fechaDia}${aulaId ? `&aula_id=${aulaId}` : ''}`;
             promesas.push(
-                apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${fechaDia}`)
+                apiFetch(url)
                     .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: fechaDia })
                     .catch(() => ({ turnos_fijos: [], fecha: fechaDia }))
             );
         }
 
         const resultados = await Promise.all(promesas);
-        const hayTurnos = resultados.some(r => r.turnos_fijos && r.turnos_fijos.length > 0);
 
-        if (!hayTurnos) {
-            document.getElementById('card-turnos-fijos').style.display = 'none';
-            document.getElementById('card-calendario').style.display = 'block';
-            return;
-        }
-
-        // Mostrar panel y ocultar calendario libre
-        document.getElementById('card-turnos-fijos').style.display = 'block';
-        const calCard = document.getElementById('card-calendario');
-        if (calCard) calCard.style.display = 'none';
-
-        // Construir grilla semanal
-        const grid = document.getElementById('turnos-semana-grid');
         grid.innerHTML = resultados.map((data, i) => {
-            // Crear cada día desde lunes en hora local — sin mutar lunes
             const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
             const fechaStr = toLocalISOString(dia);
             const esHoy = fechaStr === hoyStr;
@@ -1995,7 +2045,7 @@ async function cargarTurnosFijosPublico() {
                         ? `<div style="text-align:center;padding:16px 0;color:#ccc;font-size:12px;">Sin turnos</div>`
                         : turnos.map(t => `
                             <div class="turno-card ${t.libre ? 'libre' : 'ocupado'}"
-                             ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','')"` : ''}>
+                             ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','${aulaId || ''}')"` : ''}>
                                 <div class="turno-card-hora ${t.libre ? '' : 'ocupado'}">
                                     ${t.hora_inicio}<br>—<br>${t.hora_fin}
                                 </div>
@@ -2013,8 +2063,8 @@ async function cargarTurnosFijosPublico() {
         }).join('');
 
     } catch(e) {
-        console.error('Error cargando turnos:', e);
-        document.getElementById('card-turnos-fijos').style.display = 'none';
+        console.error('Error cargando grilla:', e);
+        grid.innerHTML = '<p class="empty">Error al cargar los turnos</p>';
     }
 }
 

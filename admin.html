@@ -406,38 +406,49 @@
 
             <div id="seccion-turnos" style="display:none;">
                 <p style="font-size:13px;color:#888;margin-bottom:16px;">
-                    Cargá los turnos predefinidos. Tus clientes verán qué turnos están libres y cuáles ocupados, 
+                    Cargá los turnos predefinidos por espacio. Tus clientes verán qué turnos están libres y cuáles ocupados, 
                     y podrán elegir uno con un clic.
                 </p>
 
-            <div style="display:grid;grid-template-columns:auto auto auto auto;gap:10px;align-items:end;margin-bottom:16px;max-width:500px;">
-                <div>
-                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Día</label>
-                    <select id="turno-dia" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
-                        <option value="0">Domingo</option>
-                        <option value="1">Lunes</option>
-                        <option value="2">Martes</option>
-                        <option value="3">Miércoles</option>
-                        <option value="4">Jueves</option>
-                        <option value="5">Viernes</option>
-                        <option value="6">Sábado</option>
-                    </select>
+                <!-- Selector de espacio + formulario de turno -->
+                <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
+                    <p style="font-size:13px;font-weight:bold;color:#2C3E50;margin:0 0 12px;">Agregar turno</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end;">
+                        <div>
+                            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Espacio</label>
+                            <select id="turno-espacio" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                                <option value="">-- Seleccioná --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Día</label>
+                            <select id="turno-dia" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                                <option value="1">Lunes</option>
+                                <option value="2">Martes</option>
+                                <option value="3">Miércoles</option>
+                                <option value="4">Jueves</option>
+                                <option value="5">Viernes</option>
+                                <option value="6">Sábado</option>
+                                <option value="0">Domingo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Inicio</label>
+                            <input type="time" id="turno-inicio" value="09:00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Fin</label>
+                            <input type="time" id="turno-fin" value="11:00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                        </div>
+                        <button class="btn btn-primary" onclick="agregarTurnoFijo()" style="padding:8px 16px;font-size:13px;white-space:nowrap;">
+                            + Agregar
+                        </button>
+                    </div>
                 </div>
-                <div>
-                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Inicio</label>
-                    <input type="time" id="turno-inicio" value="09:00" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
-                </div>
-                <div>
-                    <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Fin</label>
-                    <input type="time" id="turno-fin" value="11:00" style="padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
-                </div>
-                <button class="btn btn-primary" onclick="agregarTurnoFijo()" style="padding:8px 16px;font-size:13px;">
-                    + Agregar
-                </button>
-            </div>
 
-            <div id="lista-turnos-fijos"><p class="empty">Cargando...</p></div>
-            <div class="mensaje" id="mensaje-turnos"></div>
+                <!-- Lista de turnos agrupada por espacio -->
+                <div id="lista-turnos-fijos"><p class="empty">Cargando...</p></div>
+                <div class="mensaje" id="mensaje-turnos"></div>
             </div><!-- /seccion-turnos -->
         </div>
     </div>
@@ -2407,66 +2418,96 @@ function setModo(modo) {
 const DIAS_NOMBRES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
 async function cargarTurnosFijos() {
+    // Cargar espacios en el selector
+    try {
+        const resEspacios = await apiFetch(`${API}/espacios`);
+        if (resEspacios.ok) {
+            const espacios = await resEspacios.json();
+            const sel = document.getElementById('turno-espacio');
+            sel.innerHTML = '<option value="">-- Seleccioná un espacio --</option>' +
+                espacios.filter(e => e.activo).map(e =>
+                    `<option value="${e.id}">${e.nombre}</option>`
+                ).join('');
+        }
+    } catch(e) {}
+
+    // Cargar turnos agrupados por espacio
     try {
         const res = await apiFetch(`${API}/admin/turnos-fijos`);
         const turnos = await res.json();
         const lista = document.getElementById('lista-turnos-fijos');
 
         if (!turnos.length) {
-            lista.innerHTML = '<p class="empty">No hay turnos fijos configurados. Los clientes podrán reservar libremente.</p>';
+            lista.innerHTML = '<p class="empty">No hay turnos fijos configurados. Elegí un espacio y agregá turnos arriba.</p>';
             return;
         }
 
-        // Agrupar por día
-        const porDia = {};
+        // Agrupar por espacio
+        const porEspacio = {};
         turnos.forEach(t => {
-            if (!porDia[t.dia_semana]) porDia[t.dia_semana] = [];
-            porDia[t.dia_semana].push(t);
+            const key = t.espacio_nombre || 'Sin espacio';
+            if (!porEspacio[key]) porEspacio[key] = [];
+            porEspacio[key].push(t);
         });
 
-        lista.innerHTML = Object.entries(porDia).sort(([a],[b]) => a-b).map(([dia, ts]) => `
-            <div style="margin-bottom:12px;">
-                <div style="font-weight:bold;font-size:13px;color:#2C3E50;margin-bottom:6px;">${DIAS_NOMBRES[dia]}</div>
-                ${ts.map(t => `
-                    <div class="turno-fijo-row">
-                        <div class="dia-nombre" style="min-width:auto;font-weight:normal;">
-                            🕐 ${t.hora_inicio.slice(0,5)} — ${t.hora_fin.slice(0,5)}
+        lista.innerHTML = Object.entries(porEspacio).map(([espacio, ts]) => {
+            // Agrupar por día dentro de cada espacio
+            const porDia = {};
+            ts.forEach(t => {
+                if (!porDia[t.dia_semana]) porDia[t.dia_semana] = [];
+                porDia[t.dia_semana].push(t);
+            });
+
+            return `
+            <div style="margin-bottom:20px;border:1px solid #e0e8f0;border-radius:10px;overflow:hidden;">
+                <div style="background:#2C3E50;color:white;padding:10px 16px;font-weight:bold;font-size:14px;">
+                    🏢 ${espacio}
+                </div>
+                <div style="padding:12px 16px;">
+                    ${Object.entries(porDia).sort(([a],[b]) => a-b).map(([dia, dts]) => `
+                        <div style="margin-bottom:10px;">
+                            <div style="font-weight:bold;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${DIAS_NOMBRES[dia]}</div>
+                            ${dts.map(t => `
+                                <div class="turno-fijo-row">
+                                    <div style="font-size:14px;">🕐 ${t.hora_inicio.slice(0,5)} — ${t.hora_fin.slice(0,5)}</div>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span style="font-size:12px;color:${t.activo ? '#27ae60' : '#e74c3c'};">
+                                            ${t.activo ? '● Activo' : '● Inactivo'}
+                                        </span>
+                                        <button class="btn" style="padding:4px 10px;font-size:12px;"
+                                            onclick="toggleTurno('${t.id}', ${!t.activo})">
+                                            ${t.activo ? 'Desactivar' : 'Activar'}
+                                        </button>
+                                        <button class="btn" style="padding:4px 10px;font-size:12px;background:#e74c3c;color:white;"
+                                            onclick="eliminarTurno('${t.id}')">🗑</button>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:12px;color:${t.activo ? '#27ae60' : '#e74c3c'};">
-                                ${t.activo ? '● Activo' : '● Inactivo'}
-                            </span>
-                            <button class="btn" style="padding:4px 10px;font-size:12px;" 
-                                onclick="toggleTurno('${t.id}', ${!t.activo})">
-                                ${t.activo ? 'Desactivar' : 'Activar'}
-                            </button>
-                            <button class="btn" style="padding:4px 10px;font-size:12px;background:#e74c3c;color:white;" 
-                                onclick="eliminarTurno('${t.id}')">
-                                🗑
-                            </button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `).join('');
+                    `).join('')}
+                </div>
+            </div>`;
+        }).join('');
     } catch(e) {
         document.getElementById('lista-turnos-fijos').innerHTML = '<p class="empty">Error al cargar turnos</p>';
     }
 }
 
 async function agregarTurnoFijo() {
+    const espacioId = document.getElementById('turno-espacio').value;
     const dia = parseInt(document.getElementById('turno-dia').value);
     const inicio = document.getElementById('turno-inicio').value;
     const fin = document.getElementById('turno-fin').value;
 
-    if (!inicio || !fin) { alert('Completá hora de inicio y fin'); return; }
-    if (inicio >= fin) { alert('La hora de fin debe ser posterior a la de inicio'); return; }
+    if (!espacioId) { mostrarMensaje('mensaje-turnos', '❌ Seleccioná un espacio', 'error'); return; }
+    if (!inicio || !fin) { mostrarMensaje('mensaje-turnos', '❌ Completá hora de inicio y fin', 'error'); return; }
+    if (inicio >= fin) { mostrarMensaje('mensaje-turnos', '❌ La hora de fin debe ser posterior al inicio', 'error'); return; }
 
     try {
         const res = await apiFetch(`${API}/admin/turnos-fijos`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ dia_semana: dia, hora_inicio: inicio, hora_fin: fin })
+            body: JSON.stringify({ aula_id: espacioId, dia_semana: dia, hora_inicio: inicio, hora_fin: fin })
         });
         if (res.ok) {
             mostrarMensaje('mensaje-turnos', '✅ Turno agregado correctamente', 'exito');
