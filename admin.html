@@ -2707,7 +2707,30 @@ async function cargarAgenda() {
             const reservasDia = reservas.filter(r => r.fecha === fecha);
             const fechaObj = new Date(fecha + 'T00:00:00');
             const diaSemana = fechaObj.getDay();
-            const turnosDia = turnosFijos.filter(t => t.dia_semana == diaSemana && t.activo);
+
+            // Turnos recurrentes del día de la semana (sin fecha_especifica, sin excepción)
+            const recurrentes = turnosFijos.filter(t =>
+                !t.fecha_especifica && !t.es_excepcion &&
+                t.dia_semana == diaSemana && t.activo
+            );
+
+            // Turnos puntuales para esta fecha exacta
+            const puntuales = turnosFijos.filter(t =>
+                t.fecha_especifica === fecha && !t.es_excepcion && t.activo
+            );
+
+            // Excepciones para esta fecha (anulaciones de recurrentes)
+            const excepcionesHoras = new Set(
+                turnosFijos
+                    .filter(t => t.fecha_especifica === fecha && t.es_excepcion)
+                    .map(t => t.hora_inicio.slice(0,5))
+            );
+
+            // Combinar: recurrentes sin excepción + puntuales
+            const turnosDia = [
+                ...recurrentes.filter(t => !excepcionesHoras.has(t.hora_inicio.slice(0,5))),
+                ...puntuales
+            ];
 
             if (!reservasDia.length && !turnosDia.length) return '';
 

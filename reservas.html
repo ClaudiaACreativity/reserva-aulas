@@ -1114,11 +1114,44 @@ async function cargarEspacios() {
     }
 }
 
-function seleccionarEspacio(id, nombre, el) {
+async function seleccionarEspacio(id, nombre, el) {
     document.querySelectorAll('.espacio-card').forEach(c => c.classList.remove('seleccionada'));
     el.classList.add('seleccionada');
     document.getElementById('espacio-id').value = id;
     document.getElementById('espacio-nombre').value = nombre;
+
+    // Verificar si este espacio tiene turnos fijos configurados
+    try {
+        const res = await apiFetch(`${API}/turnos-fijos?aula_id=${id}`);
+        const turnos = res.ok ? await res.json() : [];
+        if (turnos && turnos.length > 0) {
+            // Espacio con turnos fijos — mostrar grilla
+            document.getElementById('grupo-fecha').style.display = 'none';
+            document.getElementById('grupo-hora-inicio').style.display = 'none';
+            document.getElementById('grupo-hora-fin').style.display = 'none';
+            document.getElementById('card-calendario').style.display = 'none';
+            _espacioActivoTurnos = id;
+            document.getElementById('card-turnos-fijos').style.display = 'block';
+            // Ocultar tabs si solo hay un espacio con turnos
+            document.getElementById('turnos-espacios-tabs').style.display = 'none';
+            await renderGrillaTurnos(id);
+        } else {
+            // Espacio sin turnos fijos — mostrar calendario libre
+            document.getElementById('grupo-fecha').style.display = '';
+            document.getElementById('grupo-hora-inicio').style.display = '';
+            document.getElementById('grupo-hora-fin').style.display = '';
+            document.getElementById('card-turnos-fijos').style.display = 'none';
+            document.getElementById('card-calendario').style.display = 'block';
+            renderCalendario();
+        }
+    } catch(e) {
+        // En caso de error, mostrar calendario libre
+        document.getElementById('grupo-fecha').style.display = '';
+        document.getElementById('grupo-hora-inicio').style.display = '';
+        document.getElementById('grupo-hora-fin').style.display = '';
+        document.getElementById('card-turnos-fijos').style.display = 'none';
+        document.getElementById('card-calendario').style.display = 'block';
+    }
 }
 
 // ===== CREAR RESERVA =====
