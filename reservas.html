@@ -2025,8 +2025,11 @@ async function iniciar() {
         if (resTurnos.ok) {
             const turnos = await resTurnos.json();
             if (turnos && turnos.length > 0) {
-                // Caso B: hay turnos fijos — mostrar grilla semanal
+                // Caso B: hay turnos fijos — mostrar grilla semanal y ocultar campos fecha/hora
                 document.getElementById('card-calendario').style.display = 'none';
+                document.getElementById('grupo-fecha').style.display = 'none';
+                document.getElementById('grupo-hora-inicio').style.display = 'none';
+                document.getElementById('grupo-hora-fin').style.display = 'none';
                 cargarTurnosFijosPublico();
             } else {
                 // Caso A: sin turnos — mostrar calendario libre
