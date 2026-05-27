@@ -299,6 +299,7 @@ class ReservaCreate(BaseModel):
     recursos: Optional[list] = None         # [{"recurso_id": "...", "cantidad": 2}]
     # Comprobante de transferencia
     comprobante_url: Optional[str] = None
+    es_transferencia: bool = False  # True cuando el pago es por transferencia manual
 
 class CancelarReserva(BaseModel):
     reserva_id: str
@@ -823,14 +824,17 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                 detail="Ese horario ya está reservado o está siendo procesado"
             )
 
+        # Estado inicial: pending_payment para transferencias, activa para el resto
+        estado_inicial = 'pending_payment' if reserva.es_transferencia else 'activa'
+
         result = await db.fetchrow(
             """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id,
-                                     invitado_nombre, invitado_email, invitado_whatsapp, comprobante_url)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+                                     invitado_nombre, invitado_email, invitado_whatsapp, comprobante_url, estado)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id""",
             reserva.espacio_id, reserva.usuario_id, reserva.fecha,
             reserva.hora_inicio, reserva.hora_fin, tid,
             reserva.invitado_nombre, reserva.invitado_email, reserva.invitado_whatsapp,
-            reserva.comprobante_url
+            reserva.comprobante_url, estado_inicial
         )
         reserva_id = result["id"]
 
@@ -1697,7 +1701,7 @@ async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
                       COALESCE(u.email, r.invitado_email) as cliente_email,
                       COALESCE(u.whatsapp, r.invitado_whatsapp) as cliente_whatsapp,
                       a.nombre as espacio_nombre,
-                      r.monto, r.mp_payment_id
+                      r.monto, r.mp_payment_id, r.comprobante_url
                FROM reservas r
                LEFT JOIN usuarios u ON r.usuario_id = u.id
                LEFT JOIN aulas a ON r.aula_id = a.id

@@ -2795,11 +2795,29 @@ async function cargarAgenda() {
                                 }
                             </div>
                             ${s.reserva ? `
-                                <span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${
-                                    s.reserva.estado === 'activa' ? '#e8f7ee' : '#fff3e0'
-                                };color:${
-                                    s.reserva.estado === 'activa' ? '#27ae60' : '#e67e22'
-                                };">${s.reserva.estado}</span>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <span style="font-size:11px;padding:3px 8px;border-radius:10px;background:${
+                                        s.reserva.estado === 'activa' ? '#e8f7ee' :
+                                        s.reserva.estado === 'pending_payment' ? '#fff3e0' : '#f0f0f0'
+                                    };color:${
+                                        s.reserva.estado === 'activa' ? '#27ae60' :
+                                        s.reserva.estado === 'pending_payment' ? '#e67e22' : '#888'
+                                    };">${s.reserva.estado === 'pending_payment' ? '⏳ Pago pendiente' : s.reserva.estado}</span>
+                                    ${s.reserva.comprobante_url ? `
+                                        <a href="${s.reserva.comprobante_url}" target="_blank"
+                                            style="font-size:11px;padding:3px 8px;border-radius:10px;background:#e8f0ff;color:#2c5fc1;text-decoration:none;font-weight:bold;">
+                                            📎 Ver comprobante
+                                        </a>` : ''}
+                                    ${s.reserva.estado === 'pending_payment' ? `
+                                        <button onclick="confirmarPagoTransferencia('${s.reserva.id}')"
+                                            style="font-size:11px;padding:3px 10px;border-radius:10px;background:#27ae60;color:white;border:none;cursor:pointer;font-weight:bold;">
+                                            ✅ Confirmar pago
+                                        </button>
+                                        <button onclick="cancelarReservaAdmin('${s.reserva.id}')"
+                                            style="font-size:11px;padding:3px 10px;border-radius:10px;background:#e74c3c;color:white;border:none;cursor:pointer;font-weight:bold;">
+                                            ✕ Rechazar
+                                        </button>` : ''}
+                                </div>
                             ` : ''}
                         </div>
                     `).join('')}
