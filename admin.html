@@ -413,14 +413,32 @@
                 <!-- Selector de espacio + formulario de turno -->
                 <div style="background:#f8fafc;border:1px solid #e0e8f0;border-radius:10px;padding:16px;margin-bottom:20px;">
                     <p style="font-size:13px;font-weight:bold;color:#2C3E50;margin:0 0 12px;">Agregar turno</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end;">
-                        <div>
+
+                    <!-- Tipo de turno -->
+                    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                        <button id="tipo-btn-recurrente" onclick="setTipoTurno('recurrente')"
+                            style="padding:7px 14px;border-radius:20px;border:2px solid #2C3E50;background:#2C3E50;color:white;cursor:pointer;font-size:12px;font-weight:bold;">
+                            🔁 Recurrente
+                        </button>
+                        <button id="tipo-btn-puntual" onclick="setTipoTurno('puntual')"
+                            style="padding:7px 14px;border-radius:20px;border:2px solid #2C3E50;background:white;color:#2C3E50;cursor:pointer;font-size:12px;font-weight:bold;">
+                            📅 Fecha específica
+                        </button>
+                        <button id="tipo-btn-excepcion" onclick="setTipoTurno('excepcion')"
+                            style="padding:7px 14px;border-radius:20px;border:2px solid #e74c3c;background:white;color:#e74c3c;cursor:pointer;font-size:12px;font-weight:bold;">
+                            🚫 Anular turno
+                        </button>
+                    </div>
+                    <p id="tipo-turno-desc" style="font-size:12px;color:#888;margin:0 0 12px;">Se repite todas las semanas en el día seleccionado.</p>
+
+                    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:140px;">
                             <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Espacio</label>
                             <select id="turno-espacio" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
                                 <option value="">-- Seleccioná --</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="campo-dia-semana" style="flex:1;min-width:120px;">
                             <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Día</label>
                             <select id="turno-dia" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
                                 <option value="1">Lunes</option>
@@ -432,15 +450,19 @@
                                 <option value="0">Domingo</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="campo-fecha-especifica" style="display:none;flex:1;min-width:140px;">
+                            <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Fecha</label>
+                            <input type="date" id="turno-fecha" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
+                        </div>
+                        <div id="campo-inicio" style="flex:1;min-width:110px;">
                             <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Inicio</label>
                             <input type="time" id="turno-inicio" value="09:00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
                         </div>
-                        <div>
+                        <div id="campo-fin" style="flex:1;min-width:110px;">
                             <label style="font-size:12px;color:#888;display:block;margin-bottom:4px;">Fin</label>
                             <input type="time" id="turno-fin" value="11:00" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;">
                         </div>
-                        <button class="btn btn-primary" onclick="agregarTurnoFijo()" style="padding:8px 16px;font-size:13px;white-space:nowrap;">
+                        <button class="btn btn-primary" onclick="agregarTurnoFijo()" style="padding:9px 16px;font-size:13px;white-space:nowrap;">
                             + Agregar
                         </button>
                     </div>
@@ -2416,6 +2438,53 @@ function setModo(modo) {
 
 // ===== TURNOS FIJOS =====
 const DIAS_NOMBRES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+let _tipoTurno = 'recurrente'; // 'recurrente' | 'puntual' | 'excepcion'
+
+function setTipoTurno(tipo) {
+    _tipoTurno = tipo;
+    const descs = {
+        recurrente: 'Se repite todas las semanas en el día seleccionado.',
+        puntual: 'Solo existe en esa fecha específica, no se repite.',
+        excepcion: 'Anula un turno recurrente para esa fecha específica (ej. feriado).'
+    };
+    document.getElementById('tipo-turno-desc').textContent = descs[tipo];
+
+    // Campos
+    const camposDia = document.getElementById('campo-dia-semana');
+    const campoFecha = document.getElementById('campo-fecha-especifica');
+    const campoInicio = document.getElementById('campo-inicio');
+    const campoFin = document.getElementById('campo-fin');
+
+    if (tipo === 'recurrente') {
+        camposDia.style.display = '';
+        campoFecha.style.display = 'none';
+        campoInicio.style.display = '';
+        campoFin.style.display = '';
+    } else if (tipo === 'puntual') {
+        camposDia.style.display = 'none';
+        campoFecha.style.display = '';
+        campoInicio.style.display = '';
+        campoFin.style.display = '';
+    } else { // excepcion
+        camposDia.style.display = 'none';
+        campoFecha.style.display = '';
+        campoInicio.style.display = '';
+        campoFin.style.display = '';
+    }
+
+    // Estilos de botones
+    ['recurrente','puntual','excepcion'].forEach(t => {
+        const btn = document.getElementById(`tipo-btn-${t}`);
+        const esActivo = t === tipo;
+        if (t === 'excepcion') {
+            btn.style.background = esActivo ? '#e74c3c' : 'white';
+            btn.style.color = esActivo ? 'white' : '#e74c3c';
+        } else {
+            btn.style.background = esActivo ? '#2C3E50' : 'white';
+            btn.style.color = esActivo ? 'white' : '#2C3E50';
+        }
+    });
+}
 
 async function cargarTurnosFijos() {
     // Cargar espacios en el selector
@@ -2467,22 +2536,34 @@ async function cargarTurnosFijos() {
                     ${Object.entries(porDia).sort(([a],[b]) => a-b).map(([dia, dts]) => `
                         <div style="margin-bottom:10px;">
                             <div style="font-weight:bold;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${DIAS_NOMBRES[dia]}</div>
-                            ${dts.map(t => `
+                            ${dts.map(t => {
+                                const esPuntual = t.fecha_especifica;
+                                const esExcepcion = t.es_excepcion;
+                                const badge = esExcepcion
+                                    ? `<span style="font-size:11px;background:#fde8e8;color:#c0392b;padding:2px 7px;border-radius:10px;font-weight:bold;">🚫 Anulado ${t.fecha_especifica}</span>`
+                                    : esPuntual
+                                    ? `<span style="font-size:11px;background:#e8f0ff;color:#2c5fc1;padding:2px 7px;border-radius:10px;font-weight:bold;">📅 ${t.fecha_especifica}</span>`
+                                    : `<span style="font-size:11px;background:#e8f7ee;color:#1a6b3a;padding:2px 7px;border-radius:10px;font-weight:bold;">🔁 Recurrente</span>`;
+                                return `
                                 <div class="turno-fijo-row">
-                                    <div style="font-size:14px;">🕐 ${t.hora_inicio.slice(0,5)} — ${t.hora_fin.slice(0,5)}</div>
+                                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                        <span style="font-size:14px;">🕐 ${t.hora_inicio.slice(0,5)} — ${t.hora_fin.slice(0,5)}</span>
+                                        ${badge}
+                                    </div>
                                     <div style="display:flex;align-items:center;gap:8px;">
+                                        ${!esExcepcion ? `
                                         <span style="font-size:12px;color:${t.activo ? '#27ae60' : '#e74c3c'};">
                                             ${t.activo ? '● Activo' : '● Inactivo'}
                                         </span>
                                         <button class="btn" style="padding:4px 10px;font-size:12px;"
                                             onclick="toggleTurno('${t.id}', ${!t.activo})">
                                             ${t.activo ? 'Desactivar' : 'Activar'}
-                                        </button>
+                                        </button>` : ''}
                                         <button class="btn" style="padding:4px 10px;font-size:12px;background:#e74c3c;color:white;"
                                             onclick="eliminarTurno('${t.id}')">🗑</button>
                                     </div>
-                                </div>
-                            `).join('')}
+                                </div>`;
+                            }).join('')}
                         </div>
                     `).join('')}
                 </div>
@@ -2495,7 +2576,6 @@ async function cargarTurnosFijos() {
 
 async function agregarTurnoFijo() {
     const espacioId = document.getElementById('turno-espacio').value;
-    const dia = parseInt(document.getElementById('turno-dia').value);
     const inicio = document.getElementById('turno-inicio').value;
     const fin = document.getElementById('turno-fin').value;
 
@@ -2503,14 +2583,31 @@ async function agregarTurnoFijo() {
     if (!inicio || !fin) { mostrarMensaje('mensaje-turnos', '❌ Completá hora de inicio y fin', 'error'); return; }
     if (inicio >= fin) { mostrarMensaje('mensaje-turnos', '❌ La hora de fin debe ser posterior al inicio', 'error'); return; }
 
+    const payload = {
+        aula_id: espacioId,
+        hora_inicio: inicio,
+        hora_fin: fin,
+        es_excepcion: _tipoTurno === 'excepcion'
+    };
+
+    if (_tipoTurno === 'recurrente') {
+        payload.dia_semana = parseInt(document.getElementById('turno-dia').value);
+    } else {
+        const fecha = document.getElementById('turno-fecha').value;
+        if (!fecha) { mostrarMensaje('mensaje-turnos', '❌ Seleccioná una fecha', 'error'); return; }
+        payload.fecha_especifica = fecha;
+    }
+
     try {
         const res = await apiFetch(`${API}/admin/turnos-fijos`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ aula_id: espacioId, dia_semana: dia, hora_inicio: inicio, hora_fin: fin })
+            body: JSON.stringify(payload)
         });
         if (res.ok) {
-            mostrarMensaje('mensaje-turnos', '✅ Turno agregado correctamente', 'exito');
+            const label = _tipoTurno === 'excepcion' ? 'Anulación registrada' :
+                          _tipoTurno === 'puntual' ? 'Turno puntual agregado' : 'Turno recurrente agregado';
+            mostrarMensaje('mensaje-turnos', `✅ ${label} correctamente`, 'exito');
             cargarTurnosFijos();
         } else {
             const data = await res.json();

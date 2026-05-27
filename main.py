@@ -1409,15 +1409,18 @@ async def actualizar_horario(request: Request, dia_semana: int, datos: HorarioUp
 
 class TurnoFijoCreate(BaseModel):
     aula_id: str
-    dia_semana: int
+    dia_semana: Optional[int] = None       # None si es puntual con fecha_especifica
     hora_inicio: str
     hora_fin: str
     activo: bool = True
+    fecha_especifica: Optional[date] = None  # Si tiene fecha, es turno puntual (no recurrente)
+    es_excepcion: bool = False               # True = anulación de turno recurrente ese día
 
 class TurnoFijoUpdate(BaseModel):
     hora_inicio: Optional[str] = None
     hora_fin: Optional[str] = None
     activo: Optional[bool] = None
+    es_excepcion: Optional[bool] = None
 
 
 @app.get("/turnos-fijos")
@@ -1450,47 +1453,68 @@ async def listar_turnos_fijos_publico(request: Request, aula_id: Optional[str] =
 @app.get("/turnos-fijos/disponibilidad")
 async def turnos_disponibilidad(request: Request, fecha: str, aula_id: Optional[str] = None):
     """
-    Devuelve los turnos fijos del día con estado: libre o reservado, filtrados por espacio.
+    Devuelve los turnos del día con estado: libre o reservado.
+    Combina turnos recurrentes (por dia_semana) y puntuales (fecha_especifica).
+    Aplica excepciones (es_excepcion=True) que anulan turnos recurrentes.
     """
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
         fecha_obj = date.fromisoformat(fecha)
         dia_semana = fecha_obj.weekday()
-        dia_js = (dia_semana + 1) % 7
+        dia_js = (dia_semana + 1) % 7  # Python 0=lunes → JS 1=lunes, 0=domingo
 
-        # Turnos fijos del día para el espacio indicado
-        if aula_id:
-            turnos = await db.fetch(
-                """SELECT id, aula_id::text, hora_inicio::text, hora_fin::text
-                   FROM turnos_fijos
-                   WHERE tenant_id = $1 AND aula_id = $2 AND dia_semana = $3 AND activo = TRUE
-                   ORDER BY hora_inicio""",
-                tenant["id"], aula_id, dia_js
-            )
-        else:
-            turnos = await db.fetch(
-                """SELECT id, aula_id::text, hora_inicio::text, hora_fin::text
-                   FROM turnos_fijos
-                   WHERE tenant_id = $1 AND dia_semana = $2 AND activo = TRUE
-                   ORDER BY hora_inicio""",
-                tenant["id"], dia_js
-            )
+        aula_filtro = f"AND tf.aula_id = '{aula_id}'" if aula_id else ""
 
-        # Reservas confirmadas/pendientes del día (filtradas por espacio si corresponde)
+        # Obtener todos los turnos relevantes para este día:
+        # 1. Recurrentes que coinciden con el día de la semana (sin fecha_especifica)
+        # 2. Puntuales para esta fecha exacta
+        # 3. Excepciones para esta fecha exacta (para anular recurrentes)
+        turnos_raw = await db.fetch(
+            f"""SELECT tf.id, tf.aula_id::text, tf.dia_semana,
+                       tf.hora_inicio::text, tf.hora_fin::text,
+                       tf.activo, tf.fecha_especifica::text, tf.es_excepcion
+                FROM turnos_fijos tf
+                WHERE tf.tenant_id = $1
+                  AND tf.activo = TRUE
+                  {aula_filtro}
+                  AND (
+                      -- Recurrentes del día de la semana
+                      (tf.fecha_especifica IS NULL AND tf.dia_semana = $2 AND tf.es_excepcion = FALSE)
+                      OR
+                      -- Puntuales para esta fecha
+                      (tf.fecha_especifica = $3 AND tf.es_excepcion = FALSE)
+                      OR
+                      -- Excepciones para esta fecha (anulaciones)
+                      (tf.fecha_especifica = $3 AND tf.es_excepcion = TRUE)
+                  )
+                ORDER BY tf.hora_inicio""",
+            tenant["id"], dia_js, fecha_obj
+        )
+
+        # Separar excepciones de turnos normales
+        excepciones_horas = set()
+        turnos_normales = []
+        for t in turnos_raw:
+            if t["es_excepcion"]:
+                excepciones_horas.add(t["hora_inicio"][:5])
+            else:
+                turnos_normales.append(t)
+
+        # Filtrar turnos recurrentes que tienen excepción este día
+        turnos = [t for t in turnos_normales if t["hora_inicio"][:5] not in excepciones_horas]
+
+        # Reservas del día para este espacio
         if aula_id:
             reservas = await db.fetch(
                 """SELECT r.hora_inicio::text, r.hora_fin::text,
                           COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre,
                           COALESCE(u.email, r.invitado_email) as cliente_email,
-                          r.estado, r.id as reserva_id,
-                          a.nombre as espacio_nombre
+                          r.estado, r.id as reserva_id, a.nombre as espacio_nombre
                    FROM reservas r
                    LEFT JOIN usuarios u ON r.usuario_id = u.id
                    LEFT JOIN aulas a ON r.aula_id = a.id
-                   WHERE r.tenant_id = $1
-                   AND r.aula_id = $2
-                   AND r.fecha = $3
+                   WHERE r.tenant_id = $1 AND r.aula_id = $2 AND r.fecha = $3
                    AND r.estado NOT IN ('cancelada', 'expirada')
                    ORDER BY r.hora_inicio""",
                 tenant["id"], aula_id, fecha_obj
@@ -1500,13 +1524,11 @@ async def turnos_disponibilidad(request: Request, fecha: str, aula_id: Optional[
                 """SELECT r.hora_inicio::text, r.hora_fin::text,
                           COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre,
                           COALESCE(u.email, r.invitado_email) as cliente_email,
-                          r.estado, r.id as reserva_id,
-                          a.nombre as espacio_nombre
+                          r.estado, r.id as reserva_id, a.nombre as espacio_nombre
                    FROM reservas r
                    LEFT JOIN usuarios u ON r.usuario_id = u.id
                    LEFT JOIN aulas a ON r.aula_id = a.id
-                   WHERE r.tenant_id = $1
-                   AND r.fecha = $2
+                   WHERE r.tenant_id = $1 AND r.fecha = $2
                    AND r.estado NOT IN ('cancelada', 'expirada')
                    ORDER BY r.hora_inicio""",
                 tenant["id"], fecha_obj
@@ -1517,8 +1539,7 @@ async def turnos_disponibilidad(request: Request, fecha: str, aula_id: Optional[
         resultado_turnos = []
         for t in turnos:
             turno_ocupado = next(
-                (r for r in reservas_dict
-                 if r["hora_inicio"][:5] == t["hora_inicio"][:5]),
+                (r for r in reservas_dict if r["hora_inicio"][:5] == t["hora_inicio"][:5]),
                 None
             )
             resultado_turnos.append({
@@ -1527,6 +1548,7 @@ async def turnos_disponibilidad(request: Request, fecha: str, aula_id: Optional[
                 "hora_inicio": t["hora_inicio"][:5],
                 "hora_fin": t["hora_fin"][:5],
                 "libre": turno_ocupado is None,
+                "es_puntual": t["fecha_especifica"] is not None,
                 "reserva": turno_ocupado
             })
 
@@ -1549,11 +1571,12 @@ async def admin_listar_turnos_fijos(request: Request):
         turnos = await db.fetch(
             """SELECT tf.id, tf.aula_id::text, tf.dia_semana,
                       tf.hora_inicio::text, tf.hora_fin::text, tf.activo,
+                      tf.fecha_especifica::text, tf.es_excepcion,
                       a.nombre as espacio_nombre
                FROM turnos_fijos tf
                LEFT JOIN aulas a ON tf.aula_id = a.id
                WHERE tf.tenant_id = $1
-               ORDER BY a.nombre, tf.dia_semana, tf.hora_inicio""",
+               ORDER BY a.nombre, tf.fecha_especifica NULLS LAST, tf.dia_semana, tf.hora_inicio""",
             tenant["id"]
         )
         return [dict(t) for t in turnos]
@@ -1563,7 +1586,7 @@ async def admin_listar_turnos_fijos(request: Request):
 
 @app.post("/admin/turnos-fijos")
 async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
-    """Crea un turno fijo para un espacio específico."""
+    """Crea un turno fijo para un espacio específico. Puede ser recurrente, puntual o excepción."""
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
@@ -1571,6 +1594,10 @@ async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
         def parse_time(t):
             h, m = map(int, t.split(':')[:2])
             return time_type(h, m)
+
+        # Validar: necesita día_semana (recurrente) o fecha_especifica (puntual)
+        if datos.fecha_especifica is None and datos.dia_semana is None:
+            raise HTTPException(status_code=400, detail="Indicá día de la semana o fecha específica")
 
         # Verificar que el espacio pertenece al tenant
         espacio = await db.fetchrow(
@@ -1580,12 +1607,21 @@ async def admin_crear_turno_fijo(request: Request, datos: TurnoFijoCreate):
         if not espacio:
             raise HTTPException(status_code=404, detail="Espacio no encontrado")
 
+        # Para turnos recurrentes: si no viene dia_semana pero sí fecha, calcular el dia_semana
+        dia_semana = datos.dia_semana
+        if dia_semana is None and datos.fecha_especifica:
+            # Python weekday(): 0=lunes. Nuestra convención JS: 0=domingo, 1=lunes...
+            dia_semana = (datos.fecha_especifica.weekday() + 1) % 7
+
         turno = await db.fetchrow(
-            """INSERT INTO turnos_fijos (tenant_id, aula_id, dia_semana, hora_inicio, hora_fin, activo)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING id, aula_id::text, dia_semana, hora_inicio::text, hora_fin::text, activo""",
-            tenant["id"], datos.aula_id, datos.dia_semana,
-            parse_time(datos.hora_inicio), parse_time(datos.hora_fin), datos.activo
+            """INSERT INTO turnos_fijos
+               (tenant_id, aula_id, dia_semana, hora_inicio, hora_fin, activo, fecha_especifica, es_excepcion)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               RETURNING id, aula_id::text, dia_semana, hora_inicio::text, hora_fin::text,
+                         activo, fecha_especifica::text, es_excepcion""",
+            tenant["id"], datos.aula_id, dia_semana,
+            parse_time(datos.hora_inicio), parse_time(datos.hora_fin),
+            datos.activo, datos.fecha_especifica, datos.es_excepcion
         )
         result = dict(turno)
         result["espacio_nombre"] = espacio["nombre"]
