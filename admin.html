@@ -2425,7 +2425,7 @@ async function cargarTurnosFijos() {
             const espacios = await resEspacios.json();
             const sel = document.getElementById('turno-espacio');
             sel.innerHTML = '<option value="">-- Seleccioná un espacio --</option>' +
-                espacios.filter(e => e.activo).map(e =>
+                espacios.filter(e => e.activa).map(e =>
                     `<option value="${e.id}">${e.nombre}</option>`
                 ).join('');
         }
