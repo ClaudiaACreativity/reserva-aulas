@@ -1008,7 +1008,7 @@ function cambiarTab(panel, el) {
     document.getElementById(`panel-${panel}`).classList.add('activo');
     el.classList.add('activo');
 
-    if (panel === 'horarios') cargarTurnosFijos();
+    if (panel === 'horarios') { cargarHorarios(); cargarTurnosFijos(); }
     if (panel === 'agenda') cargarAgenda();
 }
 
@@ -1023,7 +1023,7 @@ function cargarTodo() {
     cargarEspacios();
     cargarUsuarios();
     cargarHorarios();
-    cargarTurnosFijos();
+    // cargarTurnosFijos se llama al abrir el panel de Horarios o activar modo turnos
     cargarFechasBloqueadas();
     cargarPerfil();
     cargarPersonalizacion();
