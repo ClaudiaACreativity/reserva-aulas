@@ -274,8 +274,41 @@
     <!-- PANEL RESERVAS -->
     <div class="panel activo" id="panel-reservas">
         <div class="card">
-            <h2>Todas las reservas <button class="btn btn-success" style="float:right; font-size:13px; padding:7px 14px;" onclick="exportarExcel()">📥 Exportar a Excel</button></h2>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                <h2 style="margin:0; border:none; padding:0;">Todas las reservas</h2>
+                <button class="btn btn-success" style="font-size:13px; padding:7px 14px;" onclick="abrirModalExportar()">📥 Exportar a Excel</button>
+            </div>
+            <!-- Aviso 20 días -->
+            <div style="background:#fff8e8; border-left:4px solid #e67e22; border-radius:0 8px 8px 0; padding:10px 14px; margin-bottom:16px; font-size:13px; color:#7d5200; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span>📋</span>
+                <span>Se muestran reservas de los <strong>últimos 20 días</strong> y las futuras. Para acceder al historial completo, usá <strong>Exportar a Excel</strong> con el rango de fechas que necesitás.</span>
+            </div>
             <div id="tabla-todas-reservas"><p class="empty">Cargando...</p></div>
+        </div>
+    </div>
+
+    <!-- Modal exportar Excel -->
+    <div id="modal-exportar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:12px; padding:30px; max-width:420px; width:100%;">
+            <h3 style="color:var(--color-primario); margin-bottom:6px; font-size:18px;">📥 Exportar reservas</h3>
+            <p style="font-size:13px; color:#888; margin-bottom:20px;">Elegí el rango de fechas a exportar</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px;">
+                <div>
+                    <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">Desde</label>
+                    <input type="date" id="export-desde"
+                        style="width:100%; padding:9px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+                </div>
+                <div>
+                    <label style="font-size:12px; font-weight:bold; color:#555; display:block; margin-bottom:4px;">Hasta</label>
+                    <input type="date" id="export-hasta"
+                        style="width:100%; padding:9px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+                </div>
+            </div>
+            <p style="font-size:12px; color:#aaa; margin-bottom:20px;">Si no elegís fechas, se descarga el historial completo.</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="cerrarModalExportar()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px;">Cancelar</button>
+                <button onclick="exportarExcel()" style="padding:10px 20px; background:var(--color-primario); color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold;">Descargar →</button>
+            </div>
         </div>
     </div>
 
@@ -1045,6 +1078,7 @@ async function cargarReservas() {
                         <th>Fecha</th>
                         <th>Horario</th>
                         <th>Estado</th>
+                        <th>Comprobante</th>
                         <th>Observaciones</th>
                         <th>Acción</th>
                     </tr>
@@ -1068,6 +1102,16 @@ async function cargarReservas() {
                                 'expirada': '🕐 Expirada',
                                 'reembolsada': '💰 Reembolsada'
                             }[r.estado] || r.estado}</span>${r.monto ? ` <small style="color:#888">$${Number(r.monto).toLocaleString('es-AR')}\</small>` : ''}</td>
+                            <td style="text-align:center">
+                                ${r.comprobante_url
+                                    ? `<a href="${r.comprobante_url}" target="_blank"
+                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:#e8f7ee;border:1px solid #71D997;border-radius:6px;color:#1a6b3a;font-size:12px;font-weight:bold;text-decoration:none"
+                                        title="Ver comprobante">
+                                        📎 Ver
+                                       </a>`
+                                    : `<span style="color:#ccc;font-size:12px">—</span>`
+                                }
+                            </td>
                             <td style="min-width:180px">
                                 <div style="display:flex; gap:6px; align-items:flex-start">
                                     <textarea
@@ -1085,6 +1129,21 @@ async function cargarReservas() {
                                     <button class="btn btn-danger" onclick="cancelarReservaAdmin('${r.id}')">
                                         Cancelar
                                     </button>
+                                ` : r.estado === 'pending_payment' ? `
+                                    <div style="display:flex;flex-direction:column;gap:6px">
+                                        ${r.comprobante_url ? `
+                                            <button class="btn" onclick="confirmarPagoTransferencia('${r.id}')"
+                                                style="background:#27ae60;color:white;font-size:12px;padding:6px 12px;white-space:nowrap">
+                                                ✅ Confirmar pago
+                                            </button>
+                                        ` : `
+                                            <span style="font-size:11px;color:#aaa;font-style:italic">Sin comprobante</span>
+                                        `}
+                                        <button class="btn btn-danger" onclick="cancelarReservaAdmin('${r.id}')"
+                                            style="font-size:11px;padding:4px 10px">
+                                            Rechazar
+                                        </button>
+                                    </div>
                                 ` : '—'}
                             </td>
                         </tr>
@@ -1094,6 +1153,18 @@ async function cargarReservas() {
         `;
     } catch (e) {
         document.getElementById('tabla-todas-reservas').innerHTML = '<p class="empty">Error al cargar reservas</p>';
+    }
+}
+
+async function confirmarPagoTransferencia(reservaId) {
+    if (!confirm('¿Confirmar el pago y activar esta reserva?')) return;
+    try {
+        const res = await apiFetch(`${API}/reservas/${reservaId}/confirmar-pago`, { method: 'PATCH' });
+        const data = await res.json();
+        if (res.ok) cargarReservas();
+        else alert(data.detail || 'Error al confirmar');
+    } catch (e) {
+        alert('Error al conectar con el servidor');
     }
 }
 
@@ -1670,8 +1741,45 @@ async function eliminarFechaBloqueada(fecha) {
 }
 
 // ===== EXPORTAR EXCEL =====
+function abrirModalExportar() {
+    // Presetear fechas: desde hace 1 año hasta hoy
+    const hoy = new Date();
+    const unAnioAtras = new Date();
+    unAnioAtras.setFullYear(unAnioAtras.getFullYear() - 1);
+    document.getElementById('export-desde').value = unAnioAtras.toISOString().split('T')[0];
+    document.getElementById('export-hasta').value = hoy.toISOString().split('T')[0];
+    document.getElementById('modal-exportar').style.display = 'flex';
+}
+
+function cerrarModalExportar() {
+    document.getElementById('modal-exportar').style.display = 'none';
+}
+
 async function exportarExcel() {
-    window.open(`${API}/reservas/exportar`, '_blank');
+    const desde = document.getElementById('export-desde').value;
+    const hasta = document.getElementById('export-hasta').value;
+    let url = `${API}/reservas/exportar`;
+    const params = [];
+    if (desde) params.push(`fecha_desde=${desde}`);
+    if (hasta) params.push(`fecha_hasta=${hasta}`);
+    if (params.length) url += '?' + params.join('&');
+
+    // Necesitamos pasar el header X-Tenant-Slug — usamos fetch con blob
+    try {
+        const res = await apiFetch(url);
+        if (!res.ok) { alert('Error al exportar'); return; }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const desdeStr = desde || 'inicio';
+        const hastaStr = hasta || 'hoy';
+        a.download = `reservas_${desdeStr}_${hastaStr}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        cerrarModalExportar();
+    } catch(e) {
+        alert('Error al descargar el archivo');
+    }
 }
 
 

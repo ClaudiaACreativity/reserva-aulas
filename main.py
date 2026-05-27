@@ -297,6 +297,8 @@ class ReservaCreate(BaseModel):
     invitado_whatsapp: Optional[str] = None
     # Recursos solicitados
     recursos: Optional[list] = None         # [{"recurso_id": "...", "cantidad": 2}]
+    # Comprobante de transferencia
+    comprobante_url: Optional[str] = None
 
 class CancelarReserva(BaseModel):
     reserva_id: str
@@ -695,6 +697,113 @@ async def consultar_disponibilidad(request: Request, espacio_id: str, fecha: dat
     finally:
         await release_db(db)
 
+@app.post("/reservas/comprobante")
+async def subir_comprobante(request: Request):
+    """Sube un comprobante de transferencia a Supabase Storage bucket 'comprobantes'."""
+    import base64
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        body = await request.json()
+        archivo_b64 = body.get("archivo")
+        mime = body.get("mime", "image/jpeg")
+        reserva_id = body.get("reserva_id")  # opcional: para asociar el comprobante si ya existe la reserva
+
+        if not archivo_b64:
+            raise HTTPException(status_code=400, detail="Se requiere el campo archivo en base64")
+
+        import httpx
+        archivo_bytes = base64.b64decode(archivo_b64)
+        extension = mime.split("/")[-1].replace("jpeg", "jpg")
+        import time as time_module
+        filename = f"{tenant['slug']}/{int(time_module.time() * 1000)}.{extension}"
+
+        supabase_url = f"https://okkwfaouqdnbityotnje.supabase.co/storage/v1/object/comprobantes/{filename}"
+        supabase_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+
+        if not supabase_key:
+            raise HTTPException(status_code=500, detail="SUPABASE_SERVICE_KEY no configurada")
+
+        async with httpx.AsyncClient() as client:
+            res = await client.put(
+                supabase_url,
+                content=archivo_bytes,
+                headers={
+                    "Authorization": f"Bearer {supabase_key}",
+                    "Content-Type": mime,
+                    "x-upsert": "true"
+                }
+            )
+
+        if res.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail=f"Error al subir comprobante: {res.text}")
+
+        url_publica = f"https://okkwfaouqdnbityotnje.supabase.co/storage/v1/object/public/comprobantes/{filename}"
+
+        # Si se pasó reserva_id: proteger de expiración y notificar al tenant
+        if reserva_id:
+            reserva = await db.fetchrow(
+                """SELECT r.*, a.nombre as espacio_nombre,
+                          COALESCE(u.nombre, r.invitado_nombre) as cliente_nombre
+                   FROM reservas r
+                   JOIN aulas a ON r.aula_id = a.id
+                   LEFT JOIN usuarios u ON r.usuario_id = u.id
+                   WHERE r.id = $1 AND r.tenant_id = $2""",
+                reserva_id, tenant["id"]
+            )
+            if reserva:
+                # Proteger de expiración automática
+                await db.execute(
+                    "UPDATE reservas SET expires_at = NULL WHERE id = $1",
+                    reserva_id
+                )
+                # Email al tenant avisando que hay un comprobante para revisar
+                if tenant.get("email_admin"):
+                    admin_url = f"https://reservatuespacio.com/admin/{tenant['slug']}"
+                    enviar_email(
+                        tenant["email_admin"],
+                        "🧾 Nueva reserva con comprobante de transferencia",
+                        f"""
+                        <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto">
+                            <h2 style="color:#2C3E50">Nuevo comprobante recibido</h2>
+                            <p>Se realizó una reserva por transferencia y el cliente subió el comprobante de pago. Revisalo y confirmá la reserva desde tu panel.</p>
+                            <table style="border-collapse:collapse;width:100%;margin-top:16px;background:#f9f9fb;border-radius:8px">
+                                <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Cliente</td>
+                                    <td style="padding:10px 14px">{reserva['cliente_nombre'] or '—'}</td></tr>
+                                <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Espacio</td>
+                                    <td style="padding:10px 14px">{reserva['espacio_nombre']}</td></tr>
+                                <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Fecha</td>
+                                    <td style="padding:10px 14px">{reserva['fecha']}</td></tr>
+                                <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Horario</td>
+                                    <td style="padding:10px 14px">{reserva['hora_inicio'].strftime('%H:%M')} – {reserva['hora_fin'].strftime('%H:%M')}</td></tr>
+                            </table>
+                            <div style="margin-top:24px;text-align:center">
+                                <a href="{url_publica}" target="_blank"
+                                    style="display:inline-block;padding:10px 20px;background:#f0f4f8;border:1px solid #ccc;border-radius:8px;color:#2C3E50;text-decoration:none;font-weight:bold;font-size:14px;margin-right:10px">
+                                    📎 Ver comprobante
+                                </a>
+                                <a href="{admin_url}"
+                                    style="display:inline-block;padding:10px 20px;background:#2C3E50;border-radius:8px;color:white;text-decoration:none;font-weight:bold;font-size:14px">
+                                    ✅ Ir al panel →
+                                </a>
+                            </div>
+                            <p style="margin-top:24px;font-size:12px;color:#aaa;text-align:center">
+                                La reserva permanecerá en estado <b>Pago pendiente</b> hasta que la confirmes o rechaces desde el panel.
+                            </p>
+                        </div>
+                        """
+                    )
+
+        return {"url": url_publica}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        await release_db(db)
+
+
 @app.post("/reservas")
 async def crear_reserva(request: Request, reserva: ReservaCreate):
     db = await get_db()
@@ -823,11 +932,12 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
 
         result = await db.fetchrow(
             """INSERT INTO reservas (aula_id, usuario_id, fecha, hora_inicio, hora_fin, tenant_id,
-                                     invitado_nombre, invitado_email, invitado_whatsapp)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id""",
+                                     invitado_nombre, invitado_email, invitado_whatsapp, comprobante_url)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
             reserva.espacio_id, reserva.usuario_id, reserva.fecha,
             reserva.hora_inicio, reserva.hora_fin, tid,
-            reserva.invitado_nombre, reserva.invitado_email, reserva.invitado_whatsapp
+            reserva.invitado_nombre, reserva.invitado_email, reserva.invitado_whatsapp,
+            reserva.comprobante_url
         )
         reserva_id = result["id"]
 
@@ -1062,7 +1172,7 @@ async def cancelar_reserva_admin(request: Request, reserva_id: str):
     try:
         tenant = await get_tenant(request, db)
         reserva = await db.fetchrow(
-            "SELECT id FROM reservas WHERE id=$1 AND estado='activa' AND tenant_id=$2",
+            "SELECT id FROM reservas WHERE id=$1 AND estado IN ('activa','pending_payment') AND tenant_id=$2",
             reserva_id, tenant["id"]
         )
         if not reserva:
@@ -1072,6 +1182,65 @@ async def cancelar_reserva_admin(request: Request, reserva_id: str):
             reserva_id
         )
         return {"mensaje": "Reserva cancelada correctamente"}
+    finally:
+        await release_db(db)
+
+@app.patch("/reservas/{reserva_id}/confirmar-pago")
+async def confirmar_pago_transferencia(request: Request, reserva_id: str):
+    """El admin confirma manualmente el pago por transferencia y activa la reserva."""
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        reserva = await db.fetchrow(
+            """SELECT r.*, a.nombre as espacio_nombre,
+                      COALESCE(u.email, r.invitado_email) as email_destino,
+                      COALESCE(u.nombre, r.invitado_nombre) as nombre_destino
+               FROM reservas r
+               JOIN aulas a ON r.aula_id = a.id
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
+               WHERE r.id = $1 AND r.estado = 'pending_payment' AND r.tenant_id = $2""",
+            reserva_id, tenant["id"]
+        )
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada o no está en estado pendiente")
+
+        await db.execute(
+            "UPDATE reservas SET estado='activa', expires_at=NULL WHERE id=$1",
+            reserva_id
+        )
+
+        # Email de confirmación al cliente
+        if reserva["email_destino"]:
+            enviar_email(
+                reserva["email_destino"],
+                "✅ Tu reserva fue confirmada",
+                f"""
+                <div style="font-family:Arial,sans-serif;max-width:500px;margin:auto">
+                    <h2 style="color:#2C3E50">¡Reserva confirmada!</h2>
+                    <p>Hola <b>{reserva['nombre_destino']}</b>, tu pago fue verificado y tu reserva quedó confirmada.</p>
+                    <table style="border-collapse:collapse;width:100%;margin-top:16px;background:#f9f9fb;border-radius:8px">
+                        <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Espacio</td>
+                            <td style="padding:10px 14px">{reserva['espacio_nombre']}</td></tr>
+                        <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Fecha</td>
+                            <td style="padding:10px 14px">{reserva['fecha']}</td></tr>
+                        <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50">Horario</td>
+                            <td style="padding:10px 14px">{reserva['hora_inicio'].strftime('%H:%M')} – {reserva['hora_fin'].strftime('%H:%M')}</td></tr>
+                    </table>
+                    <p style="margin-top:20px;color:#888">{tenant['nombre']}</p>
+                    <p style="margin-top:20px;font-size:13px;color:#888;text-align:center">
+                        <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50;font-weight:bold">Preguntas frecuentes →</a>
+                        &nbsp;&nbsp;|&nbsp;&nbsp;
+                        <a href="https://reservatuespacio.com/soporte.html" style="color:#888">Centro de soporte →</a>
+                    </p>
+                </div>
+                """
+            )
+
+        return {"mensaje": "Reserva confirmada correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         await release_db(db)
 
@@ -1153,22 +1322,30 @@ async def reservas_por_usuario(request: Request, email: str):
         await release_db(db)
 
 @app.get("/reservas")
-async def listar_todas_reservas(request: Request):
+async def listar_todas_reservas(request: Request, fecha_desde: Optional[date] = None, fecha_hasta: Optional[date] = None):
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
+        # Por defecto: últimos 20 días hasta hoy
+        if not fecha_desde:
+            fecha_desde = (datetime.utcnow() - timedelta(days=20)).date()
+        if not fecha_hasta:
+            fecha_hasta = (datetime.utcnow() + timedelta(days=365)).date()  # futuro incluido
         reservas = await db.fetch(
             """SELECT r.id, r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       r.usuario_id, a.nombre as espacio_nombre,
                       COALESCE(u.nombre, r.invitado_nombre) as usuario_nombre,
                       COALESCE(u.email, r.invitado_email) as usuario_email,
-                      r.invitado_whatsapp, r.observaciones
+                      r.invitado_whatsapp, r.observaciones, r.monto,
+                      r.comprobante_url
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
                LEFT JOIN usuarios u ON r.usuario_id = u.id
                WHERE r.tenant_id = $1
+                 AND r.fecha >= $2
+                 AND r.fecha <= $3
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
-            tenant["id"]
+            tenant["id"], fecha_desde, fecha_hasta
         )
         return [dict(r) for r in reservas]
     finally:
@@ -1564,27 +1741,40 @@ async def espacios_por_edificio(request: Request, edificio_id: int):
         await release_db(db)
 
 @app.get("/reservas/exportar")
-async def exportar_reservas(request: Request):
+async def exportar_reservas(request: Request, fecha_desde: Optional[date] = None, fecha_hasta: Optional[date] = None):
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
+
+        filtros = [tenant["id"]]
+        where_extra = ""
+        if fecha_desde:
+            filtros.append(fecha_desde)
+            where_extra += f" AND r.fecha >= ${len(filtros)}"
+        if fecha_hasta:
+            filtros.append(fecha_hasta)
+            where_extra += f" AND r.fecha <= ${len(filtros)}"
+
         reservas = await db.fetch(
-            """SELECT r.fecha, r.hora_inicio, r.hora_fin, r.estado,
+            f"""SELECT r.fecha, r.hora_inicio, r.hora_fin, r.estado,
                       a.nombre as espacio_nombre,
-                      u.nombre as usuario_nombre, u.email as usuario_email
+                      COALESCE(u.nombre, r.invitado_nombre) as usuario_nombre,
+                      COALESCE(u.email, r.invitado_email) as usuario_email,
+                      COALESCE(r.invitado_whatsapp, '') as whatsapp,
+                      COALESCE(r.monto::text, '') as monto
                FROM reservas r
                JOIN aulas a ON r.aula_id = a.id
-               JOIN usuarios u ON r.usuario_id = u.id
-               WHERE r.tenant_id = $1
+               LEFT JOIN usuarios u ON r.usuario_id = u.id
+               WHERE r.tenant_id = $1{where_extra}
                ORDER BY r.fecha DESC, r.hora_inicio DESC""",
-            tenant["id"]
+            *filtros
         )
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Reservas"
 
-        encabezados = ["Fecha", "Hora inicio", "Hora fin", "Espacio", "Usuario", "Email", "Estado"]
+        encabezados = ["Fecha", "Hora inicio", "Hora fin", "Espacio", "Usuario", "Email", "WhatsApp", "Monto", "Estado"]
         for col, enc in enumerate(encabezados, 1):
             celda = ws.cell(row=1, column=col, value=enc)
             celda.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
@@ -1595,13 +1785,20 @@ async def exportar_reservas(request: Request):
             ws.cell(row=fila, column=2, value=r["hora_inicio"].strftime("%H:%M"))
             ws.cell(row=fila, column=3, value=r["hora_fin"].strftime("%H:%M"))
             ws.cell(row=fila, column=4, value=r["espacio_nombre"])
-            ws.cell(row=fila, column=5, value=r["usuario_nombre"])
-            ws.cell(row=fila, column=6, value=r["usuario_email"])
-            ws.cell(row=fila, column=7, value=r["estado"])
+            ws.cell(row=fila, column=5, value=r["usuario_nombre"] or "—")
+            ws.cell(row=fila, column=6, value=r["usuario_email"] or "—")
+            ws.cell(row=fila, column=7, value=r["whatsapp"] or "—")
+            ws.cell(row=fila, column=8, value=r["monto"] or "—")
+            ws.cell(row=fila, column=9, value=r["estado"])
 
-        anchos = [12, 12, 12, 15, 25, 30, 12]
+        anchos = [12, 12, 12, 20, 25, 30, 16, 12, 15]
         for col, ancho in enumerate(anchos, 1):
             ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = ancho
+
+        # Nombre del archivo con rango de fechas si se especificó
+        desde_str = fecha_desde.strftime("%Y%m%d") if fecha_desde else "inicio"
+        hasta_str = fecha_hasta.strftime("%Y%m%d") if fecha_hasta else "hoy"
+        filename = f"reservas_{desde_str}_{hasta_str}.xlsx"
 
         buffer = BytesIO()
         wb.save(buffer)
@@ -1610,7 +1807,7 @@ async def exportar_reservas(request: Request):
         return StreamingResponse(
             buffer,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=reservas.xlsx"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
     finally:
         await release_db(db)

@@ -1138,17 +1138,90 @@ function mostrarModalTransferencia(tenant) {
     const msgEl = document.getElementById('modal-transferencia-mensaje');
     msgEl.textContent = tenant.transferencia_mensaje || '';
     msgEl.style.display = tenant.transferencia_mensaje ? 'block' : 'none';
+    // Resetear estado del comprobante al abrir
+    _comprobanteUrl = null;
+    _comprobanteMime = null;
+    document.getElementById('input-comprobante').value = '';
+    document.getElementById('comprobante-preview').style.display = 'none';
+    document.getElementById('comprobante-img').style.display = 'none';
+    document.getElementById('comprobante-img').src = '';
+    document.getElementById('comprobante-pdf-label').style.display = 'none';
+    document.getElementById('comprobante-nombre').textContent = '';
+    const btnConfirmar = document.getElementById('btn-confirmar-transferencia');
+    btnConfirmar.disabled = true;
+    btnConfirmar.style.background = '#ccc';
+    btnConfirmar.style.cursor = 'not-allowed';
     document.getElementById('modal-transferencia').style.display = 'flex';
 }
 
 function cerrarModalTransferencia() {
     document.getElementById('modal-transferencia').style.display = 'none';
     _reservaPendiente = null;
+    _comprobanteUrl = null;
+    _comprobanteMime = null;
+}
+
+let _comprobanteUrl = null;
+let _comprobanteMime = null;
+
+function previsualizarComprobante(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    _comprobanteMime = file.type || 'image/jpeg';
+
+    const preview = document.getElementById('comprobante-preview');
+    const img = document.getElementById('comprobante-img');
+    const pdfLabel = document.getElementById('comprobante-pdf-label');
+    const nombre = document.getElementById('comprobante-nombre');
+
+    preview.style.display = 'block';
+    nombre.textContent = '⏳ Subiendo comprobante...';
+    nombre.style.color = '#888';
+
+    const btnConfirmar = document.getElementById('btn-confirmar-transferencia');
+    btnConfirmar.disabled = true;
+    btnConfirmar.style.background = '#ccc';
+    btnConfirmar.style.cursor = 'not-allowed';
+
+    // Previsualizar localmente
+    if (file.type.startsWith('image/')) {
+        img.style.display = 'block';
+        pdfLabel.style.display = 'none';
+        img.src = URL.createObjectURL(file);
+    } else {
+        img.style.display = 'none';
+        pdfLabel.style.display = 'block';
+        pdfLabel.textContent = `📄 ${file.name}`;
+    }
+
+    // Convertir a base64 y guardar — la subida real ocurre al confirmar
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        _comprobanteUrl = e.target.result; // guardamos base64 temporalmente
+        nombre.textContent = '✅ Comprobante listo para enviar';
+        nombre.style.color = '#27ae60';
+        btnConfirmar.disabled = false;
+        btnConfirmar.style.background = 'var(--color-secundario)';
+        btnConfirmar.style.cursor = 'pointer';
+    };
+    reader.onerror = function() {
+        nombre.textContent = '❌ Error al leer el archivo, intentá de nuevo';
+        nombre.style.color = '#e74c3c';
+        _comprobanteUrl = null;
+    };
+    reader.readAsDataURL(file);
 }
 
 async function confirmarReservaTransferencia() {
+    if (!_comprobanteUrl) return;
+    const btnConfirmar = document.getElementById('btn-confirmar-transferencia');
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = '⏳ Confirmando...';
     document.getElementById('modal-transferencia').style.display = 'none';
-    if (_reservaPendiente) await _ejecutarReserva(_reservaPendiente);
+    if (_reservaPendiente) {
+        await _ejecutarReserva({ ..._reservaPendiente, comprobanteUrl: _comprobanteUrl, comprobanteMime: _comprobanteMime });
+    }
 }
 
 function mostrarModalMetodoPago(mpEstado, tenant) {
@@ -1328,7 +1401,7 @@ async function verificarReservaPendiente() {
     }
 }
 
-async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [] }) {
+async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, horaInicio, horaFin, recursosSeleccionados = [], comprobanteUrl = null, comprobanteMime = null }) {
     try {
         let usuarioId = null;
 
@@ -1346,7 +1419,7 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
             }
         }
 
-        // Crear reserva
+        // Crear reserva (sin comprobante_url todavía — se actualiza después)
         const body = {
             espacio_id: espacioId,
             usuario_id: usuarioId,
@@ -1367,21 +1440,52 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
 
         const data = await res.json();
 
-        if (res.ok) {
-            let msg = '✅ Reserva creada correctamente';
-            if (data.avisos && data.avisos.length > 0) {
-                msg += '<br><small style="color:#e67e22">⚠️ ' + data.avisos.join(' | ') + '</small>';
-            }
-            mostrarMensaje('mensaje-reserva', msg, 'exito');
-            document.getElementById('fecha').value = '';
-            document.getElementById('hora-inicio').value = '';
-            document.getElementById('hora-fin').value = '';
-            document.getElementById('usuario-whatsapp').value = '';
-            document.getElementById('recursos-lista').innerHTML = '';
-            document.getElementById('recursos-container').style.display = 'none';
-            renderCalendario();
-        } else {
+        if (!res.ok) {
             mostrarMensaje('mensaje-reserva', `❌ ${data.detail}`, 'error');
+            return;
+        }
+
+        const reservaId = data.id;
+
+        // Si hay comprobante: subirlo ahora con el reserva_id real
+        if (comprobanteUrl && reservaId) {
+            mostrarMensaje('mensaje-reserva', '⏳ Subiendo comprobante...', 'exito');
+            try {
+                const base64 = comprobanteUrl.split(',')[1];
+                const resComp = await apiFetch(`${API}/reservas/comprobante`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        archivo: base64,
+                        mime: comprobanteMime || 'image/jpeg',
+                        reserva_id: reservaId
+                    })
+                });
+                if (!resComp.ok) {
+                    // La reserva se creó igual — avisar pero no bloquear
+                    console.warn('No se pudo subir el comprobante, pero la reserva fue creada');
+                }
+            } catch(e) {
+                console.warn('Error al subir comprobante:', e);
+            }
+        }
+
+        let msg = '✅ Reserva creada correctamente';
+        if (comprobanteUrl) msg = '✅ Reserva creada. El administrador verificará tu comprobante y confirmará la reserva.';
+        if (data.avisos && data.avisos.length > 0) {
+            msg += '<br><small style="color:#e67e22">⚠️ ' + data.avisos.join(' | ') + '</small>';
+        }
+        mostrarMensaje('mensaje-reserva', msg, 'exito');
+        document.getElementById('fecha').value = '';
+        document.getElementById('hora-inicio').value = '';
+        document.getElementById('hora-fin').value = '';
+        document.getElementById('usuario-whatsapp').value = '';
+        document.getElementById('recursos-lista').innerHTML = '';
+        document.getElementById('recursos-container').style.display = 'none';
+        if (typeof cargarTurnosFijosPublico === 'function' && document.getElementById('card-turnos-fijos')?.style.display !== 'none') {
+            cargarTurnosFijosPublico();
+        } else {
+            renderCalendario();
         }
     } catch (e) {
         mostrarMensaje('mensaje-reserva', 'Error al conectar con el servidor', 'error');
@@ -1993,16 +2097,40 @@ iniciar();
 <div id="modal-transferencia" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div style="background:white; border-radius:12px; padding:30px; max-width:480px; width:100%">
         <h3 style="color:var(--color-primario); margin-bottom:6px; font-size:18px">💸 Pago por transferencia</h3>
-        <p style="font-size:13px; color:#888; margin-bottom:20px">Realizá el pago y luego confirmá tu reserva</p>
+        <p style="font-size:13px; color:#888; margin-bottom:20px">Realizá el pago y subí el comprobante para confirmar tu reserva</p>
         <div style="background:var(--color-secundario-light); border-left:4px solid var(--color-secundario); border-radius:0 8px 8px 0; padding:16px; margin-bottom:16px">
             <p style="font-size:13px; font-weight:bold; color:#1a5c36; margin-bottom:4px">Alias / CBU</p>
             <p id="modal-transferencia-alias" style="font-size:18px; font-weight:bold; color:var(--color-primario); margin:0; letter-spacing:1px"></p>
         </div>
-        <p id="modal-transferencia-mensaje" style="font-size:13px; color:#555; margin-bottom:20px; line-height:1.6"></p>
+        <p id="modal-transferencia-mensaje" style="font-size:13px; color:#555; margin-bottom:16px; line-height:1.6"></p>
+
+        <!-- Upload comprobante -->
+        <div style="border:2px dashed #ccc; border-radius:10px; padding:16px; margin-bottom:16px; text-align:center; transition:border-color 0.2s" id="drop-comprobante">
+            <p style="font-size:13px; font-weight:bold; color:#555; margin-bottom:8px">📎 Subí tu comprobante de pago</p>
+            <p style="font-size:12px; color:#aaa; margin-bottom:12px">Imagen o PDF — obligatorio para confirmar</p>
+            <input type="file" id="input-comprobante" accept="image/*,application/pdf"
+                style="display:none" onchange="previsualizarComprobante(this)">
+            <button onclick="document.getElementById('input-comprobante').click()"
+                style="padding:8px 20px; background:#f0f4f8; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-size:13px; color:#555; font-weight:bold">
+                Elegir archivo
+            </button>
+            <!-- Preview -->
+            <div id="comprobante-preview" style="display:none; margin-top:12px">
+                <img id="comprobante-img" src="" alt="Comprobante"
+                    style="max-width:100%; max-height:160px; border-radius:8px; object-fit:contain; display:none">
+                <div id="comprobante-pdf-label" style="display:none; background:#f8fafc; border:1px solid #e0e8f0; border-radius:8px; padding:10px; font-size:13px; color:var(--color-primario); font-weight:bold"></div>
+                <p id="comprobante-nombre" style="font-size:12px; color:#27ae60; margin-top:6px; font-weight:bold"></p>
+            </div>
+        </div>
+
         <p style="font-size:12px; color:#aaa; margin-bottom:20px">Al confirmar, tu reserva queda registrada. El administrador verificará el pago.</p>
         <div style="display:flex; gap:10px; justify-content:flex-end">
             <button onclick="cerrarModalTransferencia()" style="padding:10px 20px; border:1px solid #ccc; border-radius:6px; background:white; cursor:pointer; font-size:14px">Volver</button>
-            <button onclick="confirmarReservaTransferencia()" style="padding:10px 20px; background:var(--color-secundario); color:white; border:none; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold">Confirmar reserva →</button>
+            <button id="btn-confirmar-transferencia" onclick="confirmarReservaTransferencia()"
+                disabled
+                style="padding:10px 20px; background:#ccc; color:white; border:none; border-radius:6px; cursor:not-allowed; font-size:14px; font-weight:bold; transition:all 0.2s">
+                Confirmar reserva →
+            </button>
         </div>
     </div>
 </div>
