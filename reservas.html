@@ -283,8 +283,22 @@
         .turnos-semana-grid {
             display: grid;
             grid-template-columns: repeat(7, minmax(120px, 1fr));
-            gap: 10px;
+            gap: 2px;
             min-width: 700px;
+            border: 2px solid #2C3E50;
+            border-radius: 0 0 10px 10px;
+            overflow: hidden;
+            background: #2C3E50;
+        }
+
+        /* Encabezado de días de la semana (se inyecta dinámicamente) */
+        .turnos-semana-header {
+            display: grid;
+            gap: 2px;
+            margin-bottom: 2px;
+            background: #2C3E50;
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
         }
 
         .turnos-semana-grid.vista-hoy {
@@ -409,73 +423,70 @@
         .turnos-dia-col {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
+            background: white;
+            padding: 8px 6px;
         }
 
         .turnos-dia-header {
             text-align: center;
             padding: 10px 6px;
-            border-radius: 10px;
             font-size: 12px;
-            font-weight: 700;
-            background: var(--color-primario);
+            font-weight: 800;
+            background: #2C3E50;
             color: white;
-            margin-bottom: 2px;
+            margin: -8px -6px 4px -6px;
             line-height: 1.4;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .turnos-dia-header.hoy {
-            background: var(--color-secundario);
+            background: #27ae60;
             color: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
 
         .turnos-dia-header.cerrado {
-            background: #e0e0e0;
-            color: #aaa;
-            font-weight: 400;
+            background: #95a5a6;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
         }
 
         .turno-card {
-            border-radius: 10px;
-            padding: 12px 8px;
+            border-radius: 8px;
+            padding: 10px 8px;
             text-align: center;
-            border: 2px solid transparent;
-            transition: all 0.2s;
-            min-height: 72px;
+            border: none;
+            transition: all 0.15s;
+            min-height: 64px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 3px;
         }
 
         .turno-card.libre {
-            background: #f0fff4;
-            border-color: var(--color-secundario);
+            background: #1abc9c;
             cursor: pointer;
         }
 
         .turno-card.libre:hover {
-            background: var(--color-secundario);
+            background: #16a085;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
         }
 
-        .turno-card.libre:hover .turno-card-hora,
-        .turno-card.libre:hover .turno-card-estado { color: white; }
-
         .turno-card.ocupado {
-            background: #fff0f0;
-            border-color: #ffb3b3;
+            background: #e74c3c;
             cursor: default;
+            opacity: 0.75;
         }
 
         .turno-card.seleccionado {
-            background: var(--color-primario);
-            border-color: var(--color-primario);
+            background: #2C3E50;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         .turno-card.seleccionado .turno-card-hora,
@@ -483,16 +494,16 @@
 
         .turno-card-hora {
             font-weight: 800;
-            font-size: 13px;
-            color: #2C3E50;
+            font-size: 12px;
+            color: white;
             line-height: 1.4;
         }
 
-        .turno-card-hora.ocupado { color: #c0392b; }
+        .turno-card-hora.ocupado { color: white; }
 
         .turno-card-estado {
             font-size: 10px;
-            color: #888;
+            color: rgba(255,255,255,0.85);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -500,7 +511,7 @@
 
         .turno-card-cliente {
             font-size: 10px;
-            color: #c0392b;
+            color: rgba(255,255,255,0.9);
             font-style: italic;
             max-width: 100%;
             overflow: hidden;
@@ -681,6 +692,7 @@
         <div id="turnos-espacios-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
         <!-- Grid (hoy/semana) -->
         <div class="turnos-semana-wrap" id="wrap-grid-turnos">
+            <div id="turnos-semana-header" class="turnos-semana-header" style="display:none;min-width:700px;"></div>
             <div id="turnos-semana-grid" class="turnos-semana-grid">
                 <p class="empty">Cargando turnos...</p>
             </div>
@@ -2245,12 +2257,24 @@ async function renderGrillaTurnos(aulaId) {
     const grid = document.getElementById('turnos-semana-grid');
     grid.innerHTML = '<p class="empty">Cargando...</p>';
 
+    const header = document.getElementById('turnos-semana-header');
+
     // Calcular días según la vista
     let dias = [];
     if (_vistaTurnos === 'hoy') {
         dias = [new Date(fechaTurnos.getFullYear(), fechaTurnos.getMonth(), fechaTurnos.getDate())];
         if (titulo) titulo.textContent = dias[0].toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
         grid.className = 'turnos-semana-grid vista-hoy';
+        if (header) {
+            header.style.display = 'grid';
+            header.style.gridTemplateColumns = 'minmax(200px, 400px)';
+            header.style.minWidth = 'unset';
+            const esHoy = toLocalISOString(dias[0]) === toLocalISOString(new Date());
+            header.innerHTML = `<div style="text-align:center;padding:9px 4px;font-size:13px;font-weight:800;color:white;
+                background:${esHoy ? '#27ae60' : '#2C3E50'};text-transform:uppercase;letter-spacing:0.5px;border-radius:8px 8px 0 0;">
+                ${DIAS_N[dias[0].getDay()]} ${dias[0].getDate()}/${dias[0].getMonth()+1}
+            </div>`;
+        }
     } else { // semana
         const lunes = getLunes(fechaTurnos);
         const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
@@ -2260,6 +2284,20 @@ async function renderGrillaTurnos(aulaId) {
         if (titulo) titulo.textContent =
             `${lunes.getDate()} ${MESES_N[lunes.getMonth()].slice(0,3)} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()].slice(0,3)}`;
         grid.className = 'turnos-semana-grid';
+        // Encabezado con nombre de día + fecha
+        if (header) {
+            header.style.display = 'grid';
+            header.style.gridTemplateColumns = `repeat(${dias.length}, minmax(120px, 1fr))`;
+            header.style.minWidth = '700px';
+            header.innerHTML = dias.map((d, i) => {
+                const esHoy = toLocalISOString(d) === toLocalISOString(new Date());
+                return `<div style="text-align:center;padding:9px 4px;font-size:12px;font-weight:800;color:white;
+                    background:${esHoy ? '#27ae60' : '#2C3E50'};text-transform:uppercase;letter-spacing:0.5px;
+                    ${i===0?'border-radius:8px 0 0 0':''} ${i===dias.length-1?'border-radius:0 8px 0 0':''}">
+                    ${DIAS_N[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}
+                </div>`;
+            }).join('');
+        }
     }
 
     try {
@@ -2286,17 +2324,13 @@ async function renderGrillaTurnos(aulaId) {
 
             return `
                 <div class="turnos-dia-col">
-                    <div class="turnos-dia-header ${esHoy ? 'hoy' : ''} ${!turnos.length ? 'cerrado' : ''}">
-                        <div>${DIAS_N[dia.getDay()]}</div>
-                        <div style="font-size:14px;">${dia.getDate()}/${dia.getMonth()+1}</div>
-                    </div>
                     ${turnos.length === 0
                         ? `<div style="text-align:center;padding:16px 0;color:#ccc;font-size:12px;">Sin turnos</div>`
                         : turnos.map(t => `
                             <div class="turno-card ${t.libre ? 'libre' : 'ocupado'}"
                              ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','${aulaId || ''}')"` : ''}>
                                 <div class="turno-card-hora ${t.libre ? '' : 'ocupado'}">
-                                    ${t.hora_inicio} — ${t.hora_fin}
+                                    ${t.hora_inicio} – ${t.hora_fin}
                                 </div>
                                 <div class="turno-card-estado">
                                     ${t.libre ? '✓ Libre' : '✗ Ocupado'}
