@@ -529,24 +529,23 @@
 
     <!-- SECCIÓN 0: TURNOS FIJOS (si están configurados) -->
     <div class="card" id="card-turnos-fijos" style="display:none;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
             <h2 style="margin:0;border:none;padding:0;">Turnos disponibles</h2>
-            <div style="display:flex;align-items:center;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
                 <button class="btn btn-primary" onclick="navegarTurnos(-1)">◀</button>
-                <span id="titulo-turnos" style="font-weight:bold;font-size:15px;min-width:160px;text-align:center;"></span>
+                <span id="titulo-turnos" style="font-weight:bold;font-size:14px;min-width:180px;text-align:center;color:var(--color-primario);"></span>
                 <button class="btn btn-primary" onclick="navegarTurnos(1)">▶</button>
-                <button class="btn" onclick="navegarTurnos(0)" style="background:#e0e8f0;color:var(--color-primario);">Hoy</button>
+                <button class="btn" onclick="navegarTurnos(0)" style="background:var(--color-secundario);color:white;">Hoy</button>
             </div>
         </div>
-        <p style="font-size:13px;color:#888;margin-bottom:8px;">
-            Hacé clic en un turno libre para pre-completar el formulario de reserva.
+        <p style="font-size:13px;color:#888;margin-bottom:16px;">
+            Hacé clic en un turno <span style="color:green;font-weight:bold;">verde</span> para reservarlo.
+            Los turnos en <span style="color:#e74c3c;font-weight:bold;">rojo</span> ya están ocupados.
         </p>
-        <div class="turnos-grid" id="turnos-grid">
-            <p class="empty">Cargando turnos...</p>
-        </div>
-        <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#888;">
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:var(--color-secundario-light);border:2px solid var(--color-secundario);border-radius:3px;display:inline-block;"></span>Libre</span>
-            <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#fee;border:2px solid #e74c3c;border-radius:3px;display:inline-block;"></span>Ocupado</span>
+        <div class="turnos-semana-wrap">
+            <div id="turnos-semana-grid" class="turnos-semana-grid">
+                <p class="empty">Cargando turnos...</p>
+            </div>
         </div>
     </div>
 
