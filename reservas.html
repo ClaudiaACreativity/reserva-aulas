@@ -287,6 +287,17 @@
             min-width: 700px;
         }
 
+        .turnos-semana-grid.vista-hoy {
+            grid-template-columns: minmax(200px, 400px);
+            min-width: unset;
+            max-width: 400px;
+        }
+
+        .turnos-semana-grid.vista-mes {
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            min-width: unset;
+        }
+
         .turnos-dia-col {
             display: flex;
             flex-direction: column;
@@ -531,10 +542,26 @@
     <div class="card" id="card-turnos-fijos" style="display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
             <h2 style="margin:0;border:none;padding:0;">Turnos disponibles</h2>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <button class="btn btn-primary" onclick="navegarTurnos(-1)">◀</button>
-                <span id="titulo-turnos" style="font-weight:bold;font-size:14px;min-width:180px;text-align:center;color:var(--color-primario);"></span>
-                <button class="btn btn-primary" onclick="navegarTurnos(1)">▶</button>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <!-- Selector de vista -->
+                <div style="display:flex;border:2px solid var(--color-primario);border-radius:8px;overflow:hidden;">
+                    <button id="vista-btn-hoy" onclick="setVistaTurnos('hoy')"
+                        style="padding:6px 14px;background:var(--color-primario);color:white;border:none;cursor:pointer;font-size:13px;font-weight:bold;">
+                        Hoy
+                    </button>
+                    <button id="vista-btn-semana" onclick="setVistaTurnos('semana')"
+                        style="padding:6px 14px;background:white;color:var(--color-primario);border:none;cursor:pointer;font-size:13px;font-weight:bold;">
+                        Semana
+                    </button>
+                    <button id="vista-btn-mes" onclick="setVistaTurnos('mes')"
+                        style="padding:6px 14px;background:white;color:var(--color-primario);border:none;cursor:pointer;font-size:13px;font-weight:bold;">
+                        Mes
+                    </button>
+                </div>
+                <!-- Navegación -->
+                <button class="btn btn-primary" onclick="navegarTurnos(-1)" id="btn-nav-prev">◀</button>
+                <span id="titulo-turnos" style="font-weight:bold;font-size:14px;min-width:140px;text-align:center;color:var(--color-primario);"></span>
+                <button class="btn btn-primary" onclick="navegarTurnos(1)" id="btn-nav-next">▶</button>
                 <button class="btn" onclick="navegarTurnos(0)" style="background:var(--color-secundario);color:white;">Hoy</button>
             </div>
         </div>
@@ -544,7 +571,7 @@
         </p>
         <!-- Tabs de espacios (se generan dinámicamente) -->
         <div id="turnos-espacios-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-        <!-- Grilla semanal (se reemplaza al cambiar de tab) -->
+        <!-- Grid (se reemplaza según la vista) -->
         <div class="turnos-semana-wrap">
             <div id="turnos-semana-grid" class="turnos-semana-grid">
                 <p class="empty">Cargando turnos...</p>
@@ -1032,14 +1059,27 @@ function seleccionarTurno(event, fecha, horaInicio, horaFin, espacioId) {
     document.getElementById('grupo-hora-inicio').style.display = 'none';
     document.getElementById('grupo-hora-fin').style.display = 'none';
 
+    // Pre-llenar el espacio automáticamente desde el turno — ocultar el campo (no necesita seleccionar)
+    document.getElementById('espacio-id').value = espacioId;
+    const tabActivo = document.getElementById(`tab-espacio-${espacioId}`);
+    const nombreEspacio = tabActivo ? tabActivo.textContent.trim() :
+        (document.querySelector('.espacio-card.seleccionada .espacio-nombre')?.textContent || '');
+    document.getElementById('espacio-nombre').value = nombreEspacio;
+    // Ocultar la sección de espacios — el espacio ya está determinado por el turno
+    const seccionEspacios = document.querySelector('.card:has(#espacios-grid)') ||
+        document.getElementById('espacios-grid')?.closest('.card');
+    if (seccionEspacios) seccionEspacios.style.display = 'none';
+
     // Mostrar banner del turno
     const fechaObj = new Date(fecha + 'T00:00:00');
     const DIAS_N = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const textoFecha = `${DIAS_N[fechaObj.getDay()]} ${fechaObj.getDate()} de ${MESES_N[fechaObj.getMonth()]}`;
+    const textoTurno = nombreEspacio
+        ? `${nombreEspacio} · ${textoFecha} · ${horaInicio} a ${horaFin}`
+        : `${textoFecha} · ${horaInicio} a ${horaFin}`;
 
-    document.getElementById('banner-turno-texto').textContent =
-        `${textoFecha} · ${horaInicio} a ${horaFin}`;
+    document.getElementById('banner-turno-texto').textContent = textoTurno;
     document.getElementById('banner-turno-seleccionado').style.display = 'flex';
 
     // Marcar turno como seleccionado
@@ -1058,6 +1098,12 @@ function deseleccionarTurno() {
     document.getElementById('grupo-hora-inicio').style.display = '';
     document.getElementById('grupo-hora-fin').style.display = '';
     document.getElementById('banner-turno-seleccionado').style.display = 'none';
+    document.getElementById('espacio-nombre').value = '';
+    document.getElementById('espacio-id').value = '';
+    // Restaurar sección de espacios
+    const seccionEspacios = document.querySelector('.card:has(#espacios-grid)') ||
+        document.getElementById('espacios-grid')?.closest('.card');
+    if (seccionEspacios) seccionEspacios.style.display = '';
     document.querySelectorAll('.turno-card').forEach(b => b.classList.remove('seleccionado'));
 }
 // ===== CARGAR AULAS =====
@@ -1514,8 +1560,9 @@ async function _ejecutarReserva({ espacioId, nombre, email, whatsapp, fecha, hor
                     })
                 });
                 if (!resComp.ok) {
-                    // La reserva se creó igual — avisar pero no bloquear
-                    console.warn('No se pudo subir el comprobante, pero la reserva fue creada');
+                    const errData = await resComp.json().catch(() => ({}));
+                    console.warn('No se pudo subir el comprobante:', errData.detail);
+                    mostrarMensaje('mensaje-reserva', `⚠️ Reserva creada pero el comprobante no se pudo subir: ${errData.detail || 'error desconocido'}. Envialo por WhatsApp al administrador.`, 'exito');
                 }
             } catch(e) {
                 console.warn('Error al subir comprobante:', e);
@@ -1953,13 +2000,31 @@ async function cargarBannerHorarios() {
 
 // ===== TURNOS FIJOS PÚBLICOS (Caso B) — VISTA SEMANAL =====
 let fechaTurnos = new Date();
-let _espacioActivoTurnos = null; // aula_id del tab activo
+let _espacioActivoTurnos = null;
+let _vistaTurnos = 'hoy'; // 'hoy' | 'semana' | 'mes'
+
+function setVistaTurnos(vista) {
+    _vistaTurnos = vista;
+    fechaTurnos = new Date(); // resetear a hoy al cambiar vista
+    // Estilos de botones
+    ['hoy','semana','mes'].forEach(v => {
+        const btn = document.getElementById(`vista-btn-${v}`);
+        if (!btn) return;
+        btn.style.background = v === vista ? 'var(--color-primario)' : 'white';
+        btn.style.color = v === vista ? 'white' : 'var(--color-primario)';
+    });
+    renderGrillaTurnos(_espacioActivoTurnos);
+}
 
 function navegarTurnos(dir) {
     if (dir === 0) {
         fechaTurnos = new Date();
-    } else {
+    } else if (_vistaTurnos === 'hoy') {
+        fechaTurnos.setDate(fechaTurnos.getDate() + dir);
+    } else if (_vistaTurnos === 'semana') {
         fechaTurnos.setDate(fechaTurnos.getDate() + dir * 7);
+    } else {
+        fechaTurnos.setMonth(fechaTurnos.getMonth() + dir);
     }
     renderGrillaTurnos(_espacioActivoTurnos);
 }
@@ -2019,6 +2084,10 @@ async function cargarTurnosFijosPublico() {
     const calCard = document.getElementById('card-calendario');
     if (calCard) calCard.style.display = 'none';
 
+    // Iniciar siempre en vista "hoy"
+    _vistaTurnos = 'hoy';
+    setVistaTurnos('hoy');
+
     await renderGrillaTurnos(_espacioActivoTurnos);
 }
 
@@ -2034,40 +2103,64 @@ function cambiarTabEspacio(aulaId) {
 }
 
 async function renderGrillaTurnos(aulaId) {
-    const lunes = getLunes(fechaTurnos);
     const DIAS_N = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    const MESES_N = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-
-    // Título de la semana
-    const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
-    const titulo = document.getElementById('titulo-turnos');
-    if (titulo) titulo.textContent =
-        `${lunes.getDate()} ${MESES_N[lunes.getMonth()]} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()]}`;
-
+    const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const hoyStr = toLocalISOString(new Date());
     const grid = document.getElementById('turnos-semana-grid');
+    const titulo = document.getElementById('titulo-turnos');
     grid.innerHTML = '<p class="empty">Cargando...</p>';
 
-    try {
-        const promesas = [];
+    // Calcular días según la vista
+    let dias = [];
+    if (_vistaTurnos === 'hoy') {
+        dias = [new Date(fechaTurnos.getFullYear(), fechaTurnos.getMonth(), fechaTurnos.getDate())];
+        if (titulo) titulo.textContent = dias[0].toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
+        grid.className = 'turnos-semana-grid vista-hoy';
+    } else if (_vistaTurnos === 'semana') {
+        const lunes = getLunes(fechaTurnos);
+        const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
         for (let i = 0; i < 7; i++) {
-            const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
+            dias.push(new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i));
+        }
+        if (titulo) titulo.textContent =
+            `${lunes.getDate()} ${MESES_N[lunes.getMonth()].slice(0,3)} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()].slice(0,3)}`;
+        grid.className = 'turnos-semana-grid';
+    } else { // mes
+        const año = fechaTurnos.getFullYear();
+        const mes = fechaTurnos.getMonth();
+        const ultimoDia = new Date(año, mes + 1, 0).getDate();
+        for (let d = 1; d <= ultimoDia; d++) dias.push(new Date(año, mes, d));
+        if (titulo) titulo.textContent = `${MESES_N[mes]} ${año}`;
+        grid.className = 'turnos-semana-grid vista-mes';
+    }
+
+    try {
+        const promesas = dias.map(dia => {
             const fechaDia = toLocalISOString(dia);
             const url = `${API}/turnos-fijos/disponibilidad?fecha=${fechaDia}${aulaId ? `&aula_id=${aulaId}` : ''}`;
-            promesas.push(
-                apiFetch(url)
-                    .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: fechaDia })
-                    .catch(() => ({ turnos_fijos: [], fecha: fechaDia }))
-            );
-        }
+            return apiFetch(url)
+                .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: fechaDia })
+                .catch(() => ({ turnos_fijos: [], fecha: fechaDia }));
+        });
 
         const resultados = await Promise.all(promesas);
 
-        grid.innerHTML = resultados.map((data, i) => {
-            const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
-            const fechaStr = toLocalISOString(dia);
+        // En vista hoy/mes, filtrar días sin turnos para no mostrar columnas vacías
+        const resultadosFiltrados = (_vistaTurnos === 'mes')
+            ? resultados.filter(r => r.turnos_fijos && r.turnos_fijos.length > 0)
+            : resultados;
+
+        if (!resultadosFiltrados.length || !resultadosFiltrados.some(r => r.turnos_fijos?.length > 0)) {
+            grid.innerHTML = '<p class="empty" style="grid-column:1/-1">No hay turnos disponibles para este período.</p>';
+            return;
+        }
+
+        grid.innerHTML = resultadosFiltrados.map((data, i) => {
+            const fechaStr = data.fecha || toLocalISOString(dias[i]);
+            const dia = new Date(fechaStr + 'T00:00:00');
             const esHoy = fechaStr === hoyStr;
             const turnos = data.turnos_fijos || [];
+            if (_vistaTurnos === 'mes' && !turnos.length) return '';
 
             return `
                 <div class="turnos-dia-col">
@@ -2081,7 +2174,7 @@ async function renderGrillaTurnos(aulaId) {
                             <div class="turno-card ${t.libre ? 'libre' : 'ocupado'}"
                              ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','${aulaId || ''}')"` : ''}>
                                 <div class="turno-card-hora ${t.libre ? '' : 'ocupado'}">
-                                    ${t.hora_inicio}<br>—<br>${t.hora_fin}
+                                    ${t.hora_inicio} — ${t.hora_fin}
                                 </div>
                                 <div class="turno-card-estado">
                                     ${t.libre ? '✓ Libre' : '✗ Ocupado'}
