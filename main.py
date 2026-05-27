@@ -874,7 +874,7 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                 </table>
             </div>"""
 
-        if email_destino:
+        if email_destino and not reserva.es_transferencia:
             # Build politica section if exists
             politica_html = ""
             if tenant.get("politica_cancelacion"):
@@ -914,6 +914,31 @@ async def crear_reserva(request: Request, reserva: ReservaCreate):
                             <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50; font-weight:bold">Preguntas frecuentes →</a>
                             &nbsp;&nbsp;|&nbsp;&nbsp;
                             <a href="https://reservatuespacio.com/soporte.html" style="color:#888">¿Necesitás ayuda? Centro de soporte →</a>
+                        </p>
+                    </div>
+                </div>
+                """
+            )
+        elif email_destino and reserva.es_transferencia:
+            # Para transferencias: avisar que está pendiente de verificación
+            enviar_email(
+                email_destino,
+                "⏳ Tu reserva está pendiente de verificación — " + tenant["nombre"],
+                f"""
+                <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto">
+                    <div style="background:#2C3E50; padding:24px; border-radius:12px 12px 0 0">
+                        <h2 style="color:#f39c12; margin:0">Reserva recibida</h2>
+                    </div>
+                    <div style="background:#F9F9FB; padding:24px; border-radius:0 0 12px 12px">
+                        <p style="color:#2C3E50; margin-bottom:16px">Hola <b>{nombre_destino}</b>, recibimos tu reserva y tu comprobante de pago. El administrador lo verificará y recibirás un email de confirmación en breve.</p>
+                        <table style="border-collapse:collapse; width:100%; background:white; border-radius:8px; overflow:hidden">
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50; width:120px">Espacio</td><td style="padding:10px 14px; color:#4A5568">{espacio['nombre']}</td></tr>
+                            <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Fecha</td><td style="padding:10px 14px; color:#4A5568">{reserva.fecha.strftime('%d/%m/%Y')}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Horario</td><td style="padding:10px 14px; color:#4A5568">{reserva.hora_inicio.strftime('%H:%M')} - {reserva.hora_fin.strftime('%H:%M')}</td></tr>
+                            <tr><td style="padding:10px 14px; font-weight:bold; color:#2C3E50">Organización</td><td style="padding:10px 14px; color:#4A5568">{tenant['nombre']}</td></tr>
+                        </table>
+                        <p style="margin-top:20px; font-size:13px; color:#888; text-align:center">
+                            <a href="https://reservatuespacio.com/faq-usuarios.html" style="color:#2C3E50; font-weight:bold">Preguntas frecuentes →</a>
                         </p>
                     </div>
                 </div>
@@ -1129,7 +1154,11 @@ async def subir_comprobante(request: Request):
                 reserva_id, tenant["id"]
             )
             if reserva:
-                await db.execute("UPDATE reservas SET expires_at = NULL WHERE id = $1", reserva_id)
+                # Guardar la URL del comprobante y proteger de expiración
+                await db.execute(
+                    "UPDATE reservas SET comprobante_url = $1, expires_at = NULL WHERE id = $2",
+                    url_publica, reserva_id
+                )
                 if tenant.get("email_admin"):
                     admin_url = f"https://reservatuespacio.com/admin/{tenant['slug']}"
                     enviar_email(
