@@ -1245,12 +1245,11 @@ async function elegirMetodoPago(metodo) {
 }
 
 async function crearReserva() {
-    // Si hay turno fijo seleccionado, pre-completar los campos
+    // Si hay turno fijo seleccionado, pre-completar los campos antes de leer
     if (modoTurnoFijo && turnoFijoSeleccionado) {
         document.getElementById('fecha').value = turnoFijoSeleccionado.fecha;
         const selInicio = document.getElementById('hora-inicio');
         const selFin = document.getElementById('hora-fin');
-        // Agregar opciones si no existen
         for (const [sel, val] of [[selInicio, turnoFijoSeleccionado.horaInicio],[selFin, turnoFijoSeleccionado.horaFin]]) {
             let found = false;
             for (let opt of sel.options) { if (opt.value === val) { found = true; break; } }
@@ -1258,7 +1257,8 @@ async function crearReserva() {
             sel.value = val;
         }
     }
-    
+
+    // Leer valores DESPUÉS de haberlos seteado
     const espacioId = document.getElementById('espacio-id').value;
     const nombre = document.getElementById('usuario-nombre').value.trim();
     const email = document.getElementById('usuario-email').value.trim();
@@ -1267,9 +1267,21 @@ async function crearReserva() {
     const horaInicio = document.getElementById('hora-inicio').value;
     const horaFin = document.getElementById('hora-fin').value;
 
-    if (!espacioId || !nombre || !email || !whatsapp || !fecha || !horaInicio || !horaFin) {
-        mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos incluyendo WhatsApp', 'error');
-        return;
+    // En modo turno fijo solo validar datos del usuario
+    if (modoTurnoFijo) {
+        if (!espacioId || !nombre || !email || !whatsapp) {
+            mostrarMensaje('mensaje-reserva', 'Por favor completá tu nombre, email y WhatsApp', 'error');
+            return;
+        }
+        if (!turnoFijoSeleccionado) {
+            mostrarMensaje('mensaje-reserva', 'Por favor seleccioná un turno disponible en la grilla', 'error');
+            return;
+        }
+    } else {
+        if (!espacioId || !nombre || !email || !whatsapp || !fecha || !horaInicio || !horaFin) {
+            mostrarMensaje('mensaje-reserva', 'Por favor completá todos los campos incluyendo WhatsApp', 'error');
+            return;
+        }
     }
 
     // Recolectar recursos seleccionados
