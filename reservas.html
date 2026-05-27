@@ -551,7 +551,7 @@
     </div>
 
     <!-- SECCIÓN 0: CALENDARIO -->
-    <div class="card" id="card-calendario">
+    <div class="card" id="card-calendario" style="display:none;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
             <h2 style="margin:0; border:none; padding:0">Calendario de reservas</h2>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -1900,7 +1900,6 @@ async function cargarTurnosFijosPublico() {
 async function iniciar() {
     try {
         await apiFetch(`${API}/`);
-        // Esperar 3 segundos para que Render despierte completamente
         await new Promise(resolve => setTimeout(resolve, 3000));
     } catch(e) {
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1909,21 +1908,41 @@ async function iniciar() {
     cargarEspacios();
     verificarReservaPendiente();
     cargarBannerHorarios();
-    cargarTurnosFijosPublico();
-    cargarBannerHorarios();
-    cargarTurnosFijosPublico();
-    // Poblar selects de hora con horarios del tenant
+
+    // Determinar si usar turnos fijos o calendario libre
     try {
-        const resH = await apiFetch(`${API}/horarios`);
-        if (resH.ok) {
-            const horarios = await resH.json();
-            poblarSelectsHora(horarios);
+        const hoy = new Date().toISOString().split('T')[0];
+        const resTurnos = await apiFetch(`${API}/turnos-fijos`);
+        if (resTurnos.ok) {
+            const turnos = await resTurnos.json();
+            if (turnos && turnos.length > 0) {
+                // Caso B: hay turnos fijos — mostrar grilla semanal
+                document.getElementById('card-calendario').style.display = 'none';
+                cargarTurnosFijosPublico();
+            } else {
+                // Caso A: sin turnos — mostrar calendario libre
+                document.getElementById('card-calendario').style.display = 'block';
+                document.getElementById('card-turnos-fijos').style.display = 'none';
+                const resH = await apiFetch(`${API}/horarios`);
+                if (resH.ok) poblarSelectsHora(await resH.json());
+                else poblarSelectsHora([]);
+                cargarFechasBloqueadas();
+                renderCalendario();
+            }
         } else {
-            poblarSelectsHora([]);
+            // Error — mostrar calendario libre
+            document.getElementById('card-calendario').style.display = 'block';
+            const resH = await apiFetch(`${API}/horarios`);
+            if (resH.ok) poblarSelectsHora(await resH.json());
+            cargarFechasBloqueadas();
+            renderCalendario();
         }
-    } catch(e) { poblarSelectsHora([]); }
-    cargarFechasBloqueadas();
-    renderCalendario();
+    } catch(e) {
+        console.error('Error determinando modo:', e);
+        document.getElementById('card-calendario').style.display = 'block';
+        cargarFechasBloqueadas();
+        renderCalendario();
+    }
 }
 
 iniciar();
