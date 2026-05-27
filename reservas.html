@@ -1798,12 +1798,8 @@ function navegarTurnos(dir) {
 }
 
 async function cargarTurnosFijosPublico() {
-    // Calcular el lunes de la semana actual
-    const d = new Date(fechaTurnos);
-    const diaSemana = d.getDay();
-    const diffLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
-    d.setDate(d.getDate() + diffLunes);
-    const lunes = new Date(d);
+    // Usar getLunes() que ya existe y funciona correctamente
+    const lunes = getLunes(fechaTurnos);
 
     const DIAS_N = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const MESES_N = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
