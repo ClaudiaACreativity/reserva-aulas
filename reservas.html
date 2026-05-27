@@ -293,9 +293,101 @@
             max-width: 400px;
         }
 
-        .turnos-semana-grid.vista-mes {
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            min-width: unset;
+        /* ALMANAQUE MENSUAL */
+        .almanaque-wrap { width: 100%; }
+
+        .almanaque-header-dias {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .almanaque-header-dia {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            padding: 4px 0;
+        }
+
+        .almanaque-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .almanaque-celda {
+            border-radius: 10px;
+            border: 1px solid #e8edf2;
+            min-height: 72px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: white;
+            transition: box-shadow 0.15s;
+        }
+
+        .almanaque-celda.fuera-mes {
+            background: #f9f9fb;
+            border-color: #f0f0f0;
+        }
+
+        .almanaque-celda.es-hoy {
+            border-color: var(--color-secundario);
+            border-width: 2px;
+            background: #f0fff4;
+        }
+
+        .almanaque-celda.sin-turnos {
+            opacity: 0.5;
+        }
+
+        .almanaque-num-dia {
+            font-size: 13px;
+            font-weight: 700;
+            color: #2C3E50;
+            line-height: 1;
+        }
+
+        .almanaque-celda.fuera-mes .almanaque-num-dia { color: #ccc; }
+        .almanaque-celda.es-hoy .almanaque-num-dia { color: var(--color-secundario); }
+
+        .almanaque-turno {
+            font-size: 11px;
+            border-radius: 6px;
+            padding: 3px 5px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .almanaque-turno.libre {
+            background: #e8f7ee;
+            color: #1a6b3a;
+            border: 1px solid #71D997;
+        }
+
+        .almanaque-turno.libre:hover {
+            background: var(--color-secundario);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .almanaque-turno.ocupado {
+            background: #fff0f0;
+            color: #c0392b;
+            border: 1px solid #ffb3b3;
+            cursor: default;
+        }
+
+        .almanaque-turno.seleccionado {
+            background: var(--color-primario);
+            color: white;
+            border-color: var(--color-primario);
         }
 
         .turnos-dia-col {
@@ -571,11 +663,24 @@
         </p>
         <!-- Tabs de espacios (se generan dinámicamente) -->
         <div id="turnos-espacios-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-        <!-- Grid (se reemplaza según la vista) -->
-        <div class="turnos-semana-wrap">
+        <!-- Grid (hoy/semana) -->
+        <div class="turnos-semana-wrap" id="wrap-grid-turnos">
             <div id="turnos-semana-grid" class="turnos-semana-grid">
                 <p class="empty">Cargando turnos...</p>
             </div>
+        </div>
+        <!-- Almanaque mensual -->
+        <div class="almanaque-wrap" id="wrap-almanaque" style="display:none;">
+            <div class="almanaque-header-dias">
+                <div class="almanaque-header-dia">Lun</div>
+                <div class="almanaque-header-dia">Mar</div>
+                <div class="almanaque-header-dia">Mié</div>
+                <div class="almanaque-header-dia">Jue</div>
+                <div class="almanaque-header-dia">Vie</div>
+                <div class="almanaque-header-dia">Sáb</div>
+                <div class="almanaque-header-dia">Dom</div>
+            </div>
+            <div id="almanaque-grid" class="almanaque-grid"></div>
         </div>
     </div>
 
@@ -2106,8 +2211,22 @@ async function renderGrillaTurnos(aulaId) {
     const DIAS_N = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
     const MESES_N = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const hoyStr = toLocalISOString(new Date());
-    const grid = document.getElementById('turnos-semana-grid');
     const titulo = document.getElementById('titulo-turnos');
+
+    // Mostrar/ocultar los dos containers según la vista
+    const wrapGrid = document.getElementById('wrap-grid-turnos');
+    const wrapAlmanaque = document.getElementById('wrap-almanaque');
+
+    if (_vistaTurnos === 'mes') {
+        wrapGrid.style.display = 'none';
+        wrapAlmanaque.style.display = 'block';
+        await renderAlmanaque(aulaId, hoyStr, MESES_N);
+        return;
+    }
+
+    wrapGrid.style.display = 'block';
+    wrapAlmanaque.style.display = 'none';
+    const grid = document.getElementById('turnos-semana-grid');
     grid.innerHTML = '<p class="empty">Cargando...</p>';
 
     // Calcular días según la vista
@@ -2116,7 +2235,7 @@ async function renderGrillaTurnos(aulaId) {
         dias = [new Date(fechaTurnos.getFullYear(), fechaTurnos.getMonth(), fechaTurnos.getDate())];
         if (titulo) titulo.textContent = dias[0].toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
         grid.className = 'turnos-semana-grid vista-hoy';
-    } else if (_vistaTurnos === 'semana') {
+    } else { // semana
         const lunes = getLunes(fechaTurnos);
         const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
         for (let i = 0; i < 7; i++) {
@@ -2125,13 +2244,6 @@ async function renderGrillaTurnos(aulaId) {
         if (titulo) titulo.textContent =
             `${lunes.getDate()} ${MESES_N[lunes.getMonth()].slice(0,3)} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()].slice(0,3)}`;
         grid.className = 'turnos-semana-grid';
-    } else { // mes
-        const año = fechaTurnos.getFullYear();
-        const mes = fechaTurnos.getMonth();
-        const ultimoDia = new Date(año, mes + 1, 0).getDate();
-        for (let d = 1; d <= ultimoDia; d++) dias.push(new Date(año, mes, d));
-        if (titulo) titulo.textContent = `${MESES_N[mes]} ${año}`;
-        grid.className = 'turnos-semana-grid vista-mes';
     }
 
     try {
@@ -2145,22 +2257,16 @@ async function renderGrillaTurnos(aulaId) {
 
         const resultados = await Promise.all(promesas);
 
-        // En vista hoy/mes, filtrar días sin turnos para no mostrar columnas vacías
-        const resultadosFiltrados = (_vistaTurnos === 'mes')
-            ? resultados.filter(r => r.turnos_fijos && r.turnos_fijos.length > 0)
-            : resultados;
-
-        if (!resultadosFiltrados.length || !resultadosFiltrados.some(r => r.turnos_fijos?.length > 0)) {
+        if (!resultados.some(r => r.turnos_fijos?.length > 0)) {
             grid.innerHTML = '<p class="empty" style="grid-column:1/-1">No hay turnos disponibles para este período.</p>';
             return;
         }
 
-        grid.innerHTML = resultadosFiltrados.map((data, i) => {
+        grid.innerHTML = resultados.map((data, i) => {
             const fechaStr = data.fecha || toLocalISOString(dias[i]);
             const dia = new Date(fechaStr + 'T00:00:00');
             const esHoy = fechaStr === hoyStr;
             const turnos = data.turnos_fijos || [];
-            if (_vistaTurnos === 'mes' && !turnos.length) return '';
 
             return `
                 <div class="turnos-dia-col">
@@ -2193,6 +2299,73 @@ async function renderGrillaTurnos(aulaId) {
         console.error('Error cargando grilla:', e);
         grid.innerHTML = '<p class="empty">Error al cargar los turnos</p>';
     }
+}
+
+async function renderAlmanaque(aulaId, hoyStr, MESES_N) {
+    const titulo = document.getElementById('titulo-turnos');
+    const año = fechaTurnos.getFullYear();
+    const mes = fechaTurnos.getMonth();
+    if (titulo) titulo.textContent = `${MESES_N[mes]} ${año}`;
+
+    const grid = document.getElementById('almanaque-grid');
+    grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#888;padding:20px;">Cargando...</p>';
+
+    // Calcular el primer lunes del almanaque
+    const primerDiaMes = new Date(año, mes, 1);
+    // getDay(): 0=dom,1=lun,...6=sab. Queremos empezar en lunes
+    const diaSemPrimerDia = primerDiaMes.getDay(); // 0=dom
+    const offsetInicio = diaSemPrimerDia === 0 ? 6 : diaSemPrimerDia - 1;
+    const inicioAlmanaque = new Date(año, mes, 1 - offsetInicio);
+
+    // Calcular el último domingo del almanaque (completar la última semana)
+    const ultimoDiaMes = new Date(año, mes + 1, 0);
+    const diaSemUltimoDia = ultimoDiaMes.getDay();
+    const offsetFin = diaSemUltimoDia === 0 ? 0 : 7 - diaSemUltimoDia;
+    const finAlmanaque = new Date(año, mes + 1, offsetFin);
+
+    // Generar todos los días del almanaque
+    const dias = [];
+    const d = new Date(inicioAlmanaque);
+    while (d <= finAlmanaque) {
+        dias.push(new Date(d));
+        d.setDate(d.getDate() + 1);
+    }
+
+    // Cargar disponibilidad solo para los días del mes (no los de relleno)
+    const diasDelMes = dias.filter(d => d.getMonth() === mes);
+    const promesas = diasDelMes.map(dia => {
+        const fechaDia = toLocalISOString(dia);
+        const url = `${API}/turnos-fijos/disponibilidad?fecha=${fechaDia}${aulaId ? `&aula_id=${aulaId}` : ''}`;
+        return apiFetch(url)
+            .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: fechaDia })
+            .catch(() => ({ turnos_fijos: [], fecha: fechaDia }));
+    });
+
+    const resultados = await Promise.all(promesas);
+    // Mapear fechaStr → turnos
+    const turnosPorFecha = {};
+    resultados.forEach(r => { turnosPorFecha[r.fecha] = r.turnos_fijos || []; });
+
+    grid.innerHTML = dias.map(dia => {
+        const fechaStr = toLocalISOString(dia);
+        const esMes = dia.getMonth() === mes;
+        const esHoy = fechaStr === hoyStr;
+        const turnos = esMes ? (turnosPorFecha[fechaStr] || []) : [];
+        const hayTurnos = turnos.length > 0;
+
+        return `
+            <div class="almanaque-celda ${!esMes ? 'fuera-mes' : ''} ${esHoy ? 'es-hoy' : ''} ${esMes && !hayTurnos ? 'sin-turnos' : ''}">
+                <div class="almanaque-num-dia">${dia.getDate()}</div>
+                ${esMes && hayTurnos ? turnos.map(t => `
+                    <div class="almanaque-turno ${t.libre ? 'libre' : 'ocupado'}"
+                        ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','${aulaId || ''}')"` : ''}
+                        title="${t.hora_inicio} — ${t.hora_fin}">
+                        ${t.hora_inicio}
+                    </div>
+                `).join('') : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 async function iniciar() {
