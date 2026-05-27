@@ -1725,6 +1725,20 @@ async def listar_edificios(request: Request):
     finally:
         await release_db(db)
 
+@app.get("/edificios")
+async def listar_edificios_endpoint(request: Request):
+    db = await get_db()
+    try:
+        tenant = await get_tenant(request, db)
+        edificios = await db.fetch(
+            "SELECT * FROM edificios WHERE activo = TRUE AND tenant_id = $1 ORDER BY nombre",
+            tenant["id"]
+        )
+        return [dict(e) for e in edificios]
+    finally:
+        await release_db(db)
+
+
 @app.post("/edificios")
 async def crear_edificio(request: Request, datos: dict):
     db = await get_db()

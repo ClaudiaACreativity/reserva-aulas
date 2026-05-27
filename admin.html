@@ -2683,6 +2683,10 @@ async function cargarAgenda() {
 
     try {
         const res = await apiFetch(`${API}/admin/agenda?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`);
+        if (!res.ok) {
+            contenedor.innerHTML = '<p class="empty">Error al cargar la agenda. Intentá de nuevo.</p>';
+            return;
+        }
         const reservas = await res.json();
 
         // Cargar turnos fijos para cruzar
