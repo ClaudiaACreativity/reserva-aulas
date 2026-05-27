@@ -427,7 +427,7 @@
 
         /* BANNER HORARIOS */
         .banner-horarios {
-            background: var(--color-primario);
+            background: #1a1a2e;
             color: white;
             padding: 14px 20px;
             display: flex;
@@ -747,11 +747,20 @@ function navegarCalendario(dir) {
 }
 
 function getLunes(fecha) {
-    const d = new Date(fecha);
+    // Trabajar siempre en hora local para evitar desfase UTC en Argentina (UTC-3)
+    const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
     const dia = d.getDay();
     const diff = dia === 0 ? -6 : 1 - dia;
     d.setDate(d.getDate() + diff);
     return d;
+}
+
+// Versión segura de toISOString en hora local (evita el día anterior por UTC)
+function toLocalISOString(fecha) {
+    const y = fecha.getFullYear();
+    const m = String(fecha.getMonth() + 1).padStart(2, '0');
+    const d = String(fecha.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
 
 function formatFecha(fecha) {
@@ -1011,7 +1020,7 @@ function precargarReserva(espacioId, aulaNombre, fecha, hora) {
 let modoTurnoFijo = false;
 let turnoFijoSeleccionado = null;
 
-function seleccionarTurno(fecha, horaInicio, horaFin, espacioId) {
+function seleccionarTurno(event, fecha, horaInicio, horaFin, espacioId) {
     modoTurnoFijo = true;
     turnoFijoSeleccionado = { fecha, horaInicio, horaFin, espacioId };
 
@@ -1032,7 +1041,8 @@ function seleccionarTurno(fecha, horaInicio, horaFin, espacioId) {
 
     // Marcar turno como seleccionado
     document.querySelectorAll('.turno-card').forEach(b => b.classList.remove('seleccionado'));
-    if (event?.currentTarget) event.currentTarget.classList.add('seleccionado');
+    const cardEl = event?.currentTarget || event?.target?.closest('.turno-card');
+    if (cardEl) cardEl.classList.add('seleccionado');
 
     // Scroll al formulario
     document.getElementById('card-nueva-reserva').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1805,17 +1815,16 @@ async function cargarTurnosFijosPublico() {
     const MESES_N = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
     // Título de la semana
-    const domingo = new Date(lunes);
-    domingo.setDate(domingo.getDate() + 6);
+    const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
     const titulo = document.getElementById('titulo-turnos');
     if (titulo) titulo.textContent =
         `${lunes.getDate()} ${MESES_N[lunes.getMonth()]} — ${domingo.getDate()} ${MESES_N[domingo.getMonth()]}`;
 
-    const hoyStr = new Date().toISOString().split('T')[0];
+    const hoyStr = toLocalISOString(new Date());
 
     try {
         // Buscar si hay turnos fijos configurados — chequear con el primer día
-        const testRes = await apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${lunes.toISOString().split('T')[0]}`);
+        const testRes = await apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${toLocalISOString(lunes)}`);
         if (!testRes.ok) {
             document.getElementById('card-turnos-fijos').style.display = 'none';
             document.getElementById('card-calendario').style.display = 'block';
@@ -1827,12 +1836,13 @@ async function cargarTurnosFijosPublico() {
         // Cargar todos los 7 días en paralelo
         const promesas = [];
         for (let i = 0; i < 7; i++) {
-            const dia = new Date(lunes);
-            dia.setDate(dia.getDate() + i);
+            // Crear cada día desde lunes en hora local — nunca mutar lunes
+            const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
+            const fechaDia = toLocalISOString(dia);
             promesas.push(
-                apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${dia.toISOString().split('T')[0]}`)
-                    .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: dia.toISOString().split('T')[0] })
-                    .catch(() => ({ turnos_fijos: [], fecha: dia.toISOString().split('T')[0] }))
+                apiFetch(`${API}/turnos-fijos/disponibilidad?fecha=${fechaDia}`)
+                    .then(r => r.ok ? r.json() : { turnos_fijos: [], fecha: fechaDia })
+                    .catch(() => ({ turnos_fijos: [], fecha: fechaDia }))
             );
         }
 
@@ -1853,9 +1863,9 @@ async function cargarTurnosFijosPublico() {
         // Construir grilla semanal
         const grid = document.getElementById('turnos-semana-grid');
         grid.innerHTML = resultados.map((data, i) => {
-            const dia = new Date(lunes);
-            dia.setDate(dia.getDate() + i);
-            const fechaStr = dia.toISOString().split('T')[0];
+            // Crear cada día desde lunes en hora local — sin mutar lunes
+            const dia = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
+            const fechaStr = toLocalISOString(dia);
             const esHoy = fechaStr === hoyStr;
             const turnos = data.turnos_fijos || [];
 
@@ -1869,7 +1879,7 @@ async function cargarTurnosFijosPublico() {
                         ? `<div style="text-align:center;padding:16px 0;color:#ccc;font-size:12px;">Sin turnos</div>`
                         : turnos.map(t => `
                             <div class="turno-card ${t.libre ? 'libre' : 'ocupado'}"
-                                 ${t.libre ? `onclick="seleccionarTurno('${fechaStr}','${t.hora_inicio}','${t.hora_fin}','')"` : ''}>
+                             ${t.libre ? `onclick="seleccionarTurno(event,'${fechaStr}','${t.hora_inicio}','${t.hora_fin}','')"` : ''}>
                                 <div class="turno-card-hora ${t.libre ? '' : 'ocupado'}">
                                     ${t.hora_inicio}<br>—<br>${t.hora_fin}
                                 </div>
