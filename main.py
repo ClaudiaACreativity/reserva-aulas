@@ -1684,13 +1684,12 @@ async def admin_eliminar_turno_fijo(request: Request, turno_id: str):
 
 @app.get("/admin/agenda")
 async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
-    """
-    Panel visual semanal/mensual para el admin.
-    Devuelve todos los turnos del período con info del cliente y estado.
-    """
+    """Panel visual semanal/mensual para el admin."""
     db = await get_db()
     try:
         tenant = await get_tenant(request, db)
+        fi = date.fromisoformat(fecha_inicio)
+        ff = date.fromisoformat(fecha_fin)
         reservas = await db.fetch(
             """SELECT r.id, r.fecha::text, r.hora_inicio::text, r.hora_fin::text,
                       r.estado, r.observaciones,
@@ -1706,13 +1705,18 @@ async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
                AND r.fecha BETWEEN $2 AND $3
                AND r.estado NOT IN ('cancelada', 'expirada')
                ORDER BY r.fecha, r.hora_inicio""",
-            tenant["id"], fecha_inicio, fecha_fin
+            tenant["id"], fi, ff
         )
         return [dict(r) for r in reservas]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al cargar agenda: {str(e)}")
     finally:
         await release_db(db)
 
 
+@app.get("/edificios-lista")
 async def listar_edificios(request: Request):
     db = await get_db()
     try:
