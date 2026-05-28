@@ -458,7 +458,10 @@ async def registro_publico(data: RegistroPublico):
     db = await get_qfa_db()
     try:
         # Generar slug desde el nombre del salón — sin guiones, todo minúsculas, sin caracteres especiales
-        slug_base = re.sub(r'[^a-z0-9]', '', data.nombre_salon.lower().strip())
+        import unicodedata
+        nombre_norm = unicodedata.normalize('NFD', data.nombre_salon.lower().strip())
+        nombre_ascii = ''.join(c for c in nombre_norm if unicodedata.category(c) != 'Mn')
+        slug_base = re.sub(r'[^a-z0-9]', '', nombre_ascii)
         slug_base = slug_base[:40] or 'salon'
 
         # Verificar unicidad del slug, agregar sufijo numérico si ya existe
