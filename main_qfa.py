@@ -279,10 +279,19 @@ qfa_app = FastAPI(title="QueFiestaApp API", version="1.0.0")
 
 qfa_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # restringir en producción
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[
+        "https://quefiestaapp.gestionateia.com",
+        "https://www.quefiestaapp.gestionateia.com",
+        "https://gestionateia.com",
+        "https://www.gestionateia.com",
+        "https://reservatuespacio.com",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:5500",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Admin-Token", "X-Superadmin-Token", "Authorization"],
 )
 
 @qfa_app.on_event("startup")
@@ -448,24 +457,19 @@ async def registro_publico(data: RegistroPublico):
     import re, secrets, string
     db = await get_qfa_db()
     try:
-        # Generar slug desde el nombre del salón
-        slug_base = re.sub(r'[^a-z0-9]+', '-', data.nombre_salon.lower().strip()).strip('-')
-        slug_base = slug_base[:40]
+        # Generar slug desde el nombre del salón — sin guiones, todo minúsculas, sin caracteres especiales
+        slug_base = re.sub(r'[^a-z0-9]', '', data.nombre_salon.lower().strip())
+        slug_base = slug_base[:40] or 'salon'
 
-        # Verificar unicidad del slug, agregar sufijo si ya existe
+        # Verificar unicidad del slug, agregar sufijo numérico si ya existe
         slug = slug_base
-        contador = 1
+        contador = 2
         while True:
             existe = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1", slug)
             if not existe:
                 break
-            slug = f"{slug_base}-{contador}"
+            slug = f"{slug_base}{contador}"
             contador += 1
-
-        # Verificar que el email no esté registrado
-        email_existe = await db.fetchrow("SELECT id FROM qfa_tenants WHERE email_admin = $1", data.email_admin)
-        if email_existe:
-            raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese email")
 
         # Generar contraseña temporal
         alphabet = string.ascii_letters + string.digits
@@ -475,7 +479,7 @@ async def registro_publico(data: RegistroPublico):
         # Calcular trial
         trial_hasta = date.today() + timedelta(days=30)
 
-        # Insertar tenant
+        # Insertar tenant — un mismo email puede tener múltiples salones
         tenant = await db.fetchrow("""
             INSERT INTO qfa_tenants (nombre, slug, email_admin, password_hash, nombre_visible,
                                      trial_hasta, suscripcion_activa, whatsapp)
@@ -505,7 +509,7 @@ async def registro_publico(data: RegistroPublico):
     except HTTPException:
         raise
     except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese email o nombre")
+        raise HTTPException(status_code=409, detail="Ese nombre de salón ya está registrado")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
