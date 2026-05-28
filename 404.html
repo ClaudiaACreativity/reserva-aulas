@@ -59,15 +59,9 @@
         };
     }
 
-    // /admin/slug — pasar slug por hash al iframe
+    // /admin/slug — única URL válida para el panel admin
     if (parts[0] === 'admin' && parts[1]) {
         cargarEnIframe('/admin.html#tenant=' + parts[1]);
-        return;
-    }
-
-    // /slug/admin — formato alternativo para el panel admin
-    if (parts[1] === 'admin' && parts[0] && !rutasReservadas.includes(parts[0])) {
-        cargarEnIframe('/admin.html#tenant=' + parts[0]);
         return;
     }
 
