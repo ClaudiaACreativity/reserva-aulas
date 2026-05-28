@@ -427,22 +427,11 @@ class ConfiguracionUpdate(BaseModel):
     mensaje_pago: Optional[str] = None
     politica_cancelacion: Optional[str] = None
 
-class TenantCreate(BaseModel):
-    nombre: str
-    slug: str
+class RegistroPublico(BaseModel):
+    nombre_salon: str
     email_admin: str
-    password: str
-    nombre_visible: Optional[str] = None
-
-class SuscripcionCreate(BaseModel):
-    tenant_id: str
-    monto_usd: float
-    fecha_pago: str
-    periodo_desde: str
-    periodo_hasta: str
-    metodo: Optional[str] = None
-    referencia: Optional[str] = None
-    notas: Optional[str] = None
+    whatsapp: str
+    nombre_responsable: Optional[str] = None
 
 # ============================================================
 # ENDPOINTS PÚBLICOS
@@ -451,6 +440,76 @@ class SuscripcionCreate(BaseModel):
 @qfa_app.get("/health")
 async def health():
     return {"status": "ok", "app": "QueFiestaApp"}
+
+
+@qfa_app.post("/registro")
+async def registro_publico(data: RegistroPublico):
+    """Alta pública desde la landing — genera slug, contraseña temporal y envía email de bienvenida."""
+    import re, secrets, string
+    db = await get_qfa_db()
+    try:
+        # Generar slug desde el nombre del salón
+        slug_base = re.sub(r'[^a-z0-9]+', '-', data.nombre_salon.lower().strip()).strip('-')
+        slug_base = slug_base[:40]
+
+        # Verificar unicidad del slug, agregar sufijo si ya existe
+        slug = slug_base
+        contador = 1
+        while True:
+            existe = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1", slug)
+            if not existe:
+                break
+            slug = f"{slug_base}-{contador}"
+            contador += 1
+
+        # Verificar que el email no esté registrado
+        email_existe = await db.fetchrow("SELECT id FROM qfa_tenants WHERE email_admin = $1", data.email_admin)
+        if email_existe:
+            raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese email")
+
+        # Generar contraseña temporal
+        alphabet = string.ascii_letters + string.digits
+        password_temp = ''.join(secrets.choice(alphabet) for _ in range(10))
+        password_hash = hash_password(password_temp)
+
+        # Calcular trial
+        trial_hasta = date.today() + timedelta(days=30)
+
+        # Insertar tenant
+        tenant = await db.fetchrow("""
+            INSERT INTO qfa_tenants (nombre, slug, email_admin, password_hash, nombre_visible,
+                                     trial_hasta, suscripcion_activa, whatsapp)
+            VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7)
+            RETURNING id, slug, nombre, nombre_visible
+        """, data.nombre_salon, slug, data.email_admin, password_hash,
+            data.nombre_salon, trial_hasta, data.whatsapp)
+
+        # Email de bienvenida con datos de acceso
+        try:
+            email_bienvenida_tenant_qfa(
+                nombre_salon=data.nombre_salon,
+                email_admin=data.email_admin,
+                slug=slug,
+                password=password_temp,
+                trial_hasta=str(trial_hasta)
+            )
+        except Exception as e:
+            print(f"[QFA EMAIL BIENVENIDA] Error: {e}")
+
+        return {
+            "ok": True,
+            "slug": slug,
+            "trial_hasta": str(trial_hasta),
+            "mensaje": f"¡Bienvenido! Tu cuenta fue creada. Revisá tu email para los datos de acceso."
+        }
+    except HTTPException:
+        raise
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese email o nombre")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        release_db(db)
 
 
 @qfa_app.get("/{slug}")
