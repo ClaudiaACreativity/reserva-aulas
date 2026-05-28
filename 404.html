@@ -45,7 +45,7 @@
 
     const rutasReservadas = ['landing', 'reservas', 'soporte', 'faq-usuarios', 'faq-tenants',
                              'superadmin', 'pago-exitoso', 'padel', 'futbol5', 'academias',
-                             'consultorios', 'coworking', 'sitemap.xml', '404',
+                             'consultorios', 'coworking', 'sitemap.xml', '404', 'admin',
                              'robots.txt', 'favicon-rte.png', 'Padel-02.png',
                              'pexels-zeynep-beste-990301136-20657537.jpg',
                              'pexels-felipebalduino-9578526.jpg'];
@@ -65,7 +65,19 @@
         return;
     }
 
-    // /slug — pasar slug por hash al iframe
+    // Cualquier URL con más de un segmento que no sea /admin/slug → 404
+    if (parts.length > 1) {
+        document.getElementById('loader').innerHTML = `
+            <div style="text-align:center;padding:40px;font-family:Arial,sans-serif;">
+                <div style="font-size:72px;font-weight:900;color:#2C3E50;">404</div>
+                <div style="font-size:20px;color:#2C3E50;margin:16px 0;">Página no encontrada</div>
+                <div style="font-size:14px;color:#888;margin-bottom:32px;">La dirección que ingresaste no existe.</div>
+                <a href="/" style="background:#71D997;color:#2C3E50;padding:12px 28px;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;">Ir al inicio →</a>
+            </div>`;
+        return;
+    }
+
+    // /slug — página pública del tenant
     if (parts[0] && !rutasReservadas.includes(parts[0])) {
         const pago = params.get('pago');
         const reservaId = params.get('reserva_id');
