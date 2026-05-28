@@ -201,8 +201,8 @@ def email_bienvenida_tenant_qfa(
 ):
     """Email de bienvenida al nuevo tenant con sus datos de acceso."""
 
-    url_admin = f"https://quefiestaapp.gestionateia.com/admin.html"
-    url_publica = f"https://quefiestaapp.gestionateia.com?salon={slug}"
+    url_admin = f"https://quefiestaapp.gestionateia.com/admin/{slug}"
+    url_publica = f"https://quefiestaapp.gestionateia.com/{slug}"
 
     html = f"""
     <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>
