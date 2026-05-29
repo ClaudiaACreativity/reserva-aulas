@@ -442,6 +442,23 @@ class RegistroPublico(BaseModel):
     whatsapp: str
     nombre_responsable: Optional[str] = None
 
+class SuscripcionCreate(BaseModel):
+    tenant_id: str
+    monto_usd: float
+    fecha_pago: str
+    periodo_desde: str
+    periodo_hasta: str
+    metodo: Optional[str] = None
+    referencia: Optional[str] = None
+    notas: Optional[str] = None
+
+class TenantCreate(BaseModel):
+    nombre: str
+    slug: str
+    email_admin: str
+    password: str
+    nombre_visible: Optional[str] = None
+
 # ============================================================
 # ENDPOINTS PÚBLICOS
 # ============================================================
