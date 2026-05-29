@@ -503,6 +503,37 @@ async def registro_publico(data: RegistroPublico):
         except Exception as e:
             print(f"[QFA EMAIL BIENVENIDA] Error: {e}")
 
+        # Notificación a Claudia
+        try:
+            enviar_email_qfa(
+                "pagos@gestionateia.com",
+                f"🎉 Nuevo registro en QueFiestaApp — {data.nombre_salon}",
+                f"""
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                    <div style="background:#1a1a2e;padding:24px;border-radius:12px 12px 0 0;">
+                        <h2 style="color:#ff6b6b;margin:0;">🎉 Nuevo salón registrado</h2>
+                    </div>
+                    <div style="background:#f9f9fb;padding:24px;border-radius:0 0 12px 12px;">
+                        <table style="border-collapse:collapse;width:100%;background:white;border-radius:8px;overflow:hidden;">
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;width:140px;">Salón</td><td style="padding:10px 14px;">{data.nombre_salon}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Slug</td><td style="padding:10px 14px;font-family:monospace;">{slug}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Email</td><td style="padding:10px 14px;">{data.email_admin}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">WhatsApp</td><td style="padding:10px 14px;">{data.whatsapp or '—'}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Trial hasta</td><td style="padding:10px 14px;">{trial_hasta}</td></tr>
+                        </table>
+                        <div style="margin-top:20px;text-align:center;">
+                            <a href="https://quefiestaapp.gestionateia.com/superadmin.html"
+                               style="background:#ff6b6b;color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:bold;">
+                                Ver en Superadmin →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+        except Exception as e:
+            print(f"[QFA EMAIL NOTIF CLAUDIA] Error: {e}")
+
         return {
             "ok": True,
             "slug": slug,

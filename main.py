@@ -1866,6 +1866,38 @@ async def registrar_tenant(datos: RegistroCreate):
             )
         )
 
+        # Notificación a Claudia
+        try:
+            enviar_email(
+                "pagos@gestionateia.com",
+                f"🎉 Nuevo registro en ReservaTuEspacio — {datos.nombre}",
+                f"""
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+                    <div style="background:#2C3E50;padding:24px;border-radius:12px 12px 0 0;">
+                        <h2 style="color:#71D997;margin:0;">🎉 Nueva organización registrada</h2>
+                    </div>
+                    <div style="background:#f9f9fb;padding:24px;border-radius:0 0 12px 12px;">
+                        <table style="border-collapse:collapse;width:100%;background:white;border-radius:8px;overflow:hidden;">
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;width:140px;">Organización</td><td style="padding:10px 14px;">{datos.nombre}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Slug</td><td style="padding:10px 14px;font-family:monospace;">{datos.slug}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Admin</td><td style="padding:10px 14px;">{datos.nombre_admin}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Email</td><td style="padding:10px 14px;">{datos.email_admin}</td></tr>
+                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Plan</td><td style="padding:10px 14px;">{datos.plan_id}</td></tr>
+                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Trial hasta</td><td style="padding:10px 14px;">{trial_hasta}</td></tr>
+                        </table>
+                        <div style="margin-top:20px;text-align:center;">
+                            <a href="https://reservatuespacio.com/superadmin"
+                               style="background:#71D997;color:#2C3E50;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:bold;">
+                                Ver en Superadmin →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                """
+            )
+        except Exception as e:
+            print(f"[RTE EMAIL NOTIF CLAUDIA] Error: {e}")
+
         return {
             "mensaje": "Cuenta creada exitosamente",
             "tenant_id": str(tenant_id),
