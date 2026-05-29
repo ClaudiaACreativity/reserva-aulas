@@ -1737,15 +1737,22 @@ async def superadmin_actualizar_tenant(tenant_id: str, data: dict, auth=Depends(
 
 @qfa_app.post("/superadmin/suscripciones")
 async def superadmin_registrar_suscripcion(data: SuscripcionCreate, auth=Depends(get_superadmin_token)):
+    from uuid import UUID
+    from datetime import date as date_type
     db = await get_qfa_db()
     try:
+        tenant_uuid = UUID(data.tenant_id)
+        fecha_pago = date_type.fromisoformat(data.fecha_pago)
+        periodo_desde = date_type.fromisoformat(data.periodo_desde)
+        periodo_hasta = date_type.fromisoformat(data.periodo_hasta)
+
         sus = await db.fetchrow("""
             INSERT INTO qfa_suscripciones
                 (tenant_id, monto_usd, fecha_pago, periodo_desde, periodo_hasta, metodo, referencia, notas)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING id
-        """, data.tenant_id, data.monto_usd, data.fecha_pago,
-            data.periodo_desde, data.periodo_hasta,
+        """, tenant_uuid, data.monto_usd, fecha_pago,
+            periodo_desde, periodo_hasta,
             data.metodo, data.referencia, data.notas)
 
         # Activar suscripción del tenant
@@ -1753,9 +1760,11 @@ async def superadmin_registrar_suscripcion(data: SuscripcionCreate, auth=Depends
             UPDATE qfa_tenants
             SET suscripcion_activa = TRUE, suscripcion_vence = $2, updated_at = NOW()
             WHERE id = $1
-        """, data.tenant_id, data.periodo_hasta)
+        """, tenant_uuid, periodo_hasta)
 
         return {"ok": True, "suscripcion_id": str(sus["id"])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         release_db(db)
 
