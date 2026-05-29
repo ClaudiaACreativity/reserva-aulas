@@ -1735,6 +1735,21 @@ async def superadmin_actualizar_tenant(tenant_id: str, data: dict, auth=Depends(
         release_db(db)
 
 
+@qfa_app.get("/superadmin/suscripciones")
+async def superadmin_get_suscripciones(auth=Depends(get_superadmin_token)):
+    db = await get_qfa_db()
+    try:
+        rows = await db.fetch("""
+            SELECT s.*, t.nombre as tenant_nombre
+            FROM qfa_suscripciones s
+            JOIN qfa_tenants t ON s.tenant_id = t.id
+            ORDER BY s.fecha_pago DESC
+        """)
+        return [dict(r) for r in rows]
+    finally:
+        release_db(db)
+
+
 @qfa_app.post("/superadmin/suscripciones")
 async def superadmin_registrar_suscripcion(data: SuscripcionCreate, auth=Depends(get_superadmin_token)):
     from uuid import UUID
@@ -1817,5 +1832,35 @@ async def superadmin_get_configuracion(auth=Depends(get_superadmin_token)):
             "valor_dolar_oficial": float(config.get("valor_dolar_oficial", 1415)),
             "dias_trial": int(config.get("dias_trial", 30)),
         }
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/superadmin/configuracion")
+async def superadmin_guardar_configuracion(data: dict, auth=Depends(get_superadmin_token)):
+    db = await get_qfa_db()
+    try:
+        campos = {
+            "precio_mensual_usd": data.get("precio_mensual_usd"),
+            "valor_dolar_oficial": data.get("valor_dolar_oficial"),
+            "dias_trial": data.get("dias_trial"),
+        }
+        for clave, valor in campos.items():
+            if valor is not None:
+                await db.execute("""
+                    INSERT INTO qfa_configuracion_global (clave, valor)
+                    VALUES ($1, $2)
+                    ON CONFLICT (clave) DO UPDATE SET valor = $2, updated_at = NOW()
+                """, clave, str(valor))
+        # Cambiar contraseña superadmin si viene
+        if data.get("superadmin_password"):
+            await db.execute("""
+                INSERT INTO qfa_configuracion_global (clave, valor)
+                VALUES ('superadmin_password', $1)
+                ON CONFLICT (clave) DO UPDATE SET valor = $1, updated_at = NOW()
+            """, data["superadmin_password"])
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         release_db(db)
