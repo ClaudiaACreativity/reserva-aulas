@@ -1804,3 +1804,18 @@ async def superadmin_stats(auth=Depends(get_superadmin_token)):
         }
     finally:
         release_db(db)
+
+
+@qfa_app.get("/superadmin/configuracion")
+async def superadmin_get_configuracion(auth=Depends(get_superadmin_token)):
+    db = await get_qfa_db()
+    try:
+        rows = await db.fetch("SELECT clave, valor FROM qfa_configuracion_global")
+        config = {r["clave"]: r["valor"] for r in rows}
+        return {
+            "precio_mensual_usd": float(config.get("precio_mensual_usd", 25)),
+            "valor_dolar_oficial": float(config.get("valor_dolar_oficial", 1415)),
+            "dias_trial": int(config.get("dias_trial", 30)),
+        }
+    finally:
+        release_db(db)
