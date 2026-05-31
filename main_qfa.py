@@ -479,13 +479,15 @@ async def registro_publico(data: RegistroPublico):
         nombre_norm = unicodedata.normalize('NFD', data.nombre_salon.lower().strip())
         nombre_ascii = ''.join(c for c in nombre_norm if unicodedata.category(c) != 'Mn')
         slug_base = re.sub(r'[^a-z0-9]', '', nombre_ascii)
-        slug_base = slug_base[:40] or 'salon'
+        slug_base = slug_base[:40] or 'mi-organizacion'
 
-        # Verificar unicidad del slug, agregar sufijo numérico si ya existe
+        # Verificar unicidad del slug — solo entre tenants activos
         slug = slug_base
         contador = 2
         while True:
-            existe = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1", slug)
+            existe = await db.fetchrow(
+                "SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug
+            )
             if not existe:
                 break
             slug = f"{slug_base}{contador}"
@@ -560,7 +562,7 @@ async def registro_publico(data: RegistroPublico):
     except HTTPException:
         raise
     except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=409, detail="Ese nombre de salón ya está registrado")
+        raise HTTPException(status_code=409, detail="Ese nombre de organización ya está registrado")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
