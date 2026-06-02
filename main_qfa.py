@@ -1672,10 +1672,13 @@ async def subir_imagen(slug: str, file: UploadFile = File(...), auth=Depends(get
         )
 
     if response.status_code not in (200, 201):
-        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {response.text}")
+        error_detail = response.text
+        print(f"[QFA IMAGEN] Supabase error {response.status_code}: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {error_detail}")
 
     # URL pública
     url_publica = f"{QFA_SUPABASE_URL}/storage/v1/object/public/qfa-imagenes/{nombre_archivo}"
+    print(f"[QFA IMAGEN] Subida OK: {url_publica}")
     return {"url": url_publica}
 
 
