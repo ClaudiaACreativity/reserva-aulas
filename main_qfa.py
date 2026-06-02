@@ -408,7 +408,10 @@ class ReservaCreate(BaseModel):
     precio_salon: float
     precio_menu: float
     precio_juegos: float
+    precio_envio: float = 0.0
     precio_total: float
+    modalidad_entrega: Optional[str] = None
+    direccion_envio: Optional[str] = None
     observaciones: Optional[str] = None
 
 class ReservaUpdate(BaseModel):
@@ -435,6 +438,9 @@ class ConfiguracionUpdate(BaseModel):
     alias_transferencia: Optional[str] = None
     mensaje_pago: Optional[str] = None
     politica_cancelacion: Optional[str] = None
+    ofrece_retiro: Optional[bool] = None
+    ofrece_envio: Optional[bool] = None
+    costo_envio: Optional[float] = None
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -580,6 +586,7 @@ async def get_salon_publico(slug: str):
                    direccion, whatsapp, email_contacto, redes_sociales,
                    ninos_base, precio_base_salon, capacidad_maxima,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
+                   ofrece_retiro, ofrece_envio, costo_envio,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -818,17 +825,19 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 cantidad_ninos, nombre_festejado,
                 cliente_nombre, cliente_email, cliente_telefono,
                 menu_seleccionado, juegos_seleccionados,
-                precio_salon, precio_menu, precio_juegos, precio_total,
+                precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
                 modalidad_cobro, monto_seña,
+                modalidad_entrega, direccion_envio,
                 observaciones, origen
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6,
                 $7, $8, $9,
                 $10, $11,
-                $12, $13, $14, $15,
-                $16, $17,
-                $18, 'web'
+                $12, $13, $14, $15, $16,
+                $17, $18,
+                $19, $20,
+                $21, 'web'
             )
             RETURNING id, created_at
         """,
@@ -837,8 +846,9 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             data.cantidad_ninos, data.nombre_festejado,
             data.cliente_nombre, data.cliente_email, data.cliente_telefono,
             json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados),
-            data.precio_salon, data.precio_menu, data.precio_juegos, data.precio_total,
+            data.precio_salon, data.precio_menu, data.precio_juegos, data.precio_envio, data.precio_total,
             tenant["modalidad_cobro"], monto_seña,
+            data.modalidad_entrega, data.direccion_envio,
             data.observaciones
         )
 
@@ -1208,9 +1218,10 @@ async def admin_get_reservas(slug: str, auth=Depends(get_admin_token)):
             SELECT id, fecha::text, hora_inicio::text, hora_fin::text,
                    cantidad_ninos, nombre_festejado,
                    cliente_nombre, cliente_email, cliente_telefono,
-                   precio_salon, precio_menu, precio_juegos, precio_total,
+                   precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
                    menu_seleccionado, juegos_seleccionados,
                    modalidad_cobro, monto_seña, seña_pagada, total_pagado,
+                   modalidad_entrega, direccion_envio,
                    estado, origen, observaciones,
                    created_at::text
             FROM qfa_reservas
@@ -1317,6 +1328,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    direccion, whatsapp, email_contacto, redes_sociales,
                    capacidad_maxima, ninos_base, precio_base_salon,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago,
+                   ofrece_retiro, ofrece_envio, costo_envio,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
@@ -1778,47 +1790,6 @@ async def superadmin_registrar_suscripcion(data: SuscripcionCreate, auth=Depends
             SET suscripcion_activa = TRUE, suscripcion_vence = $2, updated_at = NOW()
             WHERE id = $1
         """, tenant_uuid, periodo_hasta)
-
-        # Obtener nombre del tenant para el email
-        tenant_row = await db.fetchrow(
-            "SELECT nombre_visible, nombre, email_admin FROM qfa_tenants WHERE id = $1", tenant_uuid
-        )
-        nombre_salon = (tenant_row["nombre_visible"] or tenant_row["nombre"]) if tenant_row else data.tenant_id
-        email_salon = tenant_row["email_admin"] if tenant_row else "—"
-
-        # Notificación a Claudia
-        try:
-            enviar_email_qfa(
-                "pagos@gestionateia.com",
-                f"💰 Pago de suscripción registrado — {nombre_salon}",
-                f"""
-                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-                    <div style="background:#1a1a2e;padding:24px;border-radius:12px 12px 0 0;">
-                        <h2 style="color:#71D997;margin:0;">💰 Nuevo pago de suscripción</h2>
-                    </div>
-                    <div style="background:#f9f9fb;padding:24px;border-radius:0 0 12px 12px;">
-                        <table style="border-collapse:collapse;width:100%;background:white;border-radius:8px;overflow:hidden;">
-                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;width:140px;">Salón</td><td style="padding:10px 14px;">{nombre_salon}</td></tr>
-                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Email</td><td style="padding:10px 14px;">{email_salon}</td></tr>
-                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Monto</td><td style="padding:10px 14px;font-weight:bold;color:#71D997;">USD {data.monto_usd:.2f}</td></tr>
-                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Método</td><td style="padding:10px 14px;">{data.metodo or '—'}</td></tr>
-                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Fecha de pago</td><td style="padding:10px 14px;">{data.fecha_pago}</td></tr>
-                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Período</td><td style="padding:10px 14px;">{data.periodo_desde} → {data.periodo_hasta}</td></tr>
-                            <tr style="background:#f0f4f8"><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Referencia</td><td style="padding:10px 14px;">{data.referencia or '—'}</td></tr>
-                            <tr><td style="padding:10px 14px;font-weight:bold;color:#2C3E50;">Notas</td><td style="padding:10px 14px;">{data.notas or '—'}</td></tr>
-                        </table>
-                        <div style="margin-top:20px;text-align:center;">
-                            <a href="https://quefiestaapp.gestionateia.com/superadmin.html"
-                               style="background:#71D997;color:#0f2010;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:bold;">
-                                Ver en Superadmin →
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                """
-            )
-        except Exception as e:
-            print(f"[QFA EMAIL NOTIF SUSCRIPCION] Error: {e}")
 
         return {"ok": True, "suscripcion_id": str(sus["id"])}
     except Exception as e:
