@@ -55,7 +55,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-Tenant-Slug", "X-Admin-Token", "X-Superadmin-Token", "Authorization"],
 )
 
@@ -1500,7 +1500,6 @@ async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
         await release_db(db)
 
 
-@app.get("/edificios")
 async def listar_edificios(request: Request):
     db = await get_db()
     try:
