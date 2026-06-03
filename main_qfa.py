@@ -206,57 +206,73 @@ def email_bienvenida_tenant_qfa(
 
     html = f"""
     <div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>
+
+        <!-- Header -->
         <div style='background:#1a1a2e;padding:32px;border-radius:12px 12px 0 0;text-align:center;'>
             <div style='font-family:Georgia,serif;font-size:26px;font-weight:900;'>
                 <span style='color:#ffffff;'>¡Bienvenido a </span><span style='color:#ff6b6b;'>Que</span><span style='color:#ffd93d;'>Fiesta</span><span style='color:#71D997;'>App</span><span style='color:#ffffff;'>!</span>
             </div>
         </div>
+
+        <!-- Body -->
         <div style='background:#F9F9FB;padding:28px;border-radius:0 0 12px 12px;'>
-            <p style='font-size:15px;color:#2C3E50;'>Hola <strong>{nombre_salon}</strong>,</p>
-            <p style='color:#4A5568;line-height:1.7;'>
-                Tu cuenta en <strong>QueFiestaApp</strong> fue creada exitosamente.
+            <p style='font-size:15px;color:#2C3E50;margin:0 0 8px;'>Hola <strong>{nombre_salon}</strong>,</p>
+            <p style='color:#4A5568;line-height:1.7;margin:0 0 20px;'>
+                Tu organización en <strong>QueFiestaApp</strong> fue creada exitosamente.
                 Tenés <strong>30 días de prueba gratuita</strong> hasta el <strong>{trial_hasta}</strong>.
             </p>
 
-            <div style='background:white;border:2px solid #ff6b6b;border-radius:10px;padding:20px;margin:24px 0;'>
-                <p style='margin:0 0 12px;font-weight:bold;color:#2C3E50;font-size:15px;'>🔑 Tus datos de acceso</p>
-                <table style='width:100%;border-collapse:collapse;'>
-                    <tr>
-                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;width:140px;'>Panel admin:</td>
-                        <td style='padding:8px 0;'>
-                            <a href='{url_admin}' style='color:#ff6b6b;font-weight:bold;font-size:14px;'>{url_admin}</a>
-                        </td>
-                    </tr>
-                    <tr style='background:#f9f9fb;'>
-                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Tu ID de salón:</td>
-                        <td style='padding:8px 0;color:#2C3E50;font-weight:bold;font-family:monospace;font-size:15px;'>{slug}</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Contraseña:</td>
-                        <td style='padding:8px 0;color:#2C3E50;font-weight:bold;font-family:monospace;font-size:15px;'>{password}</td>
-                    </tr>
-                    <tr style='background:#f9f9fb;'>
-                        <td style='padding:8px 0;color:#7f8c8d;font-size:13px;'>Tu página pública:</td>
-                        <td style='padding:8px 0;'>
-                            <a href='{url_publica}' style='color:#ff6b6b;font-weight:bold;font-size:14px;'>{url_publica}</a>
-                        </td>
-                    </tr>
-                </table>
+            <!-- Caja de datos -->
+            <div style='background:white;border:2px solid #ff6b6b;border-radius:10px;padding:20px;margin:0 0 20px;'>
+                <p style='margin:0 0 16px;font-weight:bold;color:#2C3E50;font-size:15px;'>🔑 Tus datos de acceso</p>
+
+                <!-- Panel admin -->
+                <div style='margin-bottom:12px;'>
+                    <div style='color:#7f8c8d;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;'>Panel admin</div>
+                    <a href='{url_admin}' style='color:#ff6b6b;font-weight:bold;font-size:14px;word-break:break-all;'>{url_admin}</a>
+                </div>
+
+                <!-- ID organización -->
+                <div style='background:#f9f9fb;border-radius:8px;padding:12px;margin-bottom:8px;'>
+                    <div style='color:#7f8c8d;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;'>Tu ID de organización</div>
+                    <div style='background:#1a1a2e;border-radius:6px;padding:10px 14px;'>
+                        <span style='color:#71D997;font-family:monospace;font-size:16px;font-weight:bold;letter-spacing:1px;'>{slug}</span>
+                    </div>
+                </div>
+
+                <!-- Contraseña -->
+                <div style='background:#f9f9fb;border-radius:8px;padding:12px;margin-bottom:8px;'>
+                    <div style='color:#7f8c8d;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;'>Contraseña</div>
+                    <div style='background:#1a1a2e;border-radius:6px;padding:10px 14px;'>
+                        <span style='color:#ffd93d;font-family:monospace;font-size:16px;font-weight:bold;letter-spacing:1px;'>{password}</span>
+                    </div>
+                </div>
+
+                <!-- Página pública -->
+                <div style='margin-top:12px;'>
+                    <div style='color:#7f8c8d;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;'>Tu página pública</div>
+                    <a href='{url_publica}' style='color:#ff6b6b;font-weight:bold;font-size:14px;word-break:break-all;'>{url_publica}</a>
+                </div>
             </div>
 
-            <p style='color:#E74C3C;font-size:13px;font-weight:bold;'>
-                ⚠️ Por seguridad, te recomendamos cambiar tu contraseña desde el panel admin después del primer ingreso.
-            </p>
+            <!-- Aviso seguridad -->
+            <div style='background:#FFF3CD;border-left:4px solid #E74C3C;border-radius:4px;padding:12px 16px;margin-bottom:24px;'>
+                <p style='color:#E74C3C;font-size:13px;font-weight:bold;margin:0;'>
+                    ⚠️ Por seguridad, te recomendamos cambiar tu contraseña desde el panel admin después del primer ingreso.
+                </p>
+            </div>
 
-            <div style='text-align:center;margin-top:24px;'>
+            <!-- Botón CTA -->
+            <div style='text-align:center;margin-bottom:24px;'>
                 <a href='{url_admin}'
-                   style='background:#ff6b6b;color:white;padding:14px 32px;border-radius:50px;
+                   style='background:#ff6b6b;color:white;padding:16px 36px;border-radius:50px;
                           text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;'>
                     Ir al panel de administración →
                 </a>
             </div>
 
-            <div style='text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0;'>
+            <!-- Footer -->
+            <div style='text-align:center;padding-top:20px;border-top:1px solid #E2E8F0;'>
                 <p style='font-size:12px;color:#999;margin:0;'>
                     Un producto de
                     <strong style='font-family:Arial;'>
@@ -1672,13 +1688,10 @@ async def subir_imagen(slug: str, file: UploadFile = File(...), auth=Depends(get
         )
 
     if response.status_code not in (200, 201):
-        error_detail = response.text
-        print(f"[QFA IMAGEN] Supabase error {response.status_code}: {error_detail}")
-        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"Error al subir imagen: {response.text}")
 
     # URL pública
     url_publica = f"{QFA_SUPABASE_URL}/storage/v1/object/public/qfa-imagenes/{nombre_archivo}"
-    print(f"[QFA IMAGEN] Subida OK: {url_publica}")
     return {"url": url_publica}
 
 
