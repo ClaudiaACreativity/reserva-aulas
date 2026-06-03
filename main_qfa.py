@@ -398,10 +398,25 @@ class HorarioCreate(BaseModel):
     hora_inicio: str  # "15:00"
     hora_fin: str     # "20:00"
     activo: bool = True
+    max_simultaneos: Optional[int] = None
 
 class HorarioUpdate(BaseModel):
     hora_inicio: Optional[str] = None
     hora_fin: Optional[str] = None
+    activo: Optional[bool] = None
+    max_simultaneos: Optional[int] = None
+
+class HorarioLibreCreate(BaseModel):
+    dia_semana: int       # 0=domingo, 6=sábado
+    hora_apertura: str    # "09:00"
+    hora_cierre: str      # "18:00"
+    max_simultaneos: Optional[int] = None
+    activo: bool = True
+
+class HorarioLibreUpdate(BaseModel):
+    hora_apertura: Optional[str] = None
+    hora_cierre: Optional[str] = None
+    max_simultaneos: Optional[int] = None
     activo: Optional[bool] = None
 
 class FechaBloqueadaCreate(BaseModel):
@@ -457,6 +472,7 @@ class ConfiguracionUpdate(BaseModel):
     ofrece_retiro: Optional[bool] = None
     ofrece_envio: Optional[bool] = None
     costo_envio: Optional[float] = None
+    modo_horario: Optional[str] = None  # 'fijo' | 'libre'
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -603,6 +619,7 @@ async def get_salon_publico(slug: str):
                    ninos_base, precio_base_salon, capacidad_maxima,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
                    ofrece_retiro, ofrece_envio, costo_envio,
+                   modo_horario,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -676,125 +693,150 @@ async def get_juegos_publico(slug: str):
 
 @qfa_app.get("/{slug}/disponibilidad")
 async def get_disponibilidad(slug: str, mes: int = None, anio: int = None):
-    """
-    Devuelve para cada día del mes:
-    - si está disponible, bloqueado, o reservado
-    - los horarios disponibles para ese día
-    """
     db = await get_qfa_db()
     try:
-        tenant = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug)
+        tenant = await db.fetchrow(
+            "SELECT id, modo_horario FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug
+        )
         if not tenant:
-            raise HTTPException(status_code=404, detail="Salón no encontrado")
+            raise HTTPException(status_code=404, detail="Organizacion no encontrada")
 
         hoy = date.today()
         mes_consulta = mes or hoy.month
         anio_consulta = anio or hoy.year
-
         tenant_id = tenant["id"]
+        modo = tenant["modo_horario"] or "fijo"
 
-        # Horarios configurados por día de semana
-        horarios = await db.fetch("""
-            SELECT dia_semana, hora_inicio, hora_fin
-            FROM qfa_horarios
-            WHERE tenant_id = $1 AND activo = TRUE
-            ORDER BY dia_semana, hora_inicio
-        """, tenant_id)
-
-        # Fechas bloqueadas en el mes
-        fechas_bloqueadas = await db.fetch("""
-            SELECT fecha, hora_inicio, hora_fin
-            FROM qfa_fechas_bloqueadas
-            WHERE tenant_id = $1
-            AND EXTRACT(MONTH FROM fecha) = $2
-            AND EXTRACT(YEAR FROM fecha) = $3
-        """, tenant_id, mes_consulta, anio_consulta)
-
-        # Reservas confirmadas en el mes
-        reservas = await db.fetch("""
-            SELECT fecha, hora_inicio, hora_fin
-            FROM qfa_reservas
-            WHERE tenant_id = $1
-            AND EXTRACT(MONTH FROM fecha) = $2
-            AND EXTRACT(YEAR FROM fecha) = $3
-            AND estado IN ('pendiente', 'confirmada')
-        """, tenant_id, mes_consulta, anio_consulta)
-
-        # Construir mapa de disponibilidad
-        horarios_por_dia = {}
-        for h in horarios:
-            dia = h["dia_semana"]
-            if dia not in horarios_por_dia:
-                horarios_por_dia[dia] = []
-            horarios_por_dia[dia].append({
-                "hora_inicio": str(h["hora_inicio"]),
-                "hora_fin": str(h["hora_fin"])
-            })
-
-        bloqueadas_set = set()
-        for fb in fechas_bloqueadas:
-            if fb["hora_inicio"] is None:  # día entero bloqueado
-                bloqueadas_set.add(str(fb["fecha"]))
-
-        reservadas = {}
-        for r in reservas:
-            fecha_str = str(r["fecha"])
-            if fecha_str not in reservadas:
-                reservadas[fecha_str] = []
-            reservadas[fecha_str].append({
-                "hora_inicio": str(r["hora_inicio"]),
-                "hora_fin": str(r["hora_fin"])
-            })
-
-        # Generar días del mes
         import calendar
         dias_en_mes = calendar.monthrange(anio_consulta, mes_consulta)[1]
+
+        fechas_bloqueadas = await db.fetch("""
+            SELECT fecha, hora_inicio FROM qfa_fechas_bloqueadas
+            WHERE tenant_id = $1
+            AND EXTRACT(MONTH FROM fecha) = $2
+            AND EXTRACT(YEAR FROM fecha) = $3
+        """, tenant_id, mes_consulta, anio_consulta)
+
+        bloqueadas_set = {str(fb["fecha"]) for fb in fechas_bloqueadas if fb["hora_inicio"] is None}
         resultado = []
 
-        for dia_num in range(1, dias_en_mes + 1):
-            fecha = date(anio_consulta, mes_consulta, dia_num)
-            fecha_str = str(fecha)
-            dia_semana = fecha.weekday()  # 0=lunes en Python, convertir: lunes=1, domingo=0
-            dia_semana_js = (dia_semana + 1) % 7  # convertir a formato JS (0=domingo)
+        if modo == "fijo":
+            horarios = await db.fetch("""
+                SELECT dia_semana, hora_inicio, hora_fin, max_simultaneos
+                FROM qfa_horarios WHERE tenant_id = $1 AND activo = TRUE
+                ORDER BY dia_semana, hora_inicio
+            """, tenant_id)
+            reservas = await db.fetch("""
+                SELECT fecha, hora_inicio FROM qfa_reservas
+                WHERE tenant_id = $1
+                AND EXTRACT(MONTH FROM fecha) = $2
+                AND EXTRACT(YEAR FROM fecha) = $3
+                AND estado IN ('pendiente', 'confirmada')
+            """, tenant_id, mes_consulta, anio_consulta)
 
-            horarios_dia = horarios_por_dia.get(dia_semana_js, [])
+            horarios_por_dia = {}
+            for h in horarios:
+                dia = h["dia_semana"]
+                if dia not in horarios_por_dia:
+                    horarios_por_dia[dia] = []
+                horarios_por_dia[dia].append({
+                    "hora_inicio": str(h["hora_inicio"]),
+                    "hora_fin": str(h["hora_fin"]),
+                    "max_simultaneos": h["max_simultaneos"]
+                })
 
-            if fecha < hoy:
-                estado = "pasado"
-            elif fecha_str in bloqueadas_set:
-                estado = "bloqueado"
-            elif not horarios_dia:
-                estado = "no_disponible"
-            else:
-                # Verificar si todos los horarios están reservados
-                reservas_dia = reservadas.get(fecha_str, [])
-                horarios_libres = []
-                for h in horarios_dia:
-                    ocupado = any(
-                        r["hora_inicio"] == h["hora_inicio"]
-                        for r in reservas_dia
-                    )
-                    if not ocupado:
-                        horarios_libres.append(h)
+            reservadas = {}
+            for r in reservas:
+                fs = str(r["fecha"])
+                if fs not in reservadas:
+                    reservadas[fs] = []
+                reservadas[fs].append(str(r["hora_inicio"]))
 
-                if horarios_libres:
-                    estado = "disponible"
+            for dia_num in range(1, dias_en_mes + 1):
+                fecha = date(anio_consulta, mes_consulta, dia_num)
+                fecha_str = str(fecha)
+                dia_semana_js = (fecha.weekday() + 1) % 7
+                horarios_dia = horarios_por_dia.get(dia_semana_js, [])
+
+                if fecha < hoy:
+                    estado = "pasado"
+                elif fecha_str in bloqueadas_set:
+                    estado = "bloqueado"
+                elif not horarios_dia:
+                    estado = "no_disponible"
                 else:
-                    estado = "completo"
+                    horas_reservadas = reservadas.get(fecha_str, [])
+                    horarios_libres = []
+                    for h in horarios_dia:
+                        ocupaciones = horas_reservadas.count(h["hora_inicio"])
+                        limite = h["max_simultaneos"]
+                        if limite is None or ocupaciones < limite:
+                            horarios_libres.append(h)
+                    estado = "disponible" if horarios_libres else "completo"
 
-            resultado.append({
-                "fecha": fecha_str,
-                "dia": dia_num,
-                "dia_semana": dia_semana_js,
-                "estado": estado,
-                "horarios": horarios_dia if estado == "disponible" else []
-            })
+                resultado.append({
+                    "fecha": fecha_str, "dia": dia_num, "dia_semana": dia_semana_js,
+                    "estado": estado, "modo": "fijo",
+                    "horarios": [{"hora_inicio": h["hora_inicio"], "hora_fin": h["hora_fin"]}
+                                 for h in horarios_libres] if estado == "disponible" else []
+                })
 
-        return {
-            "mes": mes_consulta,
-            "anio": anio_consulta,
-            "dias": resultado
-        }
+        else:
+            franjas = await db.fetch("""
+                SELECT dia_semana, hora_apertura, hora_cierre, max_simultaneos
+                FROM qfa_horario_libre WHERE tenant_id = $1 AND activo = TRUE
+                ORDER BY dia_semana, hora_apertura
+            """, tenant_id)
+            reservas = await db.fetch("""
+                SELECT fecha, hora_inicio FROM qfa_reservas
+                WHERE tenant_id = $1
+                AND EXTRACT(MONTH FROM fecha) = $2
+                AND EXTRACT(YEAR FROM fecha) = $3
+                AND estado IN ('pendiente', 'confirmada')
+            """, tenant_id, mes_consulta, anio_consulta)
+
+            franjas_por_dia = {}
+            for f in franjas:
+                dia = f["dia_semana"]
+                if dia not in franjas_por_dia:
+                    franjas_por_dia[dia] = []
+                franjas_por_dia[dia].append({
+                    "hora_apertura": str(f["hora_apertura"]),
+                    "hora_cierre": str(f["hora_cierre"]),
+                    "max_simultaneos": f["max_simultaneos"]
+                })
+
+            reservadas_por_fecha = {}
+            for r in reservas:
+                fs = str(r["fecha"])
+                hora = str(r["hora_inicio"])
+                if fs not in reservadas_por_fecha:
+                    reservadas_por_fecha[fs] = {}
+                reservadas_por_fecha[fs][hora] = reservadas_por_fecha[fs].get(hora, 0) + 1
+
+            for dia_num in range(1, dias_en_mes + 1):
+                fecha = date(anio_consulta, mes_consulta, dia_num)
+                fecha_str = str(fecha)
+                dia_semana_js = (fecha.weekday() + 1) % 7
+                franjas_dia = franjas_por_dia.get(dia_semana_js, [])
+
+                if fecha < hoy:
+                    estado = "pasado"
+                elif fecha_str in bloqueadas_set:
+                    estado = "bloqueado"
+                elif not franjas_dia:
+                    estado = "no_disponible"
+                else:
+                    estado = "disponible"
+
+                resultado.append({
+                    "fecha": fecha_str, "dia": dia_num, "dia_semana": dia_semana_js,
+                    "estado": estado, "modo": "libre",
+                    "franjas": franjas_dia if estado == "disponible" else [],
+                    "reservas_hora": reservadas_por_fecha.get(fecha_str, {})
+                })
+
+        return {"mes": mes_consulta, "anio": anio_consulta, "modo": modo, "dias": resultado}
     finally:
         release_db(db)
 
@@ -1115,7 +1157,7 @@ async def admin_get_horarios(slug: str, auth=Depends(get_admin_token)):
     db = await get_qfa_db()
     try:
         horarios = await db.fetch("""
-            SELECT id, dia_semana, hora_inicio::text, hora_fin::text, activo
+            SELECT id, dia_semana, hora_inicio::text, hora_fin::text, activo, max_simultaneos
             FROM qfa_horarios
             WHERE tenant_id = $1
             ORDER BY dia_semana, hora_inicio
@@ -1131,12 +1173,16 @@ async def admin_crear_horario(slug: str, data: HorarioCreate, auth=Depends(get_a
         raise HTTPException(status_code=403, detail="Sin acceso")
     db = await get_qfa_db()
     try:
-        print(f"[QFA HORARIO] tenant_id={auth['tenant_id']} dia={data.dia_semana} inicio={data.hora_inicio} fin={data.hora_fin}")
+        from datetime import time as dtime
+        def parse_time(t): h, m = t.split(':'); return dtime(int(h), int(m))
+        hora_inicio = parse_time(data.hora_inicio)
+        hora_fin = parse_time(data.hora_fin)
+        print(f"[QFA HORARIO] tenant_id={auth['tenant_id']} dia={data.dia_semana} inicio={hora_inicio} fin={hora_fin}")
         horario = await db.fetchrow("""
-            INSERT INTO qfa_horarios (tenant_id, dia_semana, hora_inicio, hora_fin, activo)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo
-        """, auth["tenant_id"], data.dia_semana, data.hora_inicio, data.hora_fin, data.activo)
+            INSERT INTO qfa_horarios (tenant_id, dia_semana, hora_inicio, hora_fin, activo, max_simultaneos)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo, max_simultaneos
+        """, auth["tenant_id"], data.dia_semana, hora_inicio, hora_fin, data.activo, data.max_simultaneos)
         print(f"[QFA HORARIO] OK: {dict(horario)}")
         return dict(horario)
     except Exception as e:
@@ -1152,7 +1198,12 @@ async def admin_actualizar_horario(slug: str, horario_id: str, data: HorarioUpda
         raise HTTPException(status_code=403, detail="Sin acceso")
     db = await get_qfa_db()
     try:
-        campos = {k: v for k, v in data.dict().items() if v is not None}
+        from datetime import time as dtime
+        def parse_time(t): h, m = t.split(':'); return dtime(int(h), int(m))
+        raw = data.dict()
+        if raw.get('hora_inicio'): raw['hora_inicio'] = parse_time(raw['hora_inicio'])
+        if raw.get('hora_fin'): raw['hora_fin'] = parse_time(raw['hora_fin'])
+        campos = {k: v for k, v in raw.items() if v is not None}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
         sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
@@ -1175,6 +1226,82 @@ async def admin_eliminar_horario(slug: str, horario_id: str, auth=Depends(get_ad
     db = await get_qfa_db()
     try:
         await db.execute("DELETE FROM qfa_horarios WHERE id = $1 AND tenant_id = $2", horario_id, auth["tenant_id"])
+        return {"ok": True}
+    finally:
+        release_db(db)
+
+# --- HORARIO LIBRE ---
+
+@qfa_app.get("/admin/{slug}/horario-libre")
+async def admin_get_horario_libre(slug: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        franjas = await db.fetch("""
+            SELECT id, dia_semana, hora_apertura::text, hora_cierre::text, max_simultaneos, activo
+            FROM qfa_horario_libre WHERE tenant_id = $1
+            ORDER BY dia_semana, hora_apertura
+        """, auth["tenant_id"])
+        return [dict(f) for f in franjas]
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/admin/{slug}/horario-libre")
+async def admin_crear_horario_libre(slug: str, data: HorarioLibreCreate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        from datetime import time as dtime
+        def parse_time(t): h, m = t.split(':'); return dtime(int(h), int(m))
+        franja = await db.fetchrow("""
+            INSERT INTO qfa_horario_libre (tenant_id, dia_semana, hora_apertura, hora_cierre, max_simultaneos, activo)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, dia_semana, hora_apertura::text, hora_cierre::text, max_simultaneos, activo
+        """, auth["tenant_id"], data.dia_semana,
+            parse_time(data.hora_apertura), parse_time(data.hora_cierre),
+            data.max_simultaneos, data.activo)
+        return dict(franja)
+    finally:
+        release_db(db)
+
+
+@qfa_app.put("/admin/{slug}/horario-libre/{franja_id}")
+async def admin_actualizar_horario_libre(slug: str, franja_id: str, data: HorarioLibreUpdate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        from datetime import time as dtime
+        def parse_time(t): h, m = t.split(':'); return dtime(int(h), int(m))
+        raw = data.dict()
+        if raw.get('hora_apertura'): raw['hora_apertura'] = parse_time(raw['hora_apertura'])
+        if raw.get('hora_cierre'): raw['hora_cierre'] = parse_time(raw['hora_cierre'])
+        campos = {k: v for k, v in raw.items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
+        franja = await db.fetchrow(f"""
+            UPDATE qfa_horario_libre SET {sets}
+            WHERE id = $1 AND tenant_id = $2
+            RETURNING id, dia_semana, hora_apertura::text, hora_cierre::text, max_simultaneos, activo
+        """, franja_id, auth["tenant_id"], *list(campos.values()))
+        if not franja:
+            raise HTTPException(status_code=404, detail="Franja no encontrada")
+        return dict(franja)
+    finally:
+        release_db(db)
+
+
+@qfa_app.delete("/admin/{slug}/horario-libre/{franja_id}")
+async def admin_eliminar_horario_libre(slug: str, franja_id: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        await db.execute("DELETE FROM qfa_horario_libre WHERE id = $1 AND tenant_id = $2", franja_id, auth["tenant_id"])
         return {"ok": True}
     finally:
         release_db(db)
@@ -1350,6 +1477,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    capacidad_maxima, ninos_base, precio_base_salon,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago,
                    ofrece_retiro, ofrece_envio, costo_envio,
+                   modo_horario,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
