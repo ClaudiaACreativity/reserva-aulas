@@ -1131,12 +1131,17 @@ async def admin_crear_horario(slug: str, data: HorarioCreate, auth=Depends(get_a
         raise HTTPException(status_code=403, detail="Sin acceso")
     db = await get_qfa_db()
     try:
+        print(f"[QFA HORARIO] tenant_id={auth['tenant_id']} dia={data.dia_semana} inicio={data.hora_inicio} fin={data.hora_fin}")
         horario = await db.fetchrow("""
             INSERT INTO qfa_horarios (tenant_id, dia_semana, hora_inicio, hora_fin, activo)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, activo
         """, auth["tenant_id"], data.dia_semana, data.hora_inicio, data.hora_fin, data.activo)
+        print(f"[QFA HORARIO] OK: {dict(horario)}")
         return dict(horario)
+    except Exception as e:
+        print(f"[QFA HORARIO ERROR] {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         release_db(db)
 
