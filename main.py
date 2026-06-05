@@ -1818,15 +1818,16 @@ async def registrar_tenant(datos: RegistroCreate):
                 detail="Ya existe una cuenta registrada con ese email."
             )
 
-        # Crear el tenant
-        tenant = await db.fetchrow(
+        # Crear el tenant (dentro de una transacción para que rollback si falla el usuario)
+        async with db.transaction():
+          tenant = await db.fetchrow(
             """INSERT INTO tenants (nombre, slug, email_admin, plan_id, trial_hasta, suscripcion_activa)
                VALUES ($1, $2, $3, $4, CURRENT_DATE + INTERVAL '30 days', FALSE)
                RETURNING id, nombre, slug, trial_hasta""",
             datos.nombre, datos.slug, datos.email_admin, datos.plan_id
-        )
+          )
 
-        tenant_id = tenant["id"]
+          tenant_id = tenant["id"]
 
         # Crear horarios por defecto (lunes a viernes 8:00-20:00, finde cerrado)
         dias = [
@@ -1856,6 +1857,8 @@ async def registrar_tenant(datos: RegistroCreate):
                VALUES ($1, $2, $3, 'admin', TRUE, $4, $5)""",
             tenant_id, datos.email_admin, datos.nombre_admin, password_hash, datos.whatsapp_admin
         )
+
+        # Fin transacción — si llegamos acá, tenant y usuario se crearon bien
 
         # Enviar email de bienvenida con credenciales
         enviar_email(
@@ -1927,6 +1930,7 @@ class TenantUpdate(BaseModel):
     suscripcion_activa: Optional[bool] = None
     plan_id: Optional[str] = None
     trial_hasta: Optional[date] = None
+    suscripcion_vence: Optional[date] = None
     suscripcion_vence: Optional[date] = None
 
 class PlanUpdate(BaseModel):
@@ -2001,13 +2005,18 @@ async def superadmin_actualizar_tenant(request: Request, tenant_id: str, datos: 
                 # Mandar mail con nueva contraseña
                 try:
                     trial_hasta_str = tenant_info["trial_hasta"].strftime("%d/%m/%Y") if tenant_info["trial_hasta"] else "—"
-                    email_bienvenida_tenant(
+                    html = email_bienvenida_tenant(
                         tenant_info["nombre"],
                         tenant_info["nombre"],
                         tenant_info["slug"],
                         tenant_info["email_admin"],
                         password_nueva,
                         trial_hasta_str
+                    )
+                    enviar_email(
+                        tenant_info["email_admin"],
+                        "Tu suscripción fue reactivada — ReservaTuEspacio",
+                        html
                     )
                 except Exception as e:
                     print(f"[REACTIVACION] Error al enviar mail: {e}")
@@ -2184,13 +2193,23 @@ async def superadmin_reenviar_bienvenida(request: Request, tenant_id: str):
         slug = tenant['slug']
         trial_hasta = tenant['trial_hasta'].strftime('%d/%m/%Y') if tenant.get('trial_hasta') else 'N/A'
 
-        # Enviar email con contraseña temporal genérica (el admin debe cambiarla)
+        # Generar contraseña nueva y actualizar hash
+        import secrets as _s, string as _str
+        chars = _str.ascii_letters + _str.digits
+        password_nueva = ''.join(_s.choice(chars) for _ in range(10))
+        nuevo_hash = bcrypt.hashpw(password_nueva.encode(), bcrypt.gensalt()).decode()
+        await db.execute(
+            "UPDATE usuarios SET password_hash = $1 WHERE tenant_id = $2 AND rol = 'admin'",
+            nuevo_hash, tenant_id
+        )
+
+        # Enviar email con la nueva contraseña
         html = email_bienvenida_tenant(
             nombre_admin=admin['nombre'],
             nombre_tenant=tenant['nombre'],
             slug=slug,
             email=admin['email'],
-            password_temp='(usá la contraseña que te enviamos anteriormente o contactá a soporte)',
+            password_temp=password_nueva,
             trial_hasta=trial_hasta
         )
         enviar_email(admin['email'], '¡Bienvenido a ReservaTuEspacio! Tus datos de acceso', html)
