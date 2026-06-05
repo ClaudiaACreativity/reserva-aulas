@@ -640,6 +640,7 @@ async def get_salon_publico(slug: str):
         # Parsear JSONB
         t["imagenes_galeria"] = json.loads(t["imagenes_galeria"]) if isinstance(t["imagenes_galeria"], str) else (t["imagenes_galeria"] or [])
         t["redes_sociales"] = json.loads(t["redes_sociales"]) if isinstance(t["redes_sociales"], str) else (t["redes_sociales"] or {})
+        t["config_calendario"] = json.loads(t["config_calendario"]) if isinstance(t["config_calendario"], str) else (t["config_calendario"] or {})
 
         # Convertir fechas a string
         if t["trial_hasta"]:
