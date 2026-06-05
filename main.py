@@ -1927,6 +1927,7 @@ class TenantUpdate(BaseModel):
     suscripcion_activa: Optional[bool] = None
     plan_id: Optional[str] = None
     trial_hasta: Optional[date] = None
+    suscripcion_vence: Optional[date] = None
 
 class PlanUpdate(BaseModel):
     nombre: Optional[str] = None
@@ -1974,7 +1975,7 @@ async def superadmin_actualizar_tenant(request: Request, tenant_id: str, datos: 
             await db.execute("UPDATE tenants SET activo = $1 WHERE id = $2", datos.activo, tenant_id)
         if datos.suscripcion_activa is not None:
             if datos.suscripcion_activa:
-                # Al activar manualmente: calcular fecha de vencimiento y resetear flags de avisos
+                # Al activar manualmente: resetear flags, generar contraseña nueva y mandar mail
                 await db.execute(
                     """UPDATE tenants
                        SET suscripcion_activa = TRUE,
@@ -1985,12 +1986,39 @@ async def superadmin_actualizar_tenant(request: Request, tenant_id: str, datos: 
                        WHERE id = $1""",
                     tenant_id
                 )
+                # Generar contraseña nueva y actualizar usuario admin
+                import secrets, string
+                chars = string.ascii_letters + string.digits
+                password_nueva = ''.join(secrets.choice(chars) for _ in range(10))
+                nuevo_hash = bcrypt.hashpw(password_nueva.encode(), bcrypt.gensalt()).decode()
+                tenant_info = await db.fetchrow(
+                    "SELECT nombre, email_admin, slug, trial_hasta FROM tenants WHERE id = $1", tenant_id
+                )
+                await db.execute(
+                    "UPDATE usuarios SET password_hash = $1 WHERE tenant_id = $2 AND rol = 'admin'",
+                    nuevo_hash, tenant_id
+                )
+                # Mandar mail con nueva contraseña
+                try:
+                    trial_hasta_str = tenant_info["trial_hasta"].strftime("%d/%m/%Y") if tenant_info["trial_hasta"] else "—"
+                    email_bienvenida_tenant(
+                        tenant_info["nombre"],
+                        tenant_info["nombre"],
+                        tenant_info["slug"],
+                        tenant_info["email_admin"],
+                        password_nueva,
+                        trial_hasta_str
+                    )
+                except Exception as e:
+                    print(f"[REACTIVACION] Error al enviar mail: {e}")
             else:
                 await db.execute("UPDATE tenants SET suscripcion_activa = FALSE WHERE id = $1", tenant_id)
         if datos.plan_id is not None:
             await db.execute("UPDATE tenants SET plan_id = $1 WHERE id = $2", datos.plan_id, tenant_id)
         if datos.trial_hasta is not None:
             await db.execute("UPDATE tenants SET trial_hasta = $1 WHERE id = $2", datos.trial_hasta, tenant_id)
+        if datos.suscripcion_vence is not None:
+            await db.execute("UPDATE tenants SET suscripcion_vence = $1 WHERE id = $2", datos.suscripcion_vence, tenant_id)
         return {"mensaje": "Tenant actualizado correctamente"}
     except HTTPException:
         raise
