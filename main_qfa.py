@@ -473,6 +473,7 @@ class ConfiguracionUpdate(BaseModel):
     ofrece_envio: Optional[bool] = None
     costo_envio: Optional[float] = None
     modo_horario: Optional[str] = None  # 'fijo' | 'libre'
+    config_calendario: Optional[dict] = None
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -619,7 +620,7 @@ async def get_salon_publico(slug: str):
                    ninos_base, precio_base_salon, capacidad_maxima,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
                    ofrece_retiro, ofrece_envio, costo_envio,
-                   modo_horario,
+                   modo_horario, config_calendario,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -1477,7 +1478,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    capacidad_maxima, ninos_base, precio_base_salon,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago,
                    ofrece_retiro, ofrece_envio, costo_envio,
-                   modo_horario,
+                   modo_horario, config_calendario,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
@@ -1596,11 +1597,18 @@ async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, a
         campos = {k: v for k, v in data.dict().items() if v is not None}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
+        # Serializar campos JSONB a string para asyncpg
+        valores = []
+        for k, v in campos.items():
+            if isinstance(v, dict):
+                valores.append(json.dumps(v))
+            else:
+                valores.append(v)
         sets = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(campos.keys())])
         await db.execute(f"""
             UPDATE qfa_tenants SET {sets}, updated_at = NOW()
             WHERE id = $1
-        """, auth["tenant_id"], *list(campos.values()))
+        """, auth["tenant_id"], *valores)
         return {"ok": True}
     finally:
         release_db(db)
