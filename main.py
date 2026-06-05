@@ -1500,6 +1500,7 @@ async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
         await release_db(db)
 
 
+@app.get("/edificios")
 async def listar_edificios(request: Request):
     db = await get_db()
     try:
