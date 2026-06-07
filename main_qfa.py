@@ -720,6 +720,13 @@ async def get_disponibilidad(slug: str, mes: int = None, anio: int = None):
         """, tenant_id, mes_consulta, anio_consulta)
 
         bloqueadas_set = {str(fb["fecha"]) for fb in fechas_bloqueadas if fb["hora_inicio"] is None}
+
+        # Agregar fechas recurrentes (días de semana bloqueados)
+        recurrentes = await db.fetch("""
+            SELECT dia_semana FROM qfa_fechas_bloqueadas_recurrentes
+            WHERE tenant_id = $1 AND activo = TRUE AND hora_inicio IS NULL
+        """, tenant_id)
+        dias_recurrentes = {r["dia_semana"] for r in recurrentes}
         resultado = []
 
         if modo == "fijo":
@@ -762,7 +769,7 @@ async def get_disponibilidad(slug: str, mes: int = None, anio: int = None):
 
                 if fecha < hoy:
                     estado = "pasado"
-                elif fecha_str in bloqueadas_set:
+                elif fecha_str in bloqueadas_set or dia_semana_js in dias_recurrentes:
                     estado = "bloqueado"
                 elif not horarios_dia:
                     estado = "no_disponible"
@@ -1334,12 +1341,74 @@ async def admin_crear_fecha_bloqueada(slug: str, data: FechaBloqueadaCreate, aut
         raise HTTPException(status_code=403, detail="Sin acceso")
     db = await get_qfa_db()
     try:
-        fecha = await db.fetchrow("""
+        from datetime import date as ddate, time as dtime
+        def parse_date(s): y,m,d = s.split('-'); return ddate(int(y),int(m),int(d))
+        def parse_time(t): h,mi = t.split(':'); return dtime(int(h),int(mi))
+        fecha_date = parse_date(data.fecha)
+        hora_inicio = parse_time(data.hora_inicio) if data.hora_inicio else None
+        hora_fin = parse_time(data.hora_fin) if data.hora_fin else None
+        row = await db.fetchrow("""
             INSERT INTO qfa_fechas_bloqueadas (tenant_id, fecha, hora_inicio, hora_fin, motivo)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id, fecha::text, hora_inicio::text, hora_fin::text, motivo
-        """, auth["tenant_id"], data.fecha, data.hora_inicio, data.hora_fin, data.motivo)
-        return dict(fecha)
+        """, auth["tenant_id"], fecha_date, hora_inicio, hora_fin, data.motivo)
+        return dict(row)
+    finally:
+        release_db(db)
+
+
+class FechaRecurrenteCreate(BaseModel):
+    dia_semana: int  # 0=domingo ... 6=sábado
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
+    motivo: Optional[str] = None
+    activo: bool = True
+
+
+@qfa_app.get("/admin/{slug}/fechas-recurrentes")
+async def admin_get_fechas_recurrentes(slug: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        rows = await db.fetch("""
+            SELECT id, dia_semana, hora_inicio::text, hora_fin::text, motivo, activo
+            FROM qfa_fechas_bloqueadas_recurrentes
+            WHERE tenant_id = $1 ORDER BY dia_semana
+        """, auth["tenant_id"])
+        return [dict(r) for r in rows]
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/admin/{slug}/fechas-recurrentes")
+async def admin_crear_fecha_recurrente(slug: str, data: FechaRecurrenteCreate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        from datetime import time as dtime
+        def parse_time(t): h,mi = t.split(':'); return dtime(int(h),int(mi))
+        hi = parse_time(data.hora_inicio) if data.hora_inicio else None
+        hf = parse_time(data.hora_fin) if data.hora_fin else None
+        row = await db.fetchrow("""
+            INSERT INTO qfa_fechas_bloqueadas_recurrentes (tenant_id, dia_semana, hora_inicio, hora_fin, motivo, activo)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, dia_semana, hora_inicio::text, hora_fin::text, motivo, activo
+        """, auth["tenant_id"], data.dia_semana, hi, hf, data.motivo, data.activo)
+        return dict(row)
+    finally:
+        release_db(db)
+
+
+@qfa_app.delete("/admin/{slug}/fechas-recurrentes/{rec_id}")
+async def admin_eliminar_fecha_recurrente(slug: str, rec_id: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        await db.execute("DELETE FROM qfa_fechas_bloqueadas_recurrentes WHERE id = $1 AND tenant_id = $2", rec_id, auth["tenant_id"])
+        return {"ok": True}
     finally:
         release_db(db)
 
