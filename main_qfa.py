@@ -362,6 +362,8 @@ class MenuItemCreate(BaseModel):
     descripcion: Optional[str] = None
     precio_base: float
     precio_por_nino_extra: float
+    precio_unidad: Optional[float] = None
+    precio_ref_persona: Optional[float] = None
     imagen_url: Optional[str] = None
     activo: bool = True
     orden: int = 0
@@ -371,6 +373,8 @@ class MenuItemUpdate(BaseModel):
     descripcion: Optional[str] = None
     precio_base: Optional[float] = None
     precio_por_nino_extra: Optional[float] = None
+    precio_unidad: Optional[float] = None
+    precio_ref_persona: Optional[float] = None
     imagen_url: Optional[str] = None
     activo: Optional[bool] = None
     orden: Optional[int] = None
@@ -379,6 +383,8 @@ class JuegoCreate(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
     precio_fijo: float = 0
+    precio_unidad: Optional[float] = None
+    precio_ref_persona: Optional[float] = None
     precio_por_nino: float = 0
     imagen_url: Optional[str] = None
     activo: bool = True
@@ -388,6 +394,8 @@ class JuegoUpdate(BaseModel):
     nombre: Optional[str] = None
     descripcion: Optional[str] = None
     precio_fijo: Optional[float] = None
+    precio_unidad: Optional[float] = None
+    precio_ref_persona: Optional[float] = None
     precio_por_nino: Optional[float] = None
     imagen_url: Optional[str] = None
     activo: Optional[bool] = None
@@ -666,7 +674,10 @@ async def get_menu_publico(slug: str):
             raise HTTPException(status_code=404, detail="Salón no encontrado")
 
         items = await db.fetch("""
-            SELECT id, nombre, descripcion, precio_base, precio_por_nino_extra, imagen_url, orden
+            SELECT id, nombre, descripcion, precio_base, precio_por_nino_extra,
+                   COALESCE(precio_unidad, precio_base) as precio_unidad,
+                   COALESCE(precio_ref_persona, precio_base) as precio_ref_persona,
+                   imagen_url, orden
             FROM qfa_menu_items
             WHERE tenant_id = $1 AND activo = TRUE
             ORDER BY orden ASC, nombre ASC
@@ -687,7 +698,10 @@ async def get_juegos_publico(slug: str):
             raise HTTPException(status_code=404, detail="Salón no encontrado")
 
         juegos = await db.fetch("""
-            SELECT id, nombre, descripcion, precio_fijo, precio_por_nino, imagen_url, orden
+            SELECT id, nombre, descripcion, precio_fijo, precio_por_nino,
+                   COALESCE(precio_unidad, precio_fijo) as precio_unidad,
+                   COALESCE(precio_ref_persona, precio_fijo) as precio_ref_persona,
+                   imagen_url, orden
             FROM qfa_juegos
             WHERE tenant_id = $1 AND activo = TRUE
             ORDER BY orden ASC, nombre ASC
@@ -1032,11 +1046,13 @@ async def admin_crear_menu_item(slug: str, data: MenuItemCreate, auth=Depends(ge
     try:
         item = await db.fetchrow("""
             INSERT INTO qfa_menu_items
-                (tenant_id, nombre, descripcion, precio_base, precio_por_nino_extra, imagen_url, activo, orden)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (tenant_id, nombre, descripcion, precio_base, precio_por_nino_extra,
+                 precio_unidad, precio_ref_persona, imagen_url, activo, orden)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         """, auth["tenant_id"], data.nombre, data.descripcion,
             data.precio_base, data.precio_por_nino_extra,
+            data.precio_unidad, data.precio_ref_persona,
             data.imagen_url, data.activo, data.orden)
         return dict(item)
     finally:
@@ -1110,11 +1126,13 @@ async def admin_crear_juego(slug: str, data: JuegoCreate, auth=Depends(get_admin
     try:
         juego = await db.fetchrow("""
             INSERT INTO qfa_juegos
-                (tenant_id, nombre, descripcion, precio_fijo, precio_por_nino, imagen_url, activo, orden)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (tenant_id, nombre, descripcion, precio_fijo, precio_por_nino,
+                 precio_unidad, precio_ref_persona, imagen_url, activo, orden)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         """, auth["tenant_id"], data.nombre, data.descripcion,
             data.precio_fijo, data.precio_por_nino,
+            data.precio_unidad, data.precio_ref_persona,
             data.imagen_url, data.activo, data.orden)
         return dict(juego)
     finally:
