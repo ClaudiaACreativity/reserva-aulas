@@ -474,6 +474,7 @@ class ConfiguracionUpdate(BaseModel):
     costo_envio: Optional[float] = None
     modo_horario: Optional[str] = None  # 'fijo' | 'libre'
     config_calendario: Optional[dict] = None
+    portada_opacidad: Optional[float] = None
     modo_presupuesto_base: Optional[bool] = None
     modo_presupuesto_unidades: Optional[bool] = None
     modo_presupuesto_personas: Optional[bool] = None
@@ -623,7 +624,7 @@ async def get_salon_publico(slug: str):
                    ninos_base, precio_base_salon, capacidad_maxima,
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
                    ofrece_retiro, ofrece_envio, costo_envio,
-                   modo_horario, config_calendario,
+                   modo_horario, config_calendario, portada_opacidad,
                    modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
