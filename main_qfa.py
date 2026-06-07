@@ -474,6 +474,9 @@ class ConfiguracionUpdate(BaseModel):
     costo_envio: Optional[float] = None
     modo_horario: Optional[str] = None  # 'fijo' | 'libre'
     config_calendario: Optional[dict] = None
+    modo_presupuesto_base: Optional[bool] = None
+    modo_presupuesto_unidades: Optional[bool] = None
+    modo_presupuesto_personas: Optional[bool] = None
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -621,6 +624,7 @@ async def get_salon_publico(slug: str):
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago, politica_cancelacion,
                    ofrece_retiro, ofrece_envio, costo_envio,
                    modo_horario, config_calendario,
+                   modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -1549,6 +1553,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    modalidad_cobro, porcentaje_seña, alias_transferencia, mensaje_pago,
                    ofrece_retiro, ofrece_envio, costo_envio,
                    modo_horario, config_calendario,
+                   modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
