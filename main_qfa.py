@@ -902,6 +902,7 @@ async def get_disponibilidad(slug: str, mes: int = None, anio: int = None):
 @qfa_app.post("/{slug}/reservas")
 async def crear_reserva(slug: str, data: ReservaCreate):
     """El cliente envía su solicitud de reserva con el presupuesto armado."""
+    from datetime import date as date_type, time as time_type
     db = await get_qfa_db()
     try:
         tenant = await db.fetchrow("""
@@ -917,6 +918,18 @@ async def crear_reserva(slug: str, data: ReservaCreate):
 
         tenant_id = tenant["id"]
 
+        # Convertir fecha y horarios a tipos Python nativos para asyncpg
+        def parse_time_str(t):
+            if t is None: return None
+            parts = t.split(':')
+            return time_type(int(parts[0]), int(parts[1]))
+
+        fecha_date = date_type.fromisoformat(data.fecha)
+        hora_inicio_time = parse_time_str(data.hora_inicio)
+        hora_fin_time = parse_time_str(data.hora_fin)
+
+        tenant_id = tenant["id"]
+
         # Verificar que la fecha/horario no esté ya reservado
         existente = await db.fetchrow("""
             SELECT id FROM qfa_reservas
@@ -924,7 +937,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             AND fecha = $2
             AND hora_inicio = $3
             AND estado IN ('pendiente', 'confirmada')
-        """, tenant_id, data.fecha, data.hora_inicio)
+        """, tenant_id, fecha_date, hora_inicio_time)
 
         if existente:
             raise HTTPException(status_code=409, detail="Ese horario ya está reservado")
@@ -958,7 +971,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             RETURNING id, created_at
         """,
             tenant_id,
-            data.fecha, data.hora_inicio, data.hora_fin,
+            fecha_date, hora_inicio_time, hora_fin_time,
             data.cantidad_ninos, data.nombre_festejado,
             data.cliente_nombre, data.cliente_email, data.cliente_telefono,
             json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados), json.dumps(data.combos_seleccionados),
