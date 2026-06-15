@@ -1470,7 +1470,7 @@ async def admin_eliminar_turno_fijo(request: Request, turno_id: str):
 
 
 @app.get("/admin/agenda")
-async def admin_agenda(request: Request, fecha_inicio: str, fecha_fin: str):
+async def admin_agenda(request: Request, fecha_inicio: date, fecha_fin: date):
     """
     Panel visual semanal/mensual para el admin.
     Devuelve todos los turnos del período con info del cliente y estado.
