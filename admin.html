@@ -1453,7 +1453,7 @@ async function cargarEspacios() {
                         <tr>
                             <td>${e.nombre}</td>
                             <td>${e.capacidad}</td>
-                            <td>${e.edificio}</td>
+                            <td>${e.nombre_edificio || '—'}</td>
                             <td><span class="badge badge-${e.activa}">${e.activa ? 'Activo' : 'Inactivo'}</span></td>
                             <td>
                                 <button class="btn ${e.activa ? 'btn-danger' : 'btn-success'}"
