@@ -532,17 +532,11 @@ async def registro_publico(data: RegistroPublico):
         slug_base = re.sub(r'[^a-z0-9]', '', nombre_ascii)
         slug_base = slug_base[:40] or 'mi-organizacion'
 
-        # Verificar unicidad del slug — solo entre tenants activos
+        # Verificar si existe un tenant inactivo con ese slug — si es así, reactivarlo
         slug = slug_base
-        contador = 2
-        while True:
-            existe = await db.fetchrow(
-                "SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug
-            )
-            if not existe:
-                break
-            slug = f"{slug_base}{contador}"
-            contador += 1
+        tenant_inactivo = await db.fetchrow(
+            "SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = FALSE", slug
+        )
 
         # Generar contraseña temporal
         alphabet = string.ascii_letters + string.digits
@@ -552,14 +546,41 @@ async def registro_publico(data: RegistroPublico):
         # Calcular trial
         trial_hasta = date.today() + timedelta(days=30)
 
-        # Insertar tenant — un mismo email puede tener múltiples salones
-        tenant = await db.fetchrow("""
-            INSERT INTO qfa_tenants (nombre, slug, email_admin, password_hash, nombre_visible,
-                                     trial_hasta, suscripcion_activa, whatsapp)
-            VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7)
-            RETURNING id, slug, nombre, nombre_visible
-        """, data.nombre_salon, slug, data.email_admin, password_hash,
-            data.nombre_salon, trial_hasta, data.whatsapp)
+        if tenant_inactivo:
+            # Reactivar el tenant existente con nuevos datos y trial fresco
+            tenant = await db.fetchrow("""
+                UPDATE qfa_tenants
+                SET activo = TRUE,
+                    email_admin = $1,
+                    password_hash = $2,
+                    nombre_visible = $3,
+                    nombre = $4,
+                    trial_hasta = $5,
+                    suscripcion_activa = FALSE,
+                    whatsapp = $6
+                WHERE slug = $7
+                RETURNING id, slug, nombre, nombre_visible
+            """, data.email_admin, password_hash, data.nombre_salon,
+                data.nombre_salon, trial_hasta, data.whatsapp, slug)
+        else:
+            # Verificar unicidad entre tenants activos y crear nuevo
+            contador = 2
+            while True:
+                existe = await db.fetchrow(
+                    "SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug
+                )
+                if not existe:
+                    break
+                slug = f"{slug_base}{contador}"
+                contador += 1
+
+            tenant = await db.fetchrow("""
+                INSERT INTO qfa_tenants (nombre, slug, email_admin, password_hash, nombre_visible,
+                                         trial_hasta, suscripcion_activa, whatsapp)
+                VALUES ($1, $2, $3, $4, $5, $6, FALSE, $7)
+                RETURNING id, slug, nombre, nombre_visible
+            """, data.nombre_salon, slug, data.email_admin, password_hash,
+                data.nombre_salon, trial_hasta, data.whatsapp)
 
         # Email de bienvenida con datos de acceso
         try:
