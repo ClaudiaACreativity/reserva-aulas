@@ -98,6 +98,7 @@ def email_confirmacion_reserva(
     nombre_festejado: str,
     menu_seleccionado: list,
     juegos_seleccionados: list,
+    combos_seleccionados: list,
     precio_total: float,
     monto_seña: float,
     modalidad_cobro: str,
@@ -121,6 +122,12 @@ def email_confirmacion_reserva(
     if juegos_seleccionados:
         items = "".join([f"<li style='margin-bottom:4px;'>✓ {j['nombre']}</li>" for j in juegos_seleccionados])
         juegos_html = f"<div style='margin:12px 0;'><strong>Juegos y adicionales:</strong><ul style='margin:8px 0 0 16px;color:#4A5568;'>{items}</ul></div>"
+
+    # Armar detalle de combos
+    combos_html = ""
+    if combos_seleccionados:
+        items = "".join([f"<li style='margin-bottom:4px;'>✓ {c['nombre']} x{c.get('cantidad',1)}</li>" for c in combos_seleccionados])
+        combos_html = f"<div style='margin:12px 0;'><strong>Combos seleccionados:</strong><ul style='margin:8px 0 0 16px;color:#4A5568;'>{items}</ul></div>"
 
     # Info de pago
     pago_html = ""
@@ -161,6 +168,7 @@ def email_confirmacion_reserva(
                 {festejado_html}
                 {menu_html}
                 {juegos_html}
+                {combos_html}
                 <div style='border-top:2px solid #E2E8F0;margin-top:16px;padding-top:16px;'>
                     <p style='margin:0;font-size:18px;font-weight:bold;color:#ff6b6b;'>
                         Total estimado: {fmt(precio_total)}
@@ -444,6 +452,7 @@ class ReservaCreate(BaseModel):
     cliente_telefono: Optional[str] = None
     menu_seleccionado: list = []
     juegos_seleccionados: list = []
+    combos_seleccionados: list = []
     precio_salon: float
     precio_menu: float
     precio_juegos: float
@@ -931,7 +940,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 tenant_id, fecha, hora_inicio, hora_fin,
                 cantidad_ninos, nombre_festejado,
                 cliente_nombre, cliente_email, cliente_telefono,
-                menu_seleccionado, juegos_seleccionados,
+                menu_seleccionado, juegos_seleccionados, combos_seleccionados,
                 precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
                 modalidad_cobro, monto_seña,
                 modalidad_entrega, direccion_envio,
@@ -940,11 +949,11 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 $1, $2, $3, $4,
                 $5, $6,
                 $7, $8, $9,
-                $10, $11,
-                $12, $13, $14, $15, $16,
-                $17, $18,
-                $19, $20,
-                $21, 'web'
+                $10, $11, $12,
+                $13, $14, $15, $16, $17,
+                $18, $19,
+                $20, $21,
+                $22, 'web'
             )
             RETURNING id, created_at
         """,
@@ -952,7 +961,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             data.fecha, data.hora_inicio, data.hora_fin,
             data.cantidad_ninos, data.nombre_festejado,
             data.cliente_nombre, data.cliente_email, data.cliente_telefono,
-            json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados),
+            json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados), json.dumps(data.combos_seleccionados),
             data.precio_salon, data.precio_menu, data.precio_juegos, data.precio_envio, data.precio_total,
             tenant["modalidad_cobro"], monto_seña,
             data.modalidad_entrega, data.direccion_envio,
@@ -972,6 +981,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 nombre_festejado=data.nombre_festejado or "",
                 menu_seleccionado=data.menu_seleccionado,
                 juegos_seleccionados=data.juegos_seleccionados,
+                combos_seleccionados=data.combos_seleccionados,
                 precio_total=data.precio_total,
                 monto_seña=monto_seña,
                 modalidad_cobro=tenant["modalidad_cobro"],
