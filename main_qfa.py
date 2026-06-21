@@ -104,7 +104,9 @@ def email_confirmacion_reserva(
     modalidad_cobro: str,
     alias_transferencia: str,
     mensaje_pago: str,
-    whatsapp_salon: str
+    whatsapp_salon: str,
+    tipo_presupuesto: str = "cerrado",
+    comprobante_subido: bool = False
 ):
     """Email de confirmación de reserva al cliente."""
 
@@ -129,9 +131,24 @@ def email_confirmacion_reserva(
         items = "".join([f"<li style='margin-bottom:4px;'>✓ {c['nombre']} x{c.get('cantidad',1)}</li>" for c in combos_seleccionados])
         combos_html = f"<div style='margin:12px 0;'><strong>Combos seleccionados:</strong><ul style='margin:8px 0 0 16px;color:#4A5568;'>{items}</ul></div>"
 
-    # Info de pago
+    # Info de pago — varía según el tipo de presupuesto y si ya se subió comprobante
     pago_html = ""
-    if modalidad_cobro and modalidad_cobro != "mercadopago":
+    if tipo_presupuesto == "a_confirmar":
+        # Presupuesto a confirmar por WhatsApp — no se menciona seña ni comprobante acá
+        pago_html = f"""
+        <div style='background:#EAF4FF;border:1px solid #90CAF9;border-radius:10px;padding:16px;margin:20px 0;'>
+            <p style='margin:0;font-weight:bold;color:#2C3E50;'>📲 Confirmaremos tu presupuesto a la brevedad</p>
+            <p style='margin:8px 0 0;color:#4A5568;'>Te contactaremos por WhatsApp con el importe final y los datos para confirmar tu reserva.</p>
+        </div>"""
+    elif comprobante_subido:
+        # Ya pagó y subió comprobante — solo confirmamos recepción, no se vuelve a pedir nada
+        pago_html = f"""
+        <div style='background:#EAFBF0;border:1px solid #71D997;border-radius:10px;padding:16px;margin:20px 0;'>
+            <p style='margin:0;font-weight:bold;color:#2C3E50;'>✅ Comprobante recibido</p>
+            <p style='margin:8px 0 0;color:#4A5568;'>Recibimos tu comprobante de pago. El salón lo revisará y te confirmará la reserva a la brevedad.</p>
+        </div>"""
+    elif modalidad_cobro and modalidad_cobro != "mercadopago":
+        # No subió comprobante (modalidad efectivo u otra) — instrucciones normales
         seña_info = f"<p style='margin:8px 0;'>💰 <strong>Seña a abonar: {fmt(monto_seña)}</strong></p>" if monto_seña > 0 else ""
         alias_info = f"<p style='margin:8px 0;'>🏦 Alias / CBU: <strong>{alias_transferencia}</strong></p>" if alias_transferencia else ""
         mensaje_info = f"<p style='margin:12px 0;color:#4A5568;'>{mensaje_pago}</p>" if mensaje_pago else ""
@@ -180,8 +197,13 @@ def email_confirmacion_reserva(
             {wa_html}
 
             <p style='color:#4A5568;font-size:14px;line-height:1.6;margin-top:20px;'>
-                El salón revisará tu solicitud y comprobante de pago a la brevedad.
-                Una vez confirmado, recibirás un email de confirmación.
+                {
+                    "Te enviaremos el presupuesto final por WhatsApp junto con los datos para confirmar tu reserva."
+                    if tipo_presupuesto == "a_confirmar"
+                    else "El salón revisará tu reserva y te confirmará por email a la brevedad."
+                    if comprobante_subido
+                    else "El salón revisará tu solicitud a la brevedad. Una vez confirmado, recibirás un email de confirmación."
+                }
             </p>
 
             <div style='text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #E2E8F0;'>
@@ -461,6 +483,7 @@ class ReservaCreate(BaseModel):
     modalidad_entrega: Optional[str] = None
     direccion_envio: Optional[str] = None
     observaciones: Optional[str] = None
+    tipo_presupuesto: str = "cerrado"  # 'cerrado' | 'a_confirmar'
 
 class ReservaUpdate(BaseModel):
     estado: Optional[str] = None
@@ -957,7 +980,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
                 modalidad_cobro, monto_seña,
                 modalidad_entrega, direccion_envio,
-                observaciones, origen
+                observaciones, origen, tipo_presupuesto
             ) VALUES (
                 $1, $2, $3, $4,
                 $5, $6,
@@ -966,7 +989,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 $13, $14, $15, $16, $17,
                 $18, $19,
                 $20, $21,
-                $22, 'web'
+                $22, 'web', $23
             )
             RETURNING id, created_at
         """,
@@ -978,39 +1001,49 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             data.precio_salon, data.precio_menu, data.precio_juegos, data.precio_envio, data.precio_total,
             tenant["modalidad_cobro"], monto_seña,
             data.modalidad_entrega, data.direccion_envio,
-            data.observaciones
+            data.observaciones, data.tipo_presupuesto
         )
 
-        # Enviar email de confirmación al cliente
-        try:
-            email_confirmacion_reserva(
-                cliente_nombre=data.cliente_nombre,
-                cliente_email=data.cliente_email,
-                salon_nombre=tenant["nombre_visible"] or tenant["nombre"],
-                fecha=data.fecha,
-                hora_inicio=data.hora_inicio,
-                hora_fin=data.hora_fin,
-                cantidad_ninos=data.cantidad_ninos,
-                nombre_festejado=data.nombre_festejado or "",
-                menu_seleccionado=data.menu_seleccionado,
-                juegos_seleccionados=data.juegos_seleccionados,
-                combos_seleccionados=data.combos_seleccionados,
-                precio_total=data.precio_total,
-                monto_seña=monto_seña,
-                modalidad_cobro=tenant["modalidad_cobro"],
-                alias_transferencia=tenant["alias_transferencia"] or "",
-                mensaje_pago=tenant["mensaje_pago"] or "",
-                whatsapp_salon=tenant["whatsapp"] or ""
-            )
-        except Exception as e:
-            print(f"[QFA EMAIL RESERVA] Error: {e}")
+        # La seña siempre es por transferencia. Toda reserva 'cerrada' requiere comprobante.
+        # Solo el modo 'a_confirmar' (presupuesto a medida para X personas) no lo requiere,
+        # porque el presupuesto y la seña se gestionan después por WhatsApp.
+        requiere_comprobante = (data.tipo_presupuesto == "cerrado")
+
+        # Si requiere comprobante, el email se envía recién cuando el cliente lo suba
+        # (ver endpoint /comprobante/{reserva_id}). Si no lo requiere, se envía ahora.
+        if not requiere_comprobante:
+            try:
+                email_confirmacion_reserva(
+                    cliente_nombre=data.cliente_nombre,
+                    cliente_email=data.cliente_email,
+                    salon_nombre=tenant["nombre_visible"] or tenant["nombre"],
+                    fecha=data.fecha,
+                    hora_inicio=data.hora_inicio,
+                    hora_fin=data.hora_fin,
+                    cantidad_ninos=data.cantidad_ninos,
+                    nombre_festejado=data.nombre_festejado or "",
+                    menu_seleccionado=data.menu_seleccionado,
+                    juegos_seleccionados=data.juegos_seleccionados,
+                    combos_seleccionados=data.combos_seleccionados,
+                    precio_total=data.precio_total,
+                    monto_seña=monto_seña,
+                    modalidad_cobro=tenant["modalidad_cobro"],
+                    alias_transferencia=tenant["alias_transferencia"] or "",
+                    mensaje_pago=tenant["mensaje_pago"] or "",
+                    whatsapp_salon=tenant["whatsapp"] or "",
+                    tipo_presupuesto=data.tipo_presupuesto,
+                    comprobante_subido=False
+                )
+            except Exception as e:
+                print(f"[QFA EMAIL RESERVA] Error: {e}")
 
         return {
             "ok": True,
             "reserva_id": str(reserva["id"]),
             "mensaje": "Tu solicitud fue recibida. Te contactaremos para confirmar.",
             "monto_seña": monto_seña,
-            "modalidad_cobro": tenant["modalidad_cobro"]
+            "modalidad_cobro": tenant["modalidad_cobro"],
+            "requiere_comprobante": requiere_comprobante
         }
     finally:
         release_db(db)
@@ -1505,10 +1538,10 @@ async def admin_get_reservas(slug: str, auth=Depends(get_admin_token)):
                    cantidad_ninos, nombre_festejado,
                    cliente_nombre, cliente_email, cliente_telefono,
                    precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
-                   menu_seleccionado, juegos_seleccionados,
+                   menu_seleccionado, juegos_seleccionados, combos_seleccionados,
                    modalidad_cobro, monto_seña, seña_pagada, total_pagado,
                    modalidad_entrega, direccion_envio,
-                   estado, origen, observaciones,
+                   estado, origen, observaciones, comprobante_url, tipo_presupuesto,
                    created_at::text
             FROM qfa_reservas
             WHERE tenant_id = $1
@@ -1520,6 +1553,7 @@ async def admin_get_reservas(slug: str, auth=Depends(get_admin_token)):
             row = dict(r)
             row["menu_seleccionado"] = json.loads(row["menu_seleccionado"]) if isinstance(row["menu_seleccionado"], str) else (row["menu_seleccionado"] or [])
             row["juegos_seleccionados"] = json.loads(row["juegos_seleccionados"]) if isinstance(row["juegos_seleccionados"], str) else (row["juegos_seleccionados"] or [])
+            row["combos_seleccionados"] = json.loads(row["combos_seleccionados"]) if isinstance(row["combos_seleccionados"], str) else (row["combos_seleccionados"] or [])
             result.append(row)
 
         return result
@@ -1532,12 +1566,23 @@ async def admin_crear_reserva_manual(slug: str, data: ReservaCreate, auth=Depend
     """El admin carga una reserva manualmente (ej: llegó por WhatsApp)."""
     if auth["slug"] != slug:
         raise HTTPException(status_code=403, detail="Sin acceso")
+    from datetime import date as date_type, time as time_type
     db = await get_qfa_db()
     try:
         tenant = await db.fetchrow("SELECT modalidad_cobro, porcentaje_seña FROM qfa_tenants WHERE id = $1", auth["tenant_id"])
         monto_seña = 0.0
         if tenant["modalidad_cobro"] in ("seña_transferencia_resto_efectivo", "seña_transferencia_resto_transferencia"):
             monto_seña = round(data.precio_total * (tenant["porcentaje_seña"] or 30) / 100, 2)
+
+        # Convertir fecha y horarios a tipos Python nativos para asyncpg
+        def parse_time_str(t):
+            if t is None: return None
+            parts = t.split(':')
+            return time_type(int(parts[0]), int(parts[1]))
+
+        fecha_date = date_type.fromisoformat(data.fecha)
+        hora_inicio_time = parse_time_str(data.hora_inicio)
+        hora_fin_time = parse_time_str(data.hora_fin)
 
         reserva = await db.fetchrow("""
             INSERT INTO qfa_reservas (
@@ -1554,7 +1599,7 @@ async def admin_crear_reserva_manual(slug: str, data: ReservaCreate, auth=Depend
             RETURNING id, created_at::text
         """,
             auth["tenant_id"],
-            data.fecha, data.hora_inicio, data.hora_fin,
+            fecha_date, hora_inicio_time, hora_fin_time,
             data.cantidad_ninos, data.nombre_festejado,
             data.cliente_nombre, data.cliente_email, data.cliente_telefono,
             json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados),
@@ -1773,14 +1818,21 @@ async def subir_comprobante(slug: str, reserva_id: str, file: UploadFile = File(
     # Verificar que la reserva existe y pertenece al salón
     db = await get_qfa_db()
     try:
-        tenant = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug)
+        tenant = await db.fetchrow("""
+            SELECT id, nombre_visible, nombre, modalidad_cobro, alias_transferencia,
+                   mensaje_pago, whatsapp
+            FROM qfa_tenants WHERE slug = $1 AND activo = TRUE
+        """, slug)
         if not tenant:
             raise HTTPException(status_code=404, detail="Salón no encontrado")
 
-        reserva = await db.fetchrow(
-            "SELECT id FROM qfa_reservas WHERE id = $1 AND tenant_id = $2",
-            reserva_id, tenant["id"]
-        )
+        reserva = await db.fetchrow("""
+            SELECT id, fecha::text, hora_inicio::text, hora_fin::text,
+                   cantidad_ninos, nombre_festejado, cliente_nombre, cliente_email,
+                   menu_seleccionado, juegos_seleccionados, combos_seleccionados,
+                   precio_total, monto_seña, tipo_presupuesto
+            FROM qfa_reservas WHERE id = $1 AND tenant_id = $2
+        """, reserva_id, tenant["id"])
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
 
@@ -1812,6 +1864,36 @@ async def subir_comprobante(slug: str, reserva_id: str, file: UploadFile = File(
             "UPDATE qfa_reservas SET comprobante_url = $1, updated_at = NOW() WHERE id = $2",
             url_publica, reserva_id
         )
+
+        # Enviar el email de confirmación recién ahora, ya con el comprobante cargado
+        try:
+            menu_sel = json.loads(reserva["menu_seleccionado"]) if isinstance(reserva["menu_seleccionado"], str) else (reserva["menu_seleccionado"] or [])
+            juegos_sel = json.loads(reserva["juegos_seleccionados"]) if isinstance(reserva["juegos_seleccionados"], str) else (reserva["juegos_seleccionados"] or [])
+            combos_sel = json.loads(reserva["combos_seleccionados"]) if isinstance(reserva["combos_seleccionados"], str) else (reserva["combos_seleccionados"] or [])
+
+            email_confirmacion_reserva(
+                cliente_nombre=reserva["cliente_nombre"],
+                cliente_email=reserva["cliente_email"],
+                salon_nombre=tenant["nombre_visible"] or tenant["nombre"],
+                fecha=reserva["fecha"],
+                hora_inicio=reserva["hora_inicio"],
+                hora_fin=reserva["hora_fin"],
+                cantidad_ninos=reserva["cantidad_ninos"],
+                nombre_festejado=reserva["nombre_festejado"] or "",
+                menu_seleccionado=menu_sel,
+                juegos_seleccionados=juegos_sel,
+                combos_seleccionados=combos_sel,
+                precio_total=float(reserva["precio_total"]),
+                monto_seña=float(reserva["monto_seña"] or 0),
+                modalidad_cobro=tenant["modalidad_cobro"],
+                alias_transferencia=tenant["alias_transferencia"] or "",
+                mensaje_pago=tenant["mensaje_pago"] or "",
+                whatsapp_salon=tenant["whatsapp"] or "",
+                tipo_presupuesto=reserva["tipo_presupuesto"] or "cerrado",
+                comprobante_subido=True
+            )
+        except Exception as e:
+            print(f"[QFA EMAIL COMPROBANTE] Error: {e}")
 
         return {"ok": True, "url": url_publica}
 
