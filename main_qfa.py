@@ -145,7 +145,7 @@ def email_confirmacion_reserva(
         pago_html = f"""
         <div style='background:#EAFBF0;border:1px solid #71D997;border-radius:10px;padding:16px;margin:20px 0;'>
             <p style='margin:0;font-weight:bold;color:#2C3E50;'>✅ Comprobante recibido</p>
-            <p style='margin:8px 0 0;color:#4A5568;'>Recibimos tu comprobante de pago. El salón lo revisará y te confirmará la reserva a la brevedad.</p>
+            <p style='margin:8px 0 0;color:#4A5568;'>Recibimos el comprobante de pago de la seña. El salón lo revisará y te confirmará la reserva a la brevedad.</p>
         </div>"""
     elif modalidad_cobro and modalidad_cobro != "mercadopago":
         # No subió comprobante (modalidad efectivo u otra) — instrucciones normales
@@ -200,7 +200,7 @@ def email_confirmacion_reserva(
                 {
                     "Te enviaremos el presupuesto final por WhatsApp junto con los datos para confirmar tu reserva."
                     if tipo_presupuesto == "a_confirmar"
-                    else "El salón revisará tu reserva y te confirmará por email a la brevedad."
+                    else "Te avisaremos por WhatsApp a la brevedad."
                     if comprobante_subido
                     else "El salón revisará tu solicitud a la brevedad. Una vez confirmado, recibirás un email de confirmación."
                 }
@@ -518,6 +518,10 @@ class ConfiguracionUpdate(BaseModel):
     modo_presupuesto_base: Optional[bool] = None
     modo_presupuesto_unidades: Optional[bool] = None
     modo_presupuesto_personas: Optional[bool] = None
+    modo_combos: Optional[bool] = None
+    modo_accesorios: Optional[bool] = None
+    titulo_combos: Optional[str] = None
+    subtitulo_combos: Optional[str] = None
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -687,6 +691,7 @@ async def get_salon_publico(slug: str):
                    ofrece_retiro, ofrece_envio, costo_envio,
                    modo_horario, config_calendario, portada_opacidad,
                    modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
+                   modo_combos, modo_accesorios, titulo_combos, subtitulo_combos,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -1662,6 +1667,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    ofrece_retiro, ofrece_envio, costo_envio,
                    modo_horario, config_calendario,
                    modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
+                   modo_combos, modo_accesorios, titulo_combos, subtitulo_combos,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
