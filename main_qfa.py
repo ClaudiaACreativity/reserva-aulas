@@ -976,7 +976,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
 
         # Calcular seña si aplica
         monto_seña = 0.0
-        if tenant["modalidad_cobro"] in ("seña_transferencia_resto_efectivo", "seña_transferencia_resto_transferencia"):
+        if tenant["modalidad_cobro"] in ("seña_transferencia_resto_efectivo", "seña_transferencia_resto_transferencia", "seña_transferencia_resto_cualquiera"):
             monto_seña = round(data.precio_total * (tenant["porcentaje_seña"] or 30) / 100, 2)
 
         # Crear la reserva
@@ -1580,7 +1580,7 @@ async def admin_crear_reserva_manual(slug: str, data: ReservaCreate, auth=Depend
     try:
         tenant = await db.fetchrow("SELECT modalidad_cobro, porcentaje_seña FROM qfa_tenants WHERE id = $1", auth["tenant_id"])
         monto_seña = 0.0
-        if tenant["modalidad_cobro"] in ("seña_transferencia_resto_efectivo", "seña_transferencia_resto_transferencia"):
+        if tenant["modalidad_cobro"] in ("seña_transferencia_resto_efectivo", "seña_transferencia_resto_transferencia", "seña_transferencia_resto_cualquiera"):
             monto_seña = round(data.precio_total * (tenant["porcentaje_seña"] or 30) / 100, 2)
 
         # Convertir fecha y horarios a tipos Python nativos para asyncpg
