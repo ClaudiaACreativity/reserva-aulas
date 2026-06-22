@@ -522,6 +522,9 @@ class ConfiguracionUpdate(BaseModel):
     modo_accesorios: Optional[bool] = None
     titulo_combos: Optional[str] = None
     subtitulo_combos: Optional[str] = None
+    titulo_presupuestador: Optional[str] = None
+    subtitulo_presupuestador: Optional[str] = None
+    texto_divisor: Optional[str] = None
 
 class RegistroPublico(BaseModel):
     nombre_salon: str
@@ -692,6 +695,7 @@ async def get_salon_publico(slug: str):
                    modo_horario, config_calendario, portada_opacidad,
                    modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
                    modo_combos, modo_accesorios, titulo_combos, subtitulo_combos,
+                   titulo_presupuestador, subtitulo_presupuestador, texto_divisor,
                    suscripcion_activa, trial_hasta
             FROM qfa_tenants
             WHERE slug = $1 AND activo = TRUE
@@ -1668,6 +1672,7 @@ async def admin_get_configuracion(slug: str, auth=Depends(get_admin_token)):
                    modo_horario, config_calendario,
                    modo_presupuesto_base, modo_presupuesto_unidades, modo_presupuesto_personas,
                    modo_combos, modo_accesorios, titulo_combos, subtitulo_combos,
+                   titulo_presupuestador, subtitulo_presupuestador, texto_divisor,
                    suscripcion_activa, trial_hasta::text
             FROM qfa_tenants WHERE id = $1
         """, auth["tenant_id"])
@@ -1783,7 +1788,7 @@ async def admin_actualizar_configuracion(slug: str, data: ConfiguracionUpdate, a
         raise HTTPException(status_code=403, detail="Sin acceso")
     db = await get_qfa_db()
     try:
-        campos = {k: v for k, v in data.dict().items() if v is not None}
+        campos = {k: v for k, v in data.dict().items() if v is not None or k in ("precio_base_salon", "ninos_base", "capacidad_maxima", "costo_envio")}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
         # Serializar campos JSONB a string para asyncpg
