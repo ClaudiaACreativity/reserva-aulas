@@ -475,6 +475,7 @@ class ReservaCreate(BaseModel):
     menu_seleccionado: list = []
     juegos_seleccionados: list = []
     combos_seleccionados: list = []
+    paquete_seleccionado: Optional[dict] = None
     precio_salon: float
     precio_menu: float
     precio_juegos: float
@@ -985,7 +986,7 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 tenant_id, fecha, hora_inicio, hora_fin,
                 cantidad_ninos, nombre_festejado,
                 cliente_nombre, cliente_email, cliente_telefono,
-                menu_seleccionado, juegos_seleccionados, combos_seleccionados,
+                menu_seleccionado, juegos_seleccionados, combos_seleccionados, paquete_seleccionado,
                 precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
                 modalidad_cobro, monto_seña,
                 modalidad_entrega, direccion_envio,
@@ -994,11 +995,11 @@ async def crear_reserva(slug: str, data: ReservaCreate):
                 $1, $2, $3, $4,
                 $5, $6,
                 $7, $8, $9,
-                $10, $11, $12,
-                $13, $14, $15, $16, $17,
-                $18, $19,
-                $20, $21,
-                $22, 'web', $23
+                $10, $11, $12, $13,
+                $14, $15, $16, $17, $18,
+                $19, $20,
+                $21, $22,
+                $23, 'web', $24
             )
             RETURNING id, created_at
         """,
@@ -1006,7 +1007,9 @@ async def crear_reserva(slug: str, data: ReservaCreate):
             fecha_date, hora_inicio_time, hora_fin_time,
             data.cantidad_ninos, data.nombre_festejado,
             data.cliente_nombre, data.cliente_email, data.cliente_telefono,
-            json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados), json.dumps(data.combos_seleccionados),
+            json.dumps(data.menu_seleccionado), json.dumps(data.juegos_seleccionados),
+            json.dumps(data.combos_seleccionados),
+            json.dumps(data.paquete_seleccionado) if data.paquete_seleccionado else None,
             data.precio_salon, data.precio_menu, data.precio_juegos, data.precio_envio, data.precio_total,
             tenant["modalidad_cobro"], monto_seña,
             data.modalidad_entrega, data.direccion_envio,
@@ -1547,7 +1550,7 @@ async def admin_get_reservas(slug: str, auth=Depends(get_admin_token)):
                    cantidad_ninos, nombre_festejado,
                    cliente_nombre, cliente_email, cliente_telefono,
                    precio_salon, precio_menu, precio_juegos, precio_envio, precio_total,
-                   menu_seleccionado, juegos_seleccionados, combos_seleccionados,
+                   menu_seleccionado, juegos_seleccionados, combos_seleccionados, paquete_seleccionado,
                    modalidad_cobro, monto_seña, seña_pagada, total_pagado,
                    modalidad_entrega, direccion_envio,
                    estado, origen, observaciones, comprobante_url, tipo_presupuesto,
@@ -1563,6 +1566,7 @@ async def admin_get_reservas(slug: str, auth=Depends(get_admin_token)):
             row["menu_seleccionado"] = json.loads(row["menu_seleccionado"]) if isinstance(row["menu_seleccionado"], str) else (row["menu_seleccionado"] or [])
             row["juegos_seleccionados"] = json.loads(row["juegos_seleccionados"]) if isinstance(row["juegos_seleccionados"], str) else (row["juegos_seleccionados"] or [])
             row["combos_seleccionados"] = json.loads(row["combos_seleccionados"]) if isinstance(row["combos_seleccionados"], str) else (row["combos_seleccionados"] or [])
+            row["paquete_seleccionado"] = json.loads(row["paquete_seleccionado"]) if isinstance(row.get("paquete_seleccionado"), str) else (row.get("paquete_seleccionado") or None)
             result.append(row)
 
         return result
@@ -1840,7 +1844,7 @@ async def subir_comprobante(slug: str, reserva_id: str, file: UploadFile = File(
         reserva = await db.fetchrow("""
             SELECT id, fecha::text, hora_inicio::text, hora_fin::text,
                    cantidad_ninos, nombre_festejado, cliente_nombre, cliente_email,
-                   menu_seleccionado, juegos_seleccionados, combos_seleccionados,
+                   menu_seleccionado, juegos_seleccionados, combos_seleccionados, paquete_seleccionado,
                    precio_total, monto_seña, tipo_presupuesto
             FROM qfa_reservas WHERE id = $1 AND tenant_id = $2
         """, reserva_id, tenant["id"])
@@ -2023,8 +2027,114 @@ async def admin_eliminar_combo(slug: str, combo_id: str, auth=Depends(get_admin_
 
 
 # ============================================================
-# SUBIDA DE IMÁGENES — Supabase Storage (bucket: qfa-imagenes)
+# PAQUETES BASE
 # ============================================================
+
+class PaqueteBaseCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    cantidad_base: int = 20
+    precio_base: float = 0
+    precio_por_extra: float = 0
+    imagen_url: Optional[str] = None
+    activo: bool = True
+    orden: int = 0
+
+class PaqueteBaseUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    cantidad_base: Optional[int] = None
+    precio_base: Optional[float] = None
+    precio_por_extra: Optional[float] = None
+    imagen_url: Optional[str] = None
+    activo: Optional[bool] = None
+    orden: Optional[int] = None
+
+
+@qfa_app.get("/{slug}/paquetes-base")
+async def get_paquetes_base_publico(slug: str):
+    db = await get_qfa_db()
+    try:
+        tenant = await db.fetchrow("SELECT id FROM qfa_tenants WHERE slug = $1 AND activo = TRUE", slug)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Salón no encontrado")
+        paquetes = await db.fetch("""
+            SELECT id, nombre, descripcion, cantidad_base, precio_base, precio_por_extra, imagen_url, orden
+            FROM qfa_paquetes_base
+            WHERE tenant_id = $1 AND activo = TRUE
+            ORDER BY orden ASC, nombre ASC
+        """, tenant["id"])
+        return [dict(p) for p in paquetes]
+    finally:
+        release_db(db)
+
+
+@qfa_app.get("/admin/{slug}/paquetes-base")
+async def admin_get_paquetes_base(slug: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        paquetes = await db.fetch("""
+            SELECT * FROM qfa_paquetes_base WHERE tenant_id = $1 ORDER BY orden ASC, nombre ASC
+        """, auth["tenant_id"])
+        return [dict(p) for p in paquetes]
+    finally:
+        release_db(db)
+
+
+@qfa_app.post("/admin/{slug}/paquetes-base")
+async def admin_crear_paquete_base(slug: str, data: PaqueteBaseCreate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        p = await db.fetchrow("""
+            INSERT INTO qfa_paquetes_base
+                (tenant_id, nombre, descripcion, cantidad_base, precio_base, precio_por_extra, imagen_url, activo, orden)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        """, auth["tenant_id"], data.nombre, data.descripcion,
+            data.cantidad_base, data.precio_base, data.precio_por_extra,
+            data.imagen_url, data.activo, data.orden)
+        return dict(p)
+    finally:
+        release_db(db)
+
+
+@qfa_app.put("/admin/{slug}/paquetes-base/{pid}")
+async def admin_actualizar_paquete_base(slug: str, pid: str, data: PaqueteBaseUpdate, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        campos = {k: v for k, v in data.dict().items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="Sin campos")
+        sets = ", ".join([f"{k} = ${i+3}" for i, k in enumerate(campos.keys())])
+        p = await db.fetchrow(f"""
+            UPDATE qfa_paquetes_base SET {sets}, updated_at = NOW()
+            WHERE id = $1 AND tenant_id = $2 RETURNING *
+        """, pid, auth["tenant_id"], *list(campos.values()))
+        if not p:
+            raise HTTPException(status_code=404, detail="No encontrado")
+        return dict(p)
+    finally:
+        release_db(db)
+
+
+@qfa_app.delete("/admin/{slug}/paquetes-base/{pid}")
+async def admin_eliminar_paquete_base(slug: str, pid: str, auth=Depends(get_admin_token)):
+    if auth["slug"] != slug:
+        raise HTTPException(status_code=403, detail="Sin acceso")
+    db = await get_qfa_db()
+    try:
+        await db.execute("DELETE FROM qfa_paquetes_base WHERE id = $1 AND tenant_id = $2", pid, auth["tenant_id"])
+        return {"ok": True}
+    finally:
+        release_db(db)
+
+
+
 
 @qfa_app.post("/admin/{slug}/imagen")
 async def subir_imagen(slug: str, file: UploadFile = File(...), auth=Depends(get_admin_token)):
