@@ -2136,6 +2136,81 @@ async def admin_eliminar_paquete_base(slug: str, pid: str, auth=Depends(get_admi
 
 
 
+
+
+@qfa_app.post("/renovar-suscripcion")
+async def renovar_suscripcion(
+    email: str = Form(...),
+    file: UploadFile = File(...)
+):
+    """El tenant sube su comprobante de pago de suscripción. Te llega un mail a vos para confirmar."""
+    import uuid as uuid_lib
+    db = await get_qfa_db()
+    try:
+        # Verificar que el email corresponde a un tenant registrado
+        tenant = await db.fetchrow(
+            "SELECT id, nombre_visible, nombre, email_admin FROM qfa_tenants WHERE email_admin = $1 AND activo = TRUE",
+            email
+        )
+        if not tenant:
+            raise HTTPException(status_code=404, detail="No encontramos ninguna cuenta con ese email.")
+
+        # Subir comprobante a Supabase Storage
+        contenido = await file.read()
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        nombre_archivo = f"comprobantes-suscripcion/{uuid_lib.uuid4()}.{ext}"
+        content_type = file.content_type or "image/jpeg"
+
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{QFA_SUPABASE_URL}/storage/v1/object/qfa-imagenes/{nombre_archivo}",
+                content=contenido,
+                headers={
+                    "Authorization": f"Bearer {QFA_SUPABASE_SERVICE_KEY}",
+                    "Content-Type": content_type,
+                }
+            )
+
+        if response.status_code not in (200, 201):
+            raise HTTPException(status_code=500, detail="Error al subir el comprobante.")
+
+        url_publica = f"{QFA_SUPABASE_URL}/storage/v1/object/public/qfa-imagenes/{nombre_archivo}"
+        salon_nombre = tenant["nombre_visible"] or tenant["nombre"]
+
+        # Enviar mail a GestionaTeIA con el comprobante
+        enviar_email_qfa(
+            destinatario="hola@gestionateia.com",
+            asunto=f"[QueFiestaApp] Comprobante de renovación — {salon_nombre}",
+            cuerpo_html=f"""
+            <div style='font-family:sans-serif;max-width:600px;margin:0 auto;'>
+                <h2 style='color:#E05A00;'>Nuevo comprobante de renovación 🧾</h2>
+                <p><strong>Salón:</strong> {salon_nombre}</p>
+                <p><strong>Email:</strong> {email}</p>
+                <p><strong>Comprobante:</strong> <a href='{url_publica}' target='_blank'>Ver comprobante</a></p>
+                <p style='margin-top:24px;'>Ingresá al <a href='https://quefiestaapp.gestionateia.com/superadmin.html'>superadmin</a> para activar la suscripción.</p>
+            </div>
+            """
+        )
+
+        # Enviar mail de confirmación al tenant
+        enviar_email_qfa(
+            destinatario=email,
+            asunto="Recibimos tu comprobante de renovación — QueFiestaApp",
+            cuerpo_html=f"""
+            <div style='font-family:sans-serif;max-width:600px;margin:0 auto;'>
+                <h2 style='color:#E05A00;'>¡Comprobante recibido! 🎉</h2>
+                <p>Hola, recibimos el comprobante de pago de tu suscripción a QueFiestaApp.</p>
+                <p>Lo revisaremos y activaremos tu cuenta a la brevedad.</p>
+                <p style='color:#666;font-size:13px;'>Si tenés alguna consulta, respondé este email o escribinos por WhatsApp.</p>
+            </div>
+            """
+        )
+
+        return {"ok": True, "mensaje": "Comprobante recibido. Te avisaremos cuando activemos tu cuenta."}
+    finally:
+        release_db(db)
+
+
 @qfa_app.post("/admin/{slug}/imagen")
 async def subir_imagen(slug: str, file: UploadFile = File(...), auth=Depends(get_admin_token)):
     """Sube una imagen a Supabase Storage y devuelve la URL pública."""
@@ -2354,6 +2429,26 @@ async def superadmin_get_configuracion(auth=Depends(get_superadmin_token)):
             "precio_mensual_usd": float(config.get("precio_mensual_usd", 25)),
             "valor_dolar_oficial": float(config.get("valor_dolar_oficial", 1415)),
             "dias_trial": int(config.get("dias_trial", 30)),
+            "alias_suscripcion": config.get("alias_suscripcion", ""),
+        }
+    finally:
+        release_db(db)
+
+
+@qfa_app.get("/config-publica")
+async def get_config_publica():
+    """Config pública para mostrar en la landing (precio, tipo de cambio, alias)."""
+    db = await get_qfa_db()
+    try:
+        rows = await db.fetch("SELECT clave, valor FROM qfa_configuracion_global")
+        config = {r["clave"]: r["valor"] for r in rows}
+        precio_usd = float(config.get("precio_mensual_usd", 25))
+        tc = float(config.get("valor_dolar_oficial", 1415))
+        return {
+            "precio_usd": precio_usd,
+            "tipo_cambio": tc,
+            "precio_ars": round(precio_usd * tc),
+            "alias_suscripcion": config.get("alias_suscripcion", ""),
         }
     finally:
         release_db(db)
@@ -2367,6 +2462,7 @@ async def superadmin_guardar_configuracion(data: dict, auth=Depends(get_superadm
             "precio_mensual_usd": data.get("precio_mensual_usd"),
             "valor_dolar_oficial": data.get("valor_dolar_oficial"),
             "dias_trial": data.get("dias_trial"),
+            "alias_suscripcion": data.get("alias_suscripcion"),
         }
         for clave, valor in campos.items():
             if valor is not None:
