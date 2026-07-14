@@ -2232,12 +2232,23 @@ async def superadmin_crear_tenant(data: TenantCreate, auth=Depends(get_superadmi
 
 @qfa_app.patch("/superadmin/tenants/{tenant_id}")
 async def superadmin_actualizar_tenant(tenant_id: str, data: dict, auth=Depends(get_superadmin_token)):
+    from datetime import date as date_type
     db = await get_qfa_db()
     try:
         campos_permitidos = {"suscripcion_activa", "suscripcion_vence", "trial_hasta", "activo"}
         campos = {k: v for k, v in data.items() if k in campos_permitidos}
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos válidos para actualizar")
+
+        # Convertir fechas de str a date para asyncpg
+        campos_date = {"suscripcion_vence", "trial_hasta"}
+        for k in campos_date:
+            if k in campos and isinstance(campos[k], str):
+                try:
+                    campos[k] = date_type.fromisoformat(campos[k])
+                except (ValueError, TypeError):
+                    campos[k] = None
+
         sets = ", ".join([f"{k} = ${i+2}" for i, k in enumerate(campos.keys())])
         await db.execute(f"""
             UPDATE qfa_tenants SET {sets}, updated_at = NOW() WHERE id = $1
